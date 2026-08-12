@@ -719,6 +719,18 @@ Return JSON:
   }
 });
 
+// Global Express error handling middleware to catch unhandled errors gracefully
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled server error:', err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      error: 'An internal server error occurred. Please try again.',
+      details: err?.message || String(err),
+    });
+  }
+});
+
 // Start Express server & Vite middleware
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {

@@ -157,7 +157,8 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   };
 
   const signalInfo = getSignalBadge();
-  const currentImage = result.uploadedImages[selectedImageIdx] || result.uploadedImages[0];
+  const uploadedImages = result.uploadedImages || [];
+  const currentImage = uploadedImages[selectedImageIdx] || uploadedImages[0] || '';
 
   return (
     <div className="space-y-6 animate-fadeIn">

@@ -8,8 +8,10 @@ import { EconomicCalendarWidget } from './components/EconomicCalendarWidget';
 import { TradeJournal } from './components/TradeJournal';
 import { MentorChatDrawer } from './components/MentorChatDrawer';
 import { GitHubExportModal } from './components/GitHubExportModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnalysisResult, StrategySettings } from './types';
 import { getSampleBTCChartDataUrl } from './utils/sampleChart';
+import { getTranslation } from './utils/translations';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function App() {
@@ -45,6 +47,8 @@ export default function App() {
       ],
     };
   });
+
+  const t = getTranslation(settings.language);
 
   // Sync settings to localStorage
   useEffect(() => {
@@ -175,78 +179,86 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {activeTab === 'analyzer' && (
-          <>
-            {/* Strategy Customization Panel */}
-            <StrategyPreferences
-              settings={settings}
-              onUpdateSettings={handleUpdateSettings}
-            />
+        <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
+          {activeTab === 'analyzer' && (
+            <>
+              {/* Strategy Customization Panel */}
+              <StrategyPreferences
+                settings={settings}
+                onUpdateSettings={handleUpdateSettings}
+              />
 
-            {/* Chart Uploader Drag & Drop Area */}
-            <ChartUploader
-              images={images}
-              onImagesChange={setImages}
-              onAnalyze={handleAnalyzeChart}
-              isLoading={isLoading}
-              onLoadSampleChart={handleLoadSampleChart}
+              {/* Chart Uploader Drag & Drop Area */}
+              <ChartUploader
+                images={images}
+                onImagesChange={setImages}
+                onAnalyze={handleAnalyzeChart}
+                isLoading={isLoading}
+                onLoadSampleChart={handleLoadSampleChart}
+                language={settings.language}
+              />
+
+              {/* Error Banner */}
+              {error && (
+                <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                  <div className="flex items-center space-x-3">
+                    <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <span className="font-medium">{error}</span>
+                  </div>
+                  {images.length > 0 && (
+                    <button
+                      onClick={handleAnalyzeChart}
+                      disabled={isLoading}
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 flex-shrink-0"
+                    >
+                      <span>Zkusit znovu analýzu</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Analysis Results View */}
+              {analysisResult && (
+                <div id="analysis-result-section" className="pt-2">
+                  <AnalysisResultView
+                    result={analysisResult}
+                    onSaveToJournal={handleSaveToJournal}
+                    isSaved={isCurrentSaved}
+                    onOpenChat={() => setIsChatOpen(true)}
+                    language={settings.language}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary fallbackTitle="Chyba v modulu auditu / MetaTrader Audit Module Error">
+          {activeTab === 'audit' && (
+            <MetaTraderAuditView settings={settings} />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary fallbackTitle="Chyba v modulu kalendáře / Macro Calendar Module Error">
+          {activeTab === 'calendar' && (
+            <EconomicCalendarWidget symbol={analysisResult?.symbol} language={settings.language} />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary fallbackTitle="Chyba v modulu deníku / Trade Journal Module Error">
+          {activeTab === 'journal' && (
+            <TradeJournal
+              journal={journal}
+              onUpdateOutcome={handleUpdateOutcome}
+              onRemoveEntry={handleRemoveJournalEntry}
+              onSelectEntry={(entry) => {
+                setAnalysisResult(entry);
+                setActiveTab('analyzer');
+              }}
               language={settings.language}
             />
-
-            {/* Error Banner */}
-            {error && (
-              <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
-                <div className="flex items-center space-x-3">
-                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                  <span className="font-medium">{error}</span>
-                </div>
-                {images.length > 0 && (
-                  <button
-                    onClick={handleAnalyzeChart}
-                    disabled={isLoading}
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 flex-shrink-0"
-                  >
-                    <span>Zkusit znovu analýzu</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Analysis Results View */}
-            {analysisResult && (
-              <div id="analysis-result-section" className="pt-2">
-                <AnalysisResultView
-                  result={analysisResult}
-                  onSaveToJournal={handleSaveToJournal}
-                  isSaved={isCurrentSaved}
-                  onOpenChat={() => setIsChatOpen(true)}
-                  language={settings.language}
-                />
-              </div>
-            )}
-          </>
-        )}
-
-        {activeTab === 'audit' && (
-          <MetaTraderAuditView settings={settings} />
-        )}
-
-        {activeTab === 'calendar' && (
-          <EconomicCalendarWidget symbol={analysisResult?.symbol} language={settings.language} />
-        )}
-
-        {activeTab === 'journal' && (
-          <TradeJournal
-            journal={journal}
-            onUpdateOutcome={handleUpdateOutcome}
-            onRemoveEntry={handleRemoveJournalEntry}
-            onSelectEntry={(entry) => {
-              setAnalysisResult(entry);
-              setActiveTab('analyzer');
-            }}
-            language={settings.language}
-          />
-        )}
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
@@ -254,7 +266,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>TradeVision AI • Pogranický Analytik & Obchodní Mentor</span>
+            <span>TradeVision AI • {t.appSubtitle}</span>
           </div>
           <p>© {new Date().getFullYear()} TradeVision AI. Všechna práva vyhrazena.</p>
         </div>

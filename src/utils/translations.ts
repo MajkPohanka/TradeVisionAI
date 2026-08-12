@@ -3,7 +3,7 @@ import { LanguageOption } from '../types';
 export const translations = {
   cs: {
     // Header
-    appSubtitle: 'Pogranický Analytik & Obchodní Mentor',
+    appSubtitle: 'Analytik & Mentor AI',
     tabAnalyzer: 'Analýza Grafu',
     tabAudit: 'Audit MetaTraderu',
     tabCalendar: 'Makro Kalendář',
@@ -648,5 +648,18 @@ export const translations = {
 };
 
 export function getTranslation(lang: LanguageOption = 'cs') {
-  return translations[lang] || translations.cs;
+  const selected = translations[lang] || translations.cs;
+  const fallback = translations.cs;
+
+  return new Proxy(selected, {
+    get(target: typeof selected, prop: string) {
+      if (prop in target && (target as any)[prop] !== undefined) {
+        return (target as any)[prop];
+      }
+      if (prop in fallback && (fallback as any)[prop] !== undefined) {
+        return (fallback as any)[prop];
+      }
+      return prop; // Return the key name itself rather than undefined
+    },
+  });
 }

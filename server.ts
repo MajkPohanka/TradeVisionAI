@@ -120,11 +120,13 @@ async function callGeminiWithRetry(
   maxRetries = 1
 ) {
   const primaryModel = requestParams.model || 'gemini-3.6-flash';
-  // Try primary model first, fallback to flash-lite if primary model has rate limit or quota issues
+  // Fallback chain across distinct model pools
   const modelsToTry = Array.from(new Set([
     primaryModel,
     'gemini-3.6-flash',
+    'gemini-flash-latest',
     'gemini-3.1-flash-lite',
+    'gemini-3.1-pro-preview',
   ]));
 
   let lastError: any = null;
@@ -133,7 +135,7 @@ async function callGeminiWithRetry(
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Časový limit vypršel (22s).')), 22000)
+          setTimeout(() => reject(new Error('Časový limit vypršel (20s).')), 20000)
         );
 
         const response: any = await Promise.race([
@@ -171,19 +173,18 @@ async function callGeminiWithRetry(
           err?.status === 429 ||
           err?.code === 429;
 
-        console.log(`[Gemini API] Model ${modelName} attempt ${attempt + 1} response: ${isRateLimit ? '429 Quota Exceeded' : isNotFound ? '404 Not Found' : errMsg}`);
+        console.log(`[Gemini API] Model ${modelName} attempt ${attempt + 1} response: ${isRateLimit ? '429 Quota Exceeded' : isNotFound ? '404 Not Found' : isTransient ? '503 High Demand (Fallback triggered)' : errMsg}`);
 
-        if (isNotFound || isRateLimit) {
-          // Fallback to next model with different quota pool immediately
+        // If high demand (503), rate limit (429), or model not found (404),
+        // immediately fall back to the next model in modelsToTry!
+        if (isNotFound || isRateLimit || isTransient) {
           break;
         }
 
-        if (isTransient) {
-          if (attempt < maxRetries) {
-            const delay = 600 + Math.floor(Math.random() * 300);
-            await new Promise((resolve) => setTimeout(resolve, delay));
-            continue;
-          }
+        if (attempt < maxRetries) {
+          const delay = 500 + Math.floor(Math.random() * 300);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
         }
 
         break;

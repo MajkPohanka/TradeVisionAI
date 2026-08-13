@@ -276,7 +276,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
 {
   "symbol": "Detected asset symbol e.g. EUR/USD, BTC/USDT, XAU/USD, US100, NVDA",
-  "timeframe": "Detected chart timeframe e.g. 5m, 15m, 1H, 4H, 1D",
+  "timeframe": "Detected chart timeframe. If multiple chart images were uploaded, list all detected timeframes in top-down order (e.g. '4H + 15M + 5M' or 'H1 + M15 + M5')",
   "signal": "LONG" | "SHORT" | "NEUTRAL_WAIT",
   "confidenceScore": number between 35 and 96 calculated strictly from confluence count (HTF alignment, liquidity sweep, displacement, POI mitigation, R:R strength),
   "biasReasoning": "Concise, sharp, institutional summary of current market structure, order flow bias, and macro context in requested language",

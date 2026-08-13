@@ -29,11 +29,11 @@ export const GitHubExportModal: React.FC<GitHubExportModalProps> = ({
     '# 1. Initialize Git repository in project directory',
     'git init',
     'git add .',
-    'git commit -m "Initial commit - TradeVision AI App"',
+    'git commit -m "Initial commit - AIAUTOTRADER.com App"',
     '',
     '# 2. Link your GitHub repository and push main branch',
     'git branch -M main',
-    'git remote add origin https://github.com/YOUR-USERNAME/tradevision-ai.git',
+    'git remote add origin https://github.com/YOUR-USERNAME/aiautotrader-com.git',
     'git push -u origin main',
   ].join('\n');
 

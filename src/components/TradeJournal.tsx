@@ -38,7 +38,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(journal, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `tradevision_journal_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute('download', `aiautotrader_journal_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

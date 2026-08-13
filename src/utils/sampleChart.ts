@@ -125,7 +125,7 @@ export async function getSampleBTCChartDataUrl(): Promise<string> {
     <rect x="542" y="540" width="16" height="100" fill="#089981" fill-opacity="1"/>
 
     <!-- Watermark Logo -->
-    <text x="600" y="350" fill="#2a2e39" font-family="sans-serif" font-size="48" font-weight="extrabold" text-anchor="middle" opacity="0.6">TradeVision AI Sample Chart</text>
+    <text x="600" y="350" fill="#2a2e39" font-family="sans-serif" font-size="48" font-weight="extrabold" text-anchor="middle" opacity="0.6">AIAUTOTRADER.com Sample Chart</text>
   </svg>`;
 
   const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;

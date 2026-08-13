@@ -18,7 +18,7 @@ export default function App() {
   const [images, setImages] = useState<string[]>([]);
   const [settings, setSettings] = useState<StrategySettings>(() => {
     try {
-      const saved = localStorage.getItem('tradevision_settings');
+      const saved = localStorage.getItem('aiautotrader_settings') || localStorage.getItem('autoaitrader_settings') || localStorage.getItem('tradedring_settings') || localStorage.getItem('tradevision_settings');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -53,7 +53,7 @@ export default function App() {
   // Sync settings to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('tradevision_settings', JSON.stringify(settings));
+      localStorage.setItem('aiautotrader_settings', JSON.stringify(settings));
     } catch (e) {
       console.error('Failed to save settings', e);
     }
@@ -66,7 +66,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'analyzer' | 'audit' | 'calendar' | 'journal'>('analyzer');
   const [journal, setJournal] = useState<AnalysisResult[]>(() => {
     try {
-      const saved = localStorage.getItem('tradevision_journal');
+      const saved = localStorage.getItem('aiautotrader_journal') || localStorage.getItem('autoaitrader_journal') || localStorage.getItem('tradedring_journal') || localStorage.getItem('tradevision_journal');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -79,7 +79,7 @@ export default function App() {
   // Sync journal to local storage
   useEffect(() => {
     try {
-      localStorage.setItem('tradevision_journal', JSON.stringify(journal));
+      localStorage.setItem('aiautotrader_journal', JSON.stringify(journal));
     } catch (e) {
       console.error('Failed to save journal to localStorage', e);
     }
@@ -275,9 +275,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>TradeVision AI • {t.appSubtitle}</span>
+            <span>AIAUTOTRADER.com • {t.appSubtitle}</span>
           </div>
-          <p>© {new Date().getFullYear()} TradeVision AI. Všechna práva vyhrazena.</p>
+          <p>© {new Date().getFullYear()} AIAUTOTRADER.com. Všechna práva vyhrazena.</p>
         </div>
       </footer>
 

@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center space-x-1.5">
                 <span className="font-bold text-sm sm:text-base lg:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent whitespace-nowrap">
-                  TradeVision <span className="text-emerald-400 font-extrabold">AI</span>
+                  AIAUTO<span className="text-emerald-400 font-extrabold">TRADER.com</span>
                 </span>
                 <span className="hidden xl:inline-block px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">
                   {t.proMentorTag}

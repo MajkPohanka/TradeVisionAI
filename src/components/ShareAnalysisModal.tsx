@@ -50,7 +50,7 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
     : t.waitNoEntrySignal;
 
   // Format text for WhatsApp / Telegram / Messenger text sharing
-  const formattedText = `📊 *TradeVision AI - ${t.institutionalAnalysis}*
+  const formattedText = `📊 *AIAUTOTRADER.com - ${t.institutionalAnalysis}*
 Symbol: *${result.symbol || 'GRAF'}* (${result.timeframe || 'H1'})
 ${t.recommendedDirection}: *${signalText}*
 ${t.confidenceAI}: *${result.confidenceScore}%* | ${t.riskRewardRatioLabel}: *${result.overallRiskRewardRatio || '1:2.5'}*
@@ -101,7 +101,7 @@ ${(result.takeProfitTargets || [])
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      link.download = `TradeVision_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `AIAUTOTRADER_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
       link.click();
     } catch (err) {
       console.error('Failed to generate PNG image:', err);
@@ -136,7 +136,7 @@ ${(result.takeProfitTargets || [])
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      link.download = `TradeVision_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `AIAUTOTRADER_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
       link.click();
       setCopiedImage(true);
       setTimeout(() => setCopiedImage(false), 2500);
@@ -173,7 +173,7 @@ ${(result.takeProfitTargets || [])
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `TradeVision AI - ${result.symbol}`,
+          title: `AIAUTOTRADER.com - ${result.symbol}`,
           text: formattedText,
         });
       } catch (err) {
@@ -347,12 +347,12 @@ ${(result.takeProfitTargets || [])
                         flexShrink: 0,
                       }}
                     >
-                      TV
+                      AA
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: '#ffffff', fontWeight: '900', fontSize: '15px', letterSpacing: '0.3px' }}>
-                          TradeVision AI
+                          AIAUTOTRADER.com
                         </span>
                         <span
                           style={{
@@ -681,9 +681,9 @@ ${(result.takeProfitTargets || [])
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Sparkles style={{ width: '13px', height: '13px', color: '#10b981' }} />
-                    <span>TradeVision AI Engine v3.6</span>
+                    <span>AIAUTOTRADER.com AI Engine v3.6</span>
                   </div>
-                  <div>www.tradevision.ai</div>
+                  <div>AIAUTOTRADER.com</div>
                 </div>
               </div>
             </div>

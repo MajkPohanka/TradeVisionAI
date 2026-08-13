@@ -10,8 +10,66 @@ const app = express();
 const PORT = 3000;
 
 // Increase payload limit for high-resolution chart image uploads and MetaTrader reports
-app.use(express.json({ limit: '30mb' }));
-app.use(express.urlencoded({ extended: true, limit: '30mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Handle JSON payload size errors explicitly
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      success: false,
+      error: 'Nahrané obrázky nebo data jsou příliš velké. Zkuste nahrát menší snímky obrazovky.',
+    });
+  }
+  next(err);
+});
+
+// Helper function to safely extract and parse JSON from Gemini responses
+function safeExtractJson(text: string): any {
+  if (!text || typeof text !== 'string') return {};
+  
+  // 1. Direct parse
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  // 2. Extract substring between first { and last }
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const jsonSub = text.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonSub);
+    } catch {}
+
+    const cleaned = jsonSub
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {}
+  }
+
+  // 3. Extract between first [ and last ]
+  const firstBracket = text.indexOf('[');
+  const lastBracket = text.lastIndexOf(']');
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    const jsonSub = text.substring(firstBracket, lastBracket + 1);
+    try {
+      return JSON.parse(jsonSub);
+    } catch {}
+  }
+
+  // 4. Strip markdown codeblock fences
+  const stripped = text.replace(/```json\n?|\n?```/gi, '').trim();
+  try {
+    return JSON.parse(stripped);
+  } catch {}
+
+  throw new Error('Nepodařilo se dekódovat strukturovanou odpověď od AI.');
+}
 
 // Lazy initializer for Gemini client
 let genAiClient: GoogleGenAI | null = null;
@@ -59,15 +117,14 @@ function parseBase64Image(dataUrl: string) {
 async function callGeminiWithRetry(
   aiClient: ReturnType<typeof getGeminiClient>,
   requestParams: any,
-  maxRetries = 2
+  maxRetries = 1
 ) {
   const primaryModel = requestParams.model || 'gemini-3.6-flash';
-  // Try primary model first, fallback to active supported models with distinct quota pools
+  // Try primary model first, fallback to flash-lite if primary model has rate limit or quota issues
   const modelsToTry = Array.from(new Set([
     primaryModel,
     'gemini-3.6-flash',
     'gemini-3.1-flash-lite',
-    'gemini-3.6-pro',
   ]));
 
   let lastError: any = null;
@@ -75,10 +132,18 @@ async function callGeminiWithRetry(
   for (const modelName of modelsToTry) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await aiClient.models.generateContent({
-          ...requestParams,
-          model: modelName,
-        });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Časový limit vypršel (22s).')), 22000)
+        );
+
+        const response: any = await Promise.race([
+          aiClient.models.generateContent({
+            ...requestParams,
+            model: modelName,
+          }),
+          timeoutPromise,
+        ]);
+
         return response;
       } catch (err: any) {
         lastError = err;
@@ -92,8 +157,10 @@ async function callGeminiWithRetry(
         const isTransient =
           errMsg.includes('503') ||
           errMsg.includes('UNAVAILABLE') ||
+          errMsg.includes('high demand') ||
           errMsg.includes('Deadline expired') ||
           errMsg.includes('timeout') ||
+          errMsg.includes('Časový limit') ||
           err?.status === 503 ||
           err?.code === 503;
 
@@ -106,18 +173,19 @@ async function callGeminiWithRetry(
 
         console.log(`[Gemini API] Model ${modelName} attempt ${attempt + 1} response: ${isRateLimit ? '429 Quota Exceeded' : isNotFound ? '404 Not Found' : errMsg}`);
 
-        if (isNotFound) {
+        if (isNotFound || isRateLimit) {
+          // Fallback to next model with different quota pool immediately
           break;
         }
 
-        if (isRateLimit) {
-          break;
+        if (isTransient) {
+          if (attempt < maxRetries) {
+            const delay = 600 + Math.floor(Math.random() * 300);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
         }
 
-        if (isTransient && attempt < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
-        }
         break;
       }
     }
@@ -289,13 +357,7 @@ ${langPrompt}`;
     });
 
     const responseText = response.text || '{}';
-    let parsedData;
-    try {
-      parsedData = JSON.parse(responseText);
-    } catch {
-      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
-      parsedData = JSON.parse(cleanJson);
-    }
+    const parsedData = safeExtractJson(responseText);
 
     res.json({
       success: true,
@@ -421,13 +483,7 @@ Return strictly a JSON object conforming to this schema:
     });
 
     const responseText = response.text || '{}';
-    let parsedData;
-    try {
-      parsedData = JSON.parse(responseText);
-    } catch {
-      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
-      parsedData = JSON.parse(cleanJson);
-    }
+    const parsedData = safeExtractJson(responseText);
 
     res.json({
       success: true,
@@ -686,13 +742,7 @@ Return JSON:
       });
 
       const responseText = response.text || '{}';
-      let parsedData: any = {};
-      try {
-        parsedData = JSON.parse(responseText);
-      } catch {
-        const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
-        parsedData = JSON.parse(cleanJson);
-      }
+      const parsedData: any = safeExtractJson(responseText);
 
       finalEvents = parsedData.events || [];
       marketAdvice = parsedData.marketSummaryAdvice || '';
@@ -717,6 +767,14 @@ Return JSON:
       details: errMsg,
     });
   }
+});
+
+// Catch-all route for unhandled API requests - guarantees JSON response instead of HTML SPA fallback
+app.all('/api/*', (_req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Požadovaný API endpoint nebyl nalezen.',
+  });
 });
 
 // Global Express error handling middleware to catch unhandled errors gracefully

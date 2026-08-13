@@ -1,5 +1,23 @@
-import React, { useRef, useEffect } from 'react';
-import { Upload, Camera, Image as ImageIcon, Trash2, Plus, Sparkles, Layers, Clipboard } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import {
+  Upload,
+  Camera,
+  Image as ImageIcon,
+  Trash2,
+  Plus,
+  Sparkles,
+  Layers,
+  Clipboard,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Compass,
+  ArrowRight,
+  Zap,
+  TrendingUp,
+  Waves,
+} from 'lucide-react';
 import { convertSvgToPng } from '../utils/sampleChart';
 import { LanguageOption } from '../types';
 import { getTranslation } from '../utils/translations';
@@ -22,6 +40,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   language = 'cs',
 }) => {
   const t = getTranslation(language as LanguageOption);
+  const [showGuide, setShowGuide] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,14 +66,17 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
     return () => window.removeEventListener('paste', handlePaste);
   }, [images]);
 
-  const compressImage = (dataUrl: string, maxWidth = 1600, maxHeight = 1600, quality = 0.85): Promise<string> => {
+  const compressImage = (dataUrl: string, maxWidth = 1200, maxHeight = 1200, quality = 0.78): Promise<string> => {
     return new Promise((resolve) => {
       if (typeof window === 'undefined') {
         resolve(dataUrl);
         return;
       }
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      // Only set crossOrigin if loading external http URLs, not local data: URLs
+      if (dataUrl.startsWith('http')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => {
         try {
           let width = img.width;
@@ -182,16 +204,127 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </p>
         </div>
 
-        {/* Sample Chart Button */}
-        <button
-          type="button"
-          onClick={onLoadSampleChart}
-          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition cursor-pointer self-start sm:self-auto"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>{t.loadSampleChart}</span>
-        </button>
+        {/* Header Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowGuide(!showGuide)}
+            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+              showGuide
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30'
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Návod pro Timeframy</span>
+            {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={onLoadSampleChart}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{t.loadSampleChart}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Interactive Timeframe Guide & Strategy Matrix */}
+      {showGuide && (
+        <div className="mb-5 p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 text-slate-200 text-xs space-y-4 shadow-lg animate-fadeIn">
+          <div className="flex items-start justify-between border-b border-slate-800/80 pb-2.5">
+            <div className="flex items-center space-x-2">
+              <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
+              <div>
+                <h3 className="font-bold text-slate-100 text-xs">{t.timeframeGuideTitle}</h3>
+                <p className="text-[11px] text-slate-400">{t.timeframeGuideSubtitle}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 1. Upload Order Steps */}
+          <div>
+            <h4 className="font-bold text-cyan-300 text-[11px] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+              <Clock className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{t.timeframeOrderTitle}</span>
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              {/* Step 1 */}
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-cyan-500/40 transition">
+                <div className="flex items-center space-x-1.5 mb-1 text-emerald-400 font-bold text-[11px]">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-300">1</span>
+                  <span>{t.tfStep1Title}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-snug">{t.tfStep1Desc}</p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-cyan-500/40 transition">
+                <div className="flex items-center space-x-1.5 mb-1 text-cyan-400 font-bold text-[11px]">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center text-[10px] text-cyan-300">2</span>
+                  <span>{t.tfStep2Title}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-snug">{t.tfStep2Desc}</p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-cyan-500/40 transition">
+                <div className="flex items-center space-x-1.5 mb-1 text-teal-400 font-bold text-[11px]">
+                  <span className="w-5 h-5 rounded-full bg-teal-500/20 flex items-center justify-center text-[10px] text-teal-300">3</span>
+                  <span>{t.tfStep3Title}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-snug">{t.tfStep3Desc}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Strategy Matrix Grid */}
+          <div>
+            <h4 className="font-bold text-amber-300 text-[11px] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+              <Layers className="w-3.5 h-3.5 text-amber-400" />
+              <span>{t.tradingStyleMatrixTitle}</span>
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Scalping */}
+              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-amber-500/20 flex flex-col justify-between">
+                <div className="font-bold text-amber-300 text-[11px] flex items-center space-x-1 mb-1">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{t.scalpStyleTitle}</span>
+                </div>
+                <div className="text-[11px] font-mono text-slate-200 bg-slate-950 px-2 py-1 rounded border border-slate-800 mt-1">
+                  {t.scalpStyleTF}
+                </div>
+              </div>
+
+              {/* Intraday */}
+              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-cyan-500/20 flex flex-col justify-between">
+                <div className="font-bold text-cyan-300 text-[11px] flex items-center space-x-1 mb-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{t.intradayStyleTitle}</span>
+                </div>
+                <div className="text-[11px] font-mono text-slate-200 bg-slate-950 px-2 py-1 rounded border border-slate-800 mt-1">
+                  {t.intradayStyleTF}
+                </div>
+              </div>
+
+              {/* Swing */}
+              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-purple-500/20 flex flex-col justify-between">
+                <div className="font-bold text-purple-300 text-[11px] flex items-center space-x-1 mb-1">
+                  <Waves className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{t.swingStyleTitle}</span>
+                </div>
+                <div className="text-[11px] font-mono text-slate-200 bg-slate-950 px-2 py-1 rounded border border-slate-800 mt-1">
+                  {t.swingStyleTF}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Upload Area */}
       {images.length === 0 ? (

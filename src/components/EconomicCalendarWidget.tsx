@@ -42,7 +42,14 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error('Chyba při načítání makro kalendáře.');
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to load economic calendar.');
       }

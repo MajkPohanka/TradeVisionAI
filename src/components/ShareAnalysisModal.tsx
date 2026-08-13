@@ -36,6 +36,8 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
   const [copiedImage, setCopiedImage] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
+  const [shareError, setShareError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const isLong = result.signal === 'LONG';
@@ -92,6 +94,7 @@ ${(result.takeProfitTargets || [])
   const handleDownloadImage = async () => {
     if (!cardRef.current) return;
     setIsGeneratingImage(true);
+    setShareError(null);
     try {
       const canvas = await html2canvas(cardRef.current, getCanvasOptions());
 
@@ -102,7 +105,7 @@ ${(result.takeProfitTargets || [])
       link.click();
     } catch (err) {
       console.error('Failed to generate PNG image:', err);
-      alert('Obrázek se nepodařilo vygenerovat. Zkuste zkopírovat textovou verzi.');
+      setShareError('Obrázek se nepodařilo vygenerovat. Zkuste zkopírovat textovou verzi.');
     } finally {
       setIsGeneratingImage(false);
     }
@@ -112,6 +115,7 @@ ${(result.takeProfitTargets || [])
   const handleCopyImageToClipboard = async () => {
     if (!cardRef.current) return;
     setIsGeneratingImage(true);
+    setShareError(null);
     try {
       const canvas = await html2canvas(cardRef.current, getCanvasOptions());
 
@@ -138,7 +142,7 @@ ${(result.takeProfitTargets || [])
       setTimeout(() => setCopiedImage(false), 2500);
     } catch (err) {
       console.error('Error copying image:', err);
-      alert('Obrázek se nepodařilo zkopírovat ani stáhnout. Zkuste zkopírovat textovou verzi.');
+      setShareError('Obrázek se nepodařilo zkopírovat ani stáhnout. Zkuste zkopírovat textovou verzi.');
     } finally {
       setIsGeneratingImage(false);
     }
@@ -147,13 +151,21 @@ ${(result.takeProfitTargets || [])
   // 4. WhatsApp Direct Share Link
   const handleShareWhatsApp = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(formattedText)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.warn('Unable to open window:', err);
+    }
   };
 
   // 5. Telegram Direct Share Link
   const handleShareTelegram = () => {
     const url = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(formattedText)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.warn('Unable to open window:', err);
+    }
   };
 
   // 6. Native Web Share API
@@ -200,6 +212,13 @@ ${(result.takeProfitTargets || [])
         </div>
 
         <div className="p-4 sm:p-6 space-y-6 max-h-[80vh] overflow-y-auto no-scrollbar">
+          {shareError && (
+            <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex items-center justify-between">
+              <span>{shareError}</span>
+              <button onClick={() => setShareError(null)} className="text-red-400 hover:text-white font-bold ml-2">✕</button>
+            </div>
+          )}
+
           {/* Quick Platform Action Buttons */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <button

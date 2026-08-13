@@ -74,7 +74,13 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { success: false, error: 'Chyba při komunikaci s AI mentorem.' };
+      }
 
       if (!res.ok || !data.success || !data.answer) {
         const errorDetail = data.error || data.details || t.errorOccurred;

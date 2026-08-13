@@ -118,7 +118,16 @@ export default function App() {
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        if (text.trim().startsWith('<')) {
+          throw new Error('Časový limit AI analýzy vypršel nebo je služba dočasně vytížena. Zkuste to prosím znovu za okamžik.');
+        }
+        throw new Error(`Server vrátil neplatnou odpověď (HTTP ${res.status}). Zkuste to prosím znovu.`);
+      }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Při analýze grafu došlo k neznámé chybě.');

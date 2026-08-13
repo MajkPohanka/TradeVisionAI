@@ -54,6 +54,24 @@ export const translations = {
     analyzeBtn: 'Spustit AI Analýzu Obchodu',
     analyzingBtn: 'Analytický Engine vyhodnocuje graf...',
 
+    // Timeframe Guide & Strategy Matrix
+    timeframeGuideTitle: 'Průvodce: Jak nahrávat timeframy pro maximální přesnost AI',
+    timeframeGuideSubtitle: 'Použijte Top-Down analýzu (více timeframů současně) pro vyšší Win Rate a lepší R:R.',
+    timeframeOrderTitle: '1. Pořadí nahrávání snímků (Od nejvyššího k nejnižšímu TF)',
+    tfStep1Title: '1. Snímek: Vyšší TF (HTF)',
+    tfStep1Desc: 'Daily / 4H — určuje hlavní trend, klíčové S/R zóny a týdenní/denní likviditu.',
+    tfStep2Title: '2. Snímek: Střední TF (MTF)',
+    tfStep2Desc: '1H / 15m — lokální tržní struktura, zlom struktury (BOS) a Fair Value Gaps (FVG).',
+    tfStep3Title: '3. Snímek: Vstupní TF (LTF)',
+    tfStep3Desc: '15m / 5m / 1m — přesné časování vstupu, CHoCH signál a nastavení úzkého Stop-Lossu.',
+    tradingStyleMatrixTitle: '2. Doporučené kombinace timeframů podle obchodního stylu',
+    scalpStyleTitle: '⚡ Scalping (rychlé obchody)',
+    scalpStyleTF: '1H (Kontext) ➔ 15m (Struktura) ➔ 5m / 1m (Vstup)',
+    intradayStyleTitle: '📈 Intraday (denní obchody)',
+    intradayStyleTF: '4H (Trend) ➔ 15m (Struktura) ➔ 5m (Vstup)',
+    swingStyleTitle: '🌊 Swing (vícedenní obchody)',
+    swingStyleTF: 'Daily (Makro Trend) ➔ 4H (Struktura) ➔ 1H (Vstup)',
+
     // Analysis Result View
     analysisHeader: 'Institucionální Analýza & Obchodní Plán',
     confidenceScore: 'Konfidence AI',
@@ -269,6 +287,24 @@ export const translations = {
     analyzeBtn: 'Run AI Trade Analysis',
     analyzingBtn: 'Analytic Engine evaluating chart...',
 
+    // Timeframe Guide & Strategy Matrix
+    timeframeGuideTitle: 'Guide: How to Upload Timeframes for Maximum AI Accuracy',
+    timeframeGuideSubtitle: 'Use Top-Down analysis (multiple timeframes) for a higher Win Rate and optimal Risk:Reward.',
+    timeframeOrderTitle: '1. Recommended Upload Order (From Higher to Lower TF)',
+    tfStep1Title: '1st Chart: Higher TF (HTF)',
+    tfStep1Desc: 'Daily / 4H — determines main trend, key S/R zones, and daily/weekly liquidity.',
+    tfStep2Title: '2nd Chart: Medium TF (MTF)',
+    tfStep2Desc: '1H / 15m — local market structure, Break of Structure (BOS), and Fair Value Gaps (FVG).',
+    tfStep3Title: '3rd Chart: Entry TF (LTF)',
+    tfStep3Desc: '15m / 5m / 1m — precise entry timing, CHoCH confirmation signal, and tight Stop-Loss placement.',
+    tradingStyleMatrixTitle: '2. Recommended Timeframe Combinations by Trading Style',
+    scalpStyleTitle: '⚡ Scalping (Fast Trades)',
+    scalpStyleTF: '1H (Context) ➔ 15m (Structure) ➔ 5m / 1m (Entry)',
+    intradayStyleTitle: '📈 Intraday Trading (Day Trades)',
+    intradayStyleTF: '4H (Trend) ➔ 15m (Structure) ➔ 5m (Entry)',
+    swingStyleTitle: '🌊 Swing Trading (Multi-Day)',
+    swingStyleTF: 'Daily (Macro Trend) ➔ 4H (Structure) ➔ 1H (Entry)',
+
     // Analysis Result View
     analysisHeader: 'Institutional Analysis & Trading Plan',
     confidenceScore: 'AI Confidence',
@@ -483,6 +519,24 @@ export const translations = {
     clearAll: 'Borrar todo',
     analyzeBtn: 'Iniciar Análisis IA de la Operación',
     analyzingBtn: 'El motor analítico está evaluando el gráfico...',
+
+    // Timeframe Guide & Strategy Matrix
+    timeframeGuideTitle: 'Guía: Cómo Cargar Temporalidades para Mayor Precisión IA',
+    timeframeGuideSubtitle: 'Utiliza el análisis Top-Down (múltiples temporalidades) para una mayor tasa de acierto y mejor R:R.',
+    timeframeOrderTitle: '1. Orden de Carga Recomendado (De Mayor a Menor Temporalidad)',
+    tfStep1Title: '1.ª Captura: Temporalidad Mayor (HTF)',
+    tfStep1Desc: 'Daily / 4H — determina la tendencia principal, niveles S/R clave y liquidez diaria/semanal.',
+    tfStep2Title: '2.ª Captura: Temporalidad Media (MTF)',
+    tfStep2Desc: '1H / 15m — estructura de mercado local, rotura de estructura (BOS) y vacíos de valor (FVG).',
+    tfStep3Title: '3.ª Captura: Temporalidad de Entrada (LTF)',
+    tfStep3Desc: '15m / 5m / 1m — sincronización precisa de entrada, señal de confirmación CHoCH y Stop-Loss ajustado.',
+    tradingStyleMatrixTitle: '2. Combinaciones Recomendadas según el Estilo de Trading',
+    scalpStyleTitle: '⚡ Scalping (Operaciones Rápidas)',
+    scalpStyleTF: '1H (Contexto) ➔ 15m (Estructura) ➔ 5m / 1m (Entrada)',
+    intradayStyleTitle: '📈 Intradía (Operaciones Diarias)',
+    intradayStyleTF: '4H (Tendencia) ➔ 15m (Estructura) ➔ 5m (Entrada)',
+    swingStyleTitle: '🌊 Swing Trading (Varios Días)',
+    swingStyleTF: 'Daily (Macro Tendencia) ➔ 4H (Estructura) ➔ 1H (Entrada)',
 
     // Analysis Result View
     analysisHeader: 'Análisis Institucional y Plan de Trading',

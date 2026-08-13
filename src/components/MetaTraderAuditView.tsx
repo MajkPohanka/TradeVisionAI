@@ -70,7 +70,16 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        if (text.trim().startsWith('<')) {
+          throw new Error('Časový limit auditu vypršel nebo je služba dočasně vytížena. Zkuste to prosím znovu za okamžik.');
+        }
+        throw new Error(`Chyba při komunikaci se serverem (HTTP ${res.status}).`);
+      }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Audit error');

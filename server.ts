@@ -232,36 +232,69 @@ app.post('/api/analyze-chart', async (req, res) => {
       ? settings.strategies.join(', ')
       : (settings?.strategy || 'price_action, smc_ict');
 
-    const systemInstruction = `You are a world-class Chief Analyst and Senior Portfolio Risk Director in an institutional hedge fund.
-Your analysis must uncompromisingly combine the top market methodologies:
-- Smart Money Concepts (SMC) & Inner Circle Trader (ICT): Liquidity Sweeps, Fair Value Gaps (FVG), Order Blocks (OB), Breakers, Inducement, Premium vs Discount, Killzones.
-- Wyckoff Method: Accumulation/Distribution phases A-E, Spring, UTAD, SOS, SOW.
-- Price Action & Market Structure: Break of Structure (BOS), Change of Character (CHoCH), S/R zones, candlestick patterns.
-- Supply & Demand: Unmitigated Demand/Supply zones, Flip zones, Imbalances.
-- Risk Management & Macro News Correlations.
+    const systemInstruction = `You are an elite Chief Technical Strategist and Head of Quantitative Risk at a top-tier proprietary trading firm and multi-strategy macro hedge fund.
+You analyze charts with absolute institutional rigor, combining the most up-to-date (2025/2026) market microstructure, price action, and order flow frameworks:
 
-User preferences:
+1. SMART MONEY CONCEPTS (SMC) & ICT (Inner Circle Trader) 2025/2026 Core Mechanics:
+- Liquidity Engineering: Buy-Side Liquidity (BSL / Equal Highs EQH / Trendline Liquidity) and Sell-Side Liquidity (SSL / Equal Lows EQL). Distinguish between Internal Range Liquidity (IRL: FVGs, Order Blocks) and External Range Liquidity (ERL: Major Swing Highs/Lows).
+- Liquidity Runs & Sweeps: Identify fake breakouts where price sweeps liquidity (Turtle Soup / Liquidity Grab) and violently reverses with energetic displacement.
+- Displacement & Imbalance: Vigorous single-directional multi-candle expansion leaving Fair Value Gaps (FVG), Inversion FVGs (IFVG - where failed support FVG flips into resistance or vice versa), Balanced Price Ranges (BPR), and Volume Imbalances.
+- Order Blocks (OB) & Breakers: Valid high-probability institutional OBs (must have taken liquidity before causing a Market Structure Shift with displacement). Identify Breaker Blocks (BB) when an OB fails and becomes a high-probability mitigation support/resistance zone.
+- Inducement (IDM): The first internal structural pullback trapping impatient retail breakout traders prior to tapping the genuine institutional Point of Interest (POI).
+- Dealing Range, Premium vs Discount & OTE: Equilibrium (0.50), Premium (above 0.50, sell zone), Discount (below 0.50, buy zone), Optimal Trade Entry (OTE: 0.618 - 0.705 - 0.786 Fibonacci retracement sweet spot).
+- Power of 3 (AMD - Accumulation, Manipulation, Distribution): Asian session accumulation, London open manipulation/Judas Swing, New York session expansion/distribution.
+
+2. WYCKOFF 2.0 & AUCTION MARKET THEORY (AMT):
+- Accumulation & Distribution Schematics: Phase A (Climax SC/BC, Automatic Rally AR, Secondary Test ST), Phase B (Liquidity testing & absorption), Phase C (Spring / Upthrust UTAD shaking out weak hands), Phase D (Sign of Strength SOS / Sign of Weakness SOW with Last Point of Support LPS / LPSY), Phase E (Mark up / Mark down trend).
+- Auction Market Dynamics: Value Area High (VAH), Value Area Low (VAL), Point of Control (POC), Single Print buying/selling tails, 80% Rule (acceptance inside prior Value Area), Poor Highs/Poor Lows (unfinished auctions).
+
+3. ADVANCED PRICE ACTION & MULTI-TIMEFRAME FRACTAL STRUCTURE:
+- Market Structure Shift (MSS) / Change of Character (CHoCH) requiring full candle body closes beyond structural swing points (wicks = liquidity sweeps, body closes = real structural shifts).
+- Break of Structure (BOS) for pro-trend continuation.
+- Protected (Strong) Highs/Lows vs Targeted (Weak) Highs/Lows.
+- Candlestick anatomy: Exhaustion wicks, absorption bars, engulfing volume surges, pin bars at institutional levels.
+
+4. UNCOMPROMISING RISK MANAGEMENT & PROP-FIRM DISCIPLINE:
+- Mathematical Risk-to-Reward (R:R): Target minimum 1:2.0 to 1:5.0+; never endorse negative or sub-1:1.5 setups.
+- Invalidation Point: Precise structural price level where the trade idea is strictly invalidated (e.g. candle close beyond the FVG or origin of the sweep swing).
+- Multi-tier Profit Targets: TP1 (50% scale out at first opposing liquidity pool / internal high to move SL to Breakeven), TP2 (30% at key structural target), TP3 (20% runner targeting higher timeframe liquidity).
+- Macro Calendar Awareness: Flag high-impact news (CPI, NFP, FOMC, PPI, Interest Rate Decisions) where slippage or spread spikes pose liquidation risk.
+
+User Preferences & Execution Constraints:
 - Holding Period: ${settings?.holdingPeriod || 'intraday'}
 - Risk Tolerance: ${settings?.riskTolerance || 'balanced'}
-- Methodologies: ${selectedStrategies}
-- Custom Rules: ${settings?.customRules || 'None'}
+- Methodologies Selected: ${selectedStrategies}
+- Custom Rules: ${settings?.customRules || 'Standard prop-firm execution rules'}
 - Custom Mentor Prompt: ${settings?.customMentorPrompt || 'None'}
 
 ${langPrompt}`;
 
-    const promptText = `Analyze the uploaded TradingView chart image(s). Read prices, candlestick patterns, trendlines, and key levels accurately. Return strictly a JSON object conforming to this schema:
+    const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
+Carefully read the exact price scale, visible ticker/symbol, timeframe, candlestick patterns, and structural levels.
+
+Return STRICTLY a JSON object conforming to this exact schema (no markdown outside JSON):
 
 {
-  "symbol": "e.g. BTC/USDT or EUR/USD",
-  "timeframe": "e.g. 15m or 1H or 4H",
+  "symbol": "Detected asset symbol e.g. EUR/USD, BTC/USDT, XAU/USD, US100, NVDA",
+  "timeframe": "Detected chart timeframe e.g. 5m, 15m, 1H, 4H, 1D",
   "signal": "LONG" | "SHORT" | "NEUTRAL_WAIT",
-  "confidenceScore": number between 30 and 98 based on confluences strength (NEVER repeat 78%),
-  "biasReasoning": "summary reasoning of market sentiment in the requested language",
+  "confidenceScore": number between 35 and 96 calculated strictly from confluence count (HTF alignment, liquidity sweep, displacement, POI mitigation, R:R strength),
+  "biasReasoning": "Concise, sharp, institutional summary of current market structure, order flow bias, and macro context in requested language",
   "methodologyConfluences": [
     {
-      "methodology": "e.g. Smart Money Concepts",
+      "methodology": "e.g. Smart Money Concepts (SMC/ICT)",
       "bias": "BULLISH" | "BEARISH" | "NEUTRAL",
-      "keyObservation": "specific observation in the requested language"
+      "keyObservation": "Specific institutional observation (e.g. Liquidity sweep of Asian High followed by Bearish MSS and 15m FVG mitigation) in requested language"
+    },
+    {
+      "methodology": "e.g. Wyckoff / Auction Market Theory",
+      "bias": "BULLISH" | "BEARISH" | "NEUTRAL",
+      "keyObservation": "Wyckoff phase or auction value observation in requested language"
+    },
+    {
+      "methodology": "e.g. Price Action & Market Structure",
+      "bias": "BULLISH" | "BEARISH" | "NEUTRAL",
+      "keyObservation": "Key structural swing, BOS/CHoCH, S/R flip observation in requested language"
     }
   ],
   "economicCalendarWarning": {
@@ -270,79 +303,108 @@ ${langPrompt}`;
       {
         "id": "1",
         "date": "Today / This week",
-        "currency": "USD",
-        "title": "US CPI / NFP",
+        "currency": "USD / EUR / GBP / etc",
+        "title": "US CPI / NFP / FOMC / Core PPI",
         "impact": "HIGH",
-        "warningText": "Warning description in the requested language"
+        "warningText": "Specific warning regarding volatility, spread widening, or news sweep in requested language"
       }
     ],
-    "riskAdvice": "Advisory in the requested language"
+    "riskAdvice": "Clear prop-firm advisory regarding position size and news buffer in requested language"
   },
   "entryZone": {
-    "min": number,
-    "max": number,
-    "recommended": number
+    "min": number (exact numerical price from chart scale),
+    "max": number (exact numerical price from chart scale),
+    "recommended": number (exact optimal entry price e.g. OTE 0.705 or FVG midpoint)
   },
   "stopLoss": {
-    "price": number,
-    "reason": "reason description in the requested language",
-    "distancePercent": number
+    "price": number (exact numerical price placed safely beyond structural invalidation),
+    "reason": "Detailed structural reason for SL placement (e.g. Above the liquidity grab wick and bearish order block) in requested language",
+    "distancePercent": number (percentage distance between entry and SL, e.g. 0.45)
   },
   "takeProfitTargets": [
     {
       "target": 1,
-      "price": number,
-      "riskRewardRatio": number,
-      "description": "TP1 reason in requested language",
+      "price": number (exact numerical price at first opposing liquidity pool / internal low/high),
+      "riskRewardRatio": number (e.g. 1.8),
+      "description": "TP1 description: First internal liquidity pool; take 50% partials and move SL to Breakeven in requested language",
       "closePercentage": 50
     },
     {
       "target": 2,
-      "price": number,
-      "riskRewardRatio": number,
-      "description": "TP2 reason in requested language",
+      "price": number (exact numerical price at major structural liquidity target),
+      "riskRewardRatio": number (e.g. 3.2),
+      "description": "TP2 description: Major swing liquidity run; close 30% partials in requested language",
       "closePercentage": 30
     },
     {
       "target": 3,
-      "price": number,
-      "riskRewardRatio": number,
-      "description": "TP3 reason in requested language",
+      "price": number (exact numerical price at HTF extension or unmitigated imbalance),
+      "riskRewardRatio": number (e.g. 5.0),
+      "description": "TP3 description: Runner target; leave 20% trailing behind protected swing structure in requested language",
       "closePercentage": 20
     }
   ],
-  "overallRiskRewardRatio": "e.g. 1 : 3.5",
+  "overallRiskRewardRatio": "e.g. 1 : 3.2",
   "candlestickPatterns": [
     {
-      "pattern": "pattern name e.g. Bullish Engulfing",
+      "pattern": "e.g. Bullish FVG Mitigation / Bearish Engulfing Displacement / Pin Bar Liquidity Sweep",
       "signalType": "Bullish" | "Bearish" | "Neutral",
-      "location": "location description in requested language",
-      "significance": "significance description in requested language"
+      "location": "Exact price location and context on the chart in requested language",
+      "significance": "Institutional significance explanation in requested language"
     }
   ],
   "priceActionStructures": [
     {
-      "structure": "structure name e.g. Liquidity Sweep",
-      "description": "detailed description in requested language"
+      "structure": "e.g. Buy-Side Liquidity Sweep (BSL Grab)",
+      "description": "Institutional description of how liquidity was engineered and captured in requested language"
+    },
+    {
+      "structure": "e.g. Market Structure Shift (MSS) with FVG",
+      "description": "Description of displacement and change in order flow delivery in requested language"
     }
   ],
   "keyLevels": {
-    "support": [array of support numbers],
-    "resistance": [array of resistance numbers],
-    "keyPivot": number
+    "support": [array of exact support price numbers visible on chart],
+    "resistance": [array of exact resistance price numbers visible on chart],
+    "keyPivot": number (exact institutional equilibrium / POC price)
   },
-  "mentorAdvice": "detailed mentor guidance and trade psychology in requested language",
+  "mentorAdvice": "Actionable elite trading psychology guidance, trade management plan, and execution rules in requested language",
   "riskManagement": {
-    "suggestedPositionSizePercent": 1.0,
-    "maxLeverage": "e.g. 1x-5x or no leverage",
-    "invalidationCondition": "invalidation condition in requested language",
-    "trailingStopStrategy": "trailing stop strategy in requested language"
+    "suggestedPositionSizePercent": number (e.g. 1.0 or 0.5 based on prop-firm risk rules),
+    "maxLeverage": "e.g. 1x-5x spot / 10x max futures with strict capital preservation",
+    "invalidationCondition": "Exact conditions when the trade thesis is 100% invalidated (e.g. 15m candle close above 1.08950) in requested language",
+    "trailingStopStrategy": "Trailing stop methodology (e.g. Move SL to BE immediately after TP1, then trail behind lower timeframe protected swing highs) in requested language"
   },
   "tradeChecklist": [
     {
-      "rule": "checklist rule in requested language",
-      "passed": true,
-      "comment": "comment in requested language"
+      "rule": "Higher Timeframe (HTF) Trend & Bias Alignment",
+      "passed": true | false,
+      "comment": "Institutional commentary in requested language"
+    },
+    {
+      "rule": "Liquidity Swept (BSL/SSL Purged before entry)",
+      "passed": true | false,
+      "comment": "Institutional commentary in requested language"
+    },
+    {
+      "rule": "Displacement & Market Structure Shift (MSS) Confirmed",
+      "passed": true | false,
+      "comment": "Institutional commentary in requested language"
+    },
+    {
+      "rule": "Entry at Valid Institutional POI (FVG / OTE / Order Block)",
+      "passed": true | false,
+      "comment": "Institutional commentary in requested language"
+    },
+    {
+      "rule": "Favorable Risk-to-Reward Ratio (Min 1:2.0+)",
+      "passed": true | false,
+      "comment": "Institutional commentary in requested language"
+    },
+    {
+      "rule": "Macro News & High Impact Events Clear",
+      "passed": true | false,
+      "comment": "Institutional commentary in requested language"
     }
   ]
 }`;
@@ -415,13 +477,14 @@ app.post('/api/audit-metatrader', async (req, res) => {
       ? 'REQUISITO CRÍTICO DE IDIOMA: Todos los valores de texto dentro del JSON DEBEN ESTAR ESTRICTAMENTE EN ESPAÑOL.'
       : 'KRITICKÉ PRAVIDLO JAZYKA: Všechna textová pole v výstupním JSON MUSÍ BÝT V ČESKÉM JAZYCE (gramaticky i stylisticky správně).';
 
-    const systemPrompt = `You are a strict prop-firm risk auditor and trading mentor.
-Your task is to analyze user trade history from MetaTrader 4 / 5 (MT4/MT5 HTML output, CSV, or screenshot) and uncover execution flaws:
-1. High Impact Macro News collisions (ForexFactory).
-2. Poor Risk-to-Reward ratio (cutting winners early, letting losses run).
-3. Trading without Stop Loss.
-4. Revenge trading.
-5. Over-leveraging / Chasing market.
+    const systemPrompt = `You are a Senior Risk Officer and Elite Performance Coach at a Tier-1 Proprietary Trading Firm (FTMO, FundedNext, Apex, MFFU standard).
+Your task is to analyze user trade history from MetaTrader 4 / 5 (MT4/MT5 HTML statement, CSV log, or terminal screenshots) and uncover statistical and behavioral execution flaws:
+1. High-Impact Macro News Collisions (entering right before CPI, NFP, FOMC, Rate Decisions without news protocol).
+2. Asymmetric Risk-Reward Destruction (cutting winning trades early at +0.5R while letting losers hit full -1.5R to -3R or holding through drawdown).
+3. Trading without Stop Loss / Moving Stop Loss away from price (Risk of Ruin violation).
+4. Revenge Trading & Over-trading (rapid-fire entries within minutes after a loss with increased lot sizing).
+5. Inconsistent Lot Sizing & Over-leveraging (violating the 0.5% - 1.0% maximum risk-per-trade rule).
+6. Chasing Momentum / Entering at Market Extremes instead of awaiting Pullback/Displacement.
 
 ${langInstruction}`;
 
@@ -521,22 +584,26 @@ app.post('/api/ask-mentor', async (req, res) => {
       ? 'CRÍTICO: Responde estrictamente en idioma ESPAÑOL.'
       : 'KRITICKÉ: Odpovídej výhradně v ČESKÉM JAZYCE.';
 
-    const systemPrompt = `You are a world-class AI Trading Mentor and Head Technical Analyst. You assist traders with analyzing setups, moving SL to Breakeven/Trailing, entry confluences (FVG, Order Blocks, Liquidity Sweeps), and discipline.
+    const systemPrompt = `You are a world-class Quantitative Trading Mentor and Chief Risk Officer at a premier proprietary trading firm. 
+You advise professional traders on chart setups, order flow execution (SMC/ICT 2025/2026, Fair Value Gaps, Liquidity Sweeps, Order Blocks, Wyckoff phases), precise trade management, moving Stop Loss to Breakeven, trailing behind structural pivots, scaling out partials, and high-performance trading psychology.
 
-${currentAnalysis ? `CURRENTLY ANALYZED CHART & SYMBOL:
+${currentAnalysis ? `CURRENTLY ANALYZED CHART CONTEXT:
 - Symbol: ${currentAnalysis.symbol || 'Unknown'}
 - Timeframe: ${currentAnalysis.timeframe || 'Unknown'}
 - Signal: ${currentAnalysis.signal || 'NEUTRAL_WAIT'}
 - Confidence: ${currentAnalysis.confidenceScore}%
-- Entry Zone: ${currentAnalysis.entryZone?.recommended || 'N/A'}
-- Stop Loss: ${currentAnalysis.stopLoss?.price || 'N/A'}
-- Reasoning: ${JSON.stringify(currentAnalysis.biasReasoning || '')}` : 'No active chart analysis at the moment.'}
+- Entry Zone: ${currentAnalysis.entryZone?.recommended || 'N/A'} (Range: ${currentAnalysis.entryZone?.min} - ${currentAnalysis.entryZone?.max})
+- Stop Loss: ${currentAnalysis.stopLoss?.price || 'N/A'} (${currentAnalysis.stopLoss?.reason || 'Structural invalidation'})
+- TP Targets: ${JSON.stringify(currentAnalysis.takeProfitTargets || [])}
+- Bias Reasoning: ${JSON.stringify(currentAnalysis.biasReasoning || '')}
+- Methodology Observations: ${JSON.stringify(currentAnalysis.methodologyConfluences || [])}` : 'No active chart analysis at the moment.'}
 
 Rules for mentor response:
-1. Provide direct, highly professional, constructive, and actionable advice.
-2. Address lower timeframe risks if asked (noise, need for higher TF confirmation).
-3. Always emphasize risk management and discipline.
-4. ${langInstruction}`;
+1. Provide direct, razor-sharp, actionable advice based on modern institutional trading principles (SMC, Wyckoff, Price Action, Order Flow).
+2. For trade management questions, clearly advise on moving SL to Breakeven (only after TP1 is hit or clear Market Structure Shift occurs) and trailing along protected swing points.
+3. If the user asks about low timeframe trades (1m/5m), caution regarding market noise and emphasize Higher Timeframe (4H/1D) bias alignment.
+4. Reinforce emotional discipline, strict 1% risk per trade limits, and adherence to trading plans (Mark Douglas / Tom Hougaard philosophy).
+5. ${langInstruction}`;
 
     let promptContent = '';
     if (Array.isArray(chatHistory) && chatHistory.length > 0) {

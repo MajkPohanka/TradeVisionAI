@@ -40,7 +40,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   language = 'cs',
 }) => {
   const t = getTranslation(language as LanguageOption);
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 

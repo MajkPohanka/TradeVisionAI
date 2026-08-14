@@ -17,9 +17,11 @@ import {
   Zap,
   TrendingUp,
   Waves,
+  Globe,
+  CheckCircle2,
 } from 'lucide-react';
 import { convertSvgToPng } from '../utils/sampleChart';
-import { LanguageOption } from '../types';
+import { LanguageOption, HoldingPeriod } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface ChartUploaderProps {
@@ -29,6 +31,7 @@ interface ChartUploaderProps {
   isLoading: boolean;
   onLoadSampleChart: () => void;
   language?: LanguageOption;
+  holdingPeriod?: HoldingPeriod;
 }
 
 export const ChartUploader: React.FC<ChartUploaderProps> = ({
@@ -38,11 +41,76 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   isLoading,
   onLoadSampleChart,
   language = 'cs',
+  holdingPeriod = 'intraday',
 }) => {
   const t = getTranslation(language as LanguageOption);
   const [showGuide, setShowGuide] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Dynamic TF recommendation mapping based on selected Holding Period
+  const holdingRecommendations: Record<
+    HoldingPeriod,
+    {
+      title: string;
+      icon: any;
+      accentColor: string;
+      bgColor: string;
+      borderColor: string;
+      textColor: string;
+      badgeColor: string;
+      steps: [string, string, string];
+      summary: string;
+    }
+  > = {
+    scalp: {
+      title: t.scalpStyleTitle,
+      icon: Zap,
+      accentColor: 'text-amber-400',
+      bgColor: 'bg-amber-950/40',
+      borderColor: 'border-amber-500/40',
+      textColor: 'text-amber-300',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      steps: ['1. Snímek: 1H (HTF Kontext & S/R)', '2. Snímek: 15m (MTF Struktura & FVG)', '3. Snímek: 5m / 1m (LTF Vstup & CHoCH)'],
+      summary: t.scalpStyleTF,
+    },
+    intraday: {
+      title: t.intradayStyleTitle,
+      icon: TrendingUp,
+      accentColor: 'text-cyan-400',
+      bgColor: 'bg-cyan-950/40',
+      borderColor: 'border-cyan-500/40',
+      textColor: 'text-cyan-300',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      steps: ['1. Snímek: 4H (HTF Trend & Likvidita)', '2. Snímek: 15m (MTF Struktura & BOS)', '3. Snímek: 5m (LTF Vstup & Trigger)'],
+      summary: t.intradayStyleTF,
+    },
+    swing: {
+      title: t.swingStyleTitle,
+      icon: Waves,
+      accentColor: 'text-purple-400',
+      bgColor: 'bg-purple-950/40',
+      borderColor: 'border-purple-500/40',
+      textColor: 'text-purple-300',
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+      steps: ['1. Snímek: Daily (Makro Trend & Zóny)', '2. Snímek: 4H (MTF Struktura & S&D)', '3. Snímek: 1H (LTF Vstup & Potvrzení)'],
+      summary: t.swingStyleTF,
+    },
+    position: {
+      title: t.positionStyleTitle,
+      icon: Globe,
+      accentColor: 'text-emerald-400',
+      bgColor: 'bg-emerald-950/40',
+      borderColor: 'border-emerald-500/40',
+      textColor: 'text-emerald-300',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+      steps: ['1. Snímek: Weekly (Makro Kontext)', '2. Snímek: Daily (Trend & Fáze trhu)', '3. Snímek: 4H (Vstup & Risk Control)'],
+      summary: t.positionStyleTF,
+    },
+  };
+
+  const currentHint = holdingRecommendations[holdingPeriod] || holdingRecommendations.intraday;
+  const CurrentIcon = currentHint.icon;
 
   // Global paste handler for image from clipboard
   useEffect(() => {
@@ -177,7 +245,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
     <div
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl relative overflow-hidden"
+      className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.37)] relative overflow-hidden transition-all"
     >
       <input
         type="file"
@@ -197,15 +265,17 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       />
 
       {/* Background Glow */}
-      <div className="absolute -top-24 -right-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-emerald-400" />
+          <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2.5">
+            <div className="p-2 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <ImageIcon className="w-5 h-5" />
+            </div>
             <span>{t.uploaderTitle}</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-[#86868b] mt-1">
             {t.uploaderSubtitle}
           </p>
         </div>
@@ -215,10 +285,10 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           <button
             type="button"
             onClick={() => setShowGuide(!showGuide)}
-            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer active:scale-95 backdrop-blur-md ${
               showGuide
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30'
-                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                : 'bg-white/[0.05] text-[#a1a1a6] border-white/[0.08] hover:text-white hover:bg-white/10'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
@@ -229,7 +299,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           <button
             type="button"
             onClick={onLoadSampleChart}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition cursor-pointer"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all duration-200 cursor-pointer active:scale-95 backdrop-blur-md shadow-xs"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>{t.loadSampleChart}</span>
@@ -239,92 +309,105 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
       {/* Interactive Timeframe Guide & Strategy Matrix */}
       {showGuide && (
-        <div className="mb-5 p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 text-slate-200 text-xs space-y-4 shadow-lg animate-fadeIn">
-          <div className="flex items-start justify-between border-b border-slate-800/80 pb-2.5">
-            <div className="flex items-center space-x-2">
-              <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
+        <div className="mb-6 p-5 rounded-2xl bg-black/60 border border-cyan-500/30 text-[#f5f5f7] text-xs space-y-5 shadow-xl backdrop-blur-xl animate-fadeIn">
+          <div className="flex items-start justify-between border-b border-white/[0.08] pb-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
+              </div>
               <div>
-                <h3 className="font-bold text-slate-100 text-xs">{t.timeframeGuideTitle}</h3>
-                <p className="text-[11px] text-slate-400">{t.timeframeGuideSubtitle}</p>
+                <h3 className="font-bold text-white text-xs">{t.timeframeGuideTitle}</h3>
+                <p className="text-[11px] text-[#86868b]">{t.timeframeGuideSubtitle}</p>
               </div>
             </div>
           </div>
 
           {/* 1. Upload Order Steps */}
           <div>
-            <h4 className="font-bold text-cyan-300 text-[11px] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+            <h4 className="font-bold text-cyan-300 text-[11px] uppercase tracking-wider mb-2.5 flex items-center space-x-1.5">
               <Clock className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t.timeframeOrderTitle}</span>
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Step 1 */}
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-cyan-500/40 transition">
-                <div className="flex items-center space-x-1.5 mb-1 text-emerald-400 font-bold text-[11px]">
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/40 transition">
+                <div className="flex items-center space-x-2 mb-1.5 text-emerald-400 font-bold text-[11px]">
                   <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-300">1</span>
                   <span>{t.tfStep1Title}</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-snug">{t.tfStep1Desc}</p>
+                <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep1Desc}</p>
               </div>
 
               {/* Step 2 */}
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-cyan-500/40 transition">
-                <div className="flex items-center space-x-1.5 mb-1 text-cyan-400 font-bold text-[11px]">
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/40 transition">
+                <div className="flex items-center space-x-2 mb-1.5 text-cyan-400 font-bold text-[11px]">
                   <span className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center text-[10px] text-cyan-300">2</span>
                   <span>{t.tfStep2Title}</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-snug">{t.tfStep2Desc}</p>
+                <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep2Desc}</p>
               </div>
 
               {/* Step 3 */}
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 hover:border-cyan-500/40 transition">
-                <div className="flex items-center space-x-1.5 mb-1 text-teal-400 font-bold text-[11px]">
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/40 transition">
+                <div className="flex items-center space-x-2 mb-1.5 text-teal-400 font-bold text-[11px]">
                   <span className="w-5 h-5 rounded-full bg-teal-500/20 flex items-center justify-center text-[10px] text-teal-300">3</span>
                   <span>{t.tfStep3Title}</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-snug">{t.tfStep3Desc}</p>
+                <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep3Desc}</p>
               </div>
             </div>
           </div>
 
           {/* 2. Strategy Matrix Grid */}
           <div>
-            <h4 className="font-bold text-amber-300 text-[11px] uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+            <h4 className="font-bold text-amber-300 text-[11px] uppercase tracking-wider mb-2.5 flex items-center space-x-1.5">
               <Layers className="w-3.5 h-3.5 text-amber-400" />
               <span>{t.tradingStyleMatrixTitle}</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Scalping */}
-              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-amber-500/20 flex flex-col justify-between">
-                <div className="font-bold text-amber-300 text-[11px] flex items-center space-x-1 mb-1">
+              <div className="p-3 rounded-2xl bg-white/[0.03] border border-amber-500/20 flex flex-col justify-between">
+                <div className="font-bold text-amber-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
                   <span>{t.scalpStyleTitle}</span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-200 bg-slate-950 px-2 py-1 rounded border border-slate-800 mt-1">
+                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
                   {t.scalpStyleTF}
                 </div>
               </div>
 
               {/* Intraday */}
-              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-cyan-500/20 flex flex-col justify-between">
-                <div className="font-bold text-cyan-300 text-[11px] flex items-center space-x-1 mb-1">
+              <div className="p-3 rounded-2xl bg-white/[0.03] border border-cyan-500/20 flex flex-col justify-between">
+                <div className="font-bold text-cyan-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{t.intradayStyleTitle}</span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-200 bg-slate-950 px-2 py-1 rounded border border-slate-800 mt-1">
+                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
                   {t.intradayStyleTF}
                 </div>
               </div>
 
               {/* Swing */}
-              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-purple-500/20 flex flex-col justify-between">
-                <div className="font-bold text-purple-300 text-[11px] flex items-center space-x-1 mb-1">
+              <div className="p-3 rounded-2xl bg-white/[0.03] border border-purple-500/20 flex flex-col justify-between">
+                <div className="font-bold text-purple-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
                   <Waves className="w-3.5 h-3.5 text-purple-400" />
                   <span>{t.swingStyleTitle}</span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-200 bg-slate-950 px-2 py-1 rounded border border-slate-800 mt-1">
+                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
                   {t.swingStyleTF}
+                </div>
+              </div>
+
+              {/* Position */}
+              <div className="p-3 rounded-2xl bg-white/[0.03] border border-emerald-500/20 flex flex-col justify-between">
+                <div className="font-bold text-emerald-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
+                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{t.positionStyleTitle}</span>
+                </div>
+                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
+                  {t.positionStyleTF}
                 </div>
               </div>
             </div>
@@ -332,33 +415,67 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         </div>
       )}
 
+      {/* Dynamic Active Holding Period Recommendation Bar */}
+      <div className={`mb-5 p-4 rounded-2xl ${currentHint.bgColor} ${currentHint.borderColor} border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all shadow-md backdrop-blur-xl`}>
+        <div className="flex items-center space-x-3">
+          <div className={`w-9 h-9 rounded-2xl ${currentHint.bgColor} ${currentHint.borderColor} border flex items-center justify-center ${currentHint.accentColor} shrink-0 shadow-xs`}>
+            <CurrentIcon className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+                {t.activeHoldingHintLabel}:
+              </span>
+              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${currentHint.badgeColor}`}>
+                {currentHint.title}
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-white font-mono mt-0.5">
+              {currentHint.summary}
+            </p>
+          </div>
+        </div>
+
+        {/* 3 Step Pills */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {currentHint.steps.map((step, sIdx) => (
+            <span
+              key={sIdx}
+              className="text-[10px] px-2.5 py-1 rounded-full bg-black/50 text-[#f5f5f7] border border-white/[0.08] font-medium whitespace-nowrap shadow-xs backdrop-blur-md"
+            >
+              {step}
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* Main Upload Area */}
       {images.length === 0 ? (
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-950/50 hover:bg-slate-950/80 rounded-xl p-8 text-center transition cursor-pointer group flex flex-col items-center justify-center min-h-[220px]"
+          className="border border-dashed border-white/20 hover:border-emerald-500/50 bg-black/40 hover:bg-black/60 rounded-3xl p-10 text-center transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center min-h-[240px] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 group-hover:border-emerald-500/50 group-hover:scale-105 transition-all flex items-center justify-center mb-3 text-emerald-400 shadow-md">
-            <Upload className="w-7 h-7" />
+          <div className="w-16 h-16 rounded-3xl bg-white/[0.05] border border-white/[0.1] group-hover:border-emerald-500/40 group-hover:scale-105 transition-all duration-300 flex items-center justify-center mb-4 text-emerald-400 shadow-xl shadow-emerald-500/10">
+            <Upload className="w-8 h-8" />
           </div>
 
-          <p className="text-sm font-semibold text-slate-200">
+          <p className="text-base font-bold text-white tracking-tight">
             {t.clickToBrowse}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[#86868b] mt-1 max-w-sm">
             {t.supportedFormats}
           </p>
 
-          <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-slate-800/80">
+          <div className="flex items-center space-x-3 mt-6 pt-5 border-t border-white/[0.08]">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
             >
               <Clipboard className="w-3.5 h-3.5 text-emerald-400" />
               <span>{t.clickToBrowse.split(' ')[0]}</span>
@@ -371,7 +488,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 e.stopPropagation();
                 cameraInputRef.current?.click();
               }}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
             >
               <Camera className="w-3.5 h-3.5 text-cyan-400" />
               <span>Camera</span>
@@ -379,16 +496,16 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Quick Toolbar for Multi-Chart Uploads */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-950/60 rounded-xl border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-black/50 rounded-2xl border border-white/[0.08] backdrop-blur-md">
             <div className="flex items-center space-x-2">
               {images.length < MAX_IMAGES && (
                 <>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition cursor-pointer"
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
                   >
                     <Plus className="w-3.5 h-3.5 text-emerald-400" />
                     <span>{t.addMoreCharts}</span>
@@ -397,7 +514,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition cursor-pointer"
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
                   >
                     <Camera className="w-3.5 h-3.5 text-cyan-400" />
                     <span>Camera</span>
@@ -407,14 +524,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             </div>
 
             <div className="flex items-center space-x-2">
-              <span className="text-[11px] text-slate-400">
+              <span className="text-xs text-[#86868b]">
                 {t.uploadedCharts} <strong className="text-emerald-400">{images.length}/{MAX_IMAGES}</strong>
               </span>
 
               <button
                 type="button"
                 onClick={() => onImagesChange([])}
-                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition cursor-pointer"
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold transition cursor-pointer active:scale-95"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{t.clearAll}</span>
@@ -423,26 +540,26 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </div>
 
           {/* Thumbnails Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
             {images.map((img, idx) => (
               <div
                 key={idx}
-                className="relative group rounded-xl overflow-hidden border border-slate-700 bg-slate-950 aspect-video shadow-md"
+                className="relative group rounded-2xl overflow-hidden border border-white/[0.1] bg-black aspect-video shadow-lg"
               >
                 <img
                   src={img}
                   alt={`Chart ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur border border-slate-700 text-[10px] font-semibold text-emerald-400 flex items-center space-x-1">
+                <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 flex items-center space-x-1 shadow-sm">
                   <Layers className="w-3 h-3" />
-                  <span>{idx === 0 ? '1. HTF Context' : idx === 1 ? '2. MTF Structure' : '3. LTF Execution'}</span>
+                  <span>{currentHint.steps[idx] ? currentHint.steps[idx] : `Graf ${idx + 1}`}</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => removeImage(idx)}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/80 hover:bg-red-600 text-white shadow transition opacity-90 group-hover:opacity-100 cursor-pointer"
+                  className="absolute top-2.5 right-2.5 p-2 rounded-full bg-red-500/80 hover:bg-red-600 text-white shadow-md transition opacity-90 group-hover:opacity-100 cursor-pointer active:scale-90"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -453,31 +570,33 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             {images.length < MAX_IMAGES && (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-800 hover:border-emerald-500/40 bg-slate-950/40 rounded-xl aspect-video flex flex-col items-center justify-center transition cursor-pointer text-slate-400 hover:text-emerald-400"
+                className="border border-dashed border-white/15 hover:border-emerald-500/50 bg-white/[0.02] hover:bg-white/[0.05] rounded-2xl aspect-video flex flex-col items-center justify-center transition-all duration-200 cursor-pointer text-[#86868b] hover:text-emerald-400 group"
               >
-                <Plus className="w-6 h-6 mb-1" />
-                <span className="text-xs font-medium">{t.addMoreCharts}</span>
-                <span className="text-[10px] text-slate-500 mt-0.5">(Max {MAX_IMAGES} grafy)</span>
+                <div className="p-3 rounded-full bg-white/[0.04] group-hover:bg-emerald-500/10 mb-1.5 transition">
+                  <Plus className="w-5 h-5 text-[#86868b] group-hover:text-emerald-400" />
+                </div>
+                <span className="text-xs font-semibold text-white">{t.addMoreCharts}</span>
+                <span className="text-[10px] text-[#86868b] mt-0.5">(Max {MAX_IMAGES} grafy)</span>
               </div>
             )}
           </div>
 
-          {/* Action Trigger */}
+          {/* Action Trigger - Apple High-End Primary Button */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
             <button
               type="button"
               onClick={onAnalyze}
               disabled={isLoading}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-extrabold text-sm shadow-xl shadow-emerald-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center space-x-2.5 cursor-pointer"
             >
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                   <span>{t.analyzingBtn}</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-slate-950 fill-current" />
+                  <Sparkles className="w-4 h-4 text-black fill-black" />
                   <span>{t.analyzeBtn}</span>
                 </>
               )}

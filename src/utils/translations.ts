@@ -71,6 +71,12 @@ export const translations = {
     intradayStyleTF: '4H (Trend) ➔ 15m (Struktura) ➔ 5m (Vstup)',
     swingStyleTitle: '🌊 Swing (vícedenní obchody)',
     swingStyleTF: 'Daily (Makro Trend) ➔ 4H (Struktura) ➔ 1H (Vstup)',
+    positionStyleTitle: '🌐 Poziční (dlouhodobé obchody)',
+    positionStyleTF: 'Weekly (Makro) ➔ Daily (Trend) ➔ 4H (Vstup)',
+    activeHoldingHintLabel: 'Doporučené timeframy pro váš styl',
+    tfStep1Short: '1. HTF Trend / Kontext',
+    tfStep2Short: '2. MTF Struktura',
+    tfStep3Short: '3. LTF Vstup',
 
     // Analysis Result View
     analysisHeader: 'Institucionální Analýza & Obchodní Plán',
@@ -253,6 +259,21 @@ export const translations = {
     proPackTitle: 'Pro Trader',
     institutionalPackTitle: 'Institutional Master',
 
+    // Audit Share & Export
+    exportAuditBtn: 'Exportovat Zprávu / PDF',
+    exportAuditModalTitle: 'Export a Sdílení Auditu MetaTrader',
+    exportAuditModalSubtitle: 'Kompletní grafická zpráva do PDF, PNG karty nebo textového reportu',
+    auditReportHeader: 'AUDIT OBCHODNÍHO ÚČTU METATRADER',
+    auditPerformanceTitle: 'Přehled Výkonnosti a Metrik',
+    auditPsychologyTitle: 'Psychologie & Vzorce Chování',
+    auditActionableTitle: 'Konkrétní Akční Doporučení',
+    auditNewsTitle: 'Korelace s Makro Zprávami',
+    auditMistakesTitle: 'Identifikované Kritické Chyby',
+    downloadAuditPngBtn: 'Stáhnout PNG Zprávu',
+    copyAuditPngBtn: 'Kopírovat Obrázek Auditu',
+    copyAuditTextBtn: 'Kopírovat Textový Audit',
+    printPdfAuditBtn: 'Tisk / Export do PDF',
+    auditCardPreviewTitle: 'NÁHLED GRAFICKÉ ZPRÁVY AUDITU (PNG / PDF)',
 
     // Common & Alerts
     errorOccurred: 'Při zpracování došlo k chybě.',
@@ -330,6 +351,12 @@ export const translations = {
     intradayStyleTF: '4H (Trend) ➔ 15m (Structure) ➔ 5m (Entry)',
     swingStyleTitle: '🌊 Swing Trading (Multi-Day)',
     swingStyleTF: 'Daily (Macro Trend) ➔ 4H (Structure) ➔ 1H (Entry)',
+    positionStyleTitle: '🌐 Position Trading (Long-Term)',
+    positionStyleTF: 'Weekly (Macro) ➔ Daily (Trend) ➔ 4H (Entry)',
+    activeHoldingHintLabel: 'Recommended timeframes for your style',
+    tfStep1Short: '1. HTF Trend / Context',
+    tfStep2Short: '2. MTF Structure',
+    tfStep3Short: '3. LTF Entry',
 
     // Analysis Result View
     analysisHeader: 'Institutional Analysis & Trading Plan',
@@ -512,6 +539,21 @@ export const translations = {
     proPackTitle: 'Pro Trader',
     institutionalPackTitle: 'Institutional Master',
 
+    // Audit Share & Export
+    exportAuditBtn: 'Export Report / PDF',
+    exportAuditModalTitle: 'Export & Share MetaTrader Audit',
+    exportAuditModalSubtitle: 'Complete graphic report to PDF, PNG card, or text summary',
+    auditReportHeader: 'METATRADER ACCOUNT AUDIT REPORT',
+    auditPerformanceTitle: 'Performance & Key Metrics Overview',
+    auditPsychologyTitle: 'Trading Psychology & Behavioral Patterns',
+    auditActionableTitle: 'Actionable Trading Recommendations',
+    auditNewsTitle: 'High-Impact Economic News Correlation',
+    auditMistakesTitle: 'Primary Identified Trading Flaws',
+    downloadAuditPngBtn: 'Download PNG Report',
+    copyAuditPngBtn: 'Copy Audit Image',
+    copyAuditTextBtn: 'Copy Text Report',
+    printPdfAuditBtn: 'Print / Export to PDF',
+    auditCardPreviewTitle: 'AUDIT GRAPHIC REPORT PREVIEW (PNG / PDF)',
 
     // Common & Alerts
     errorOccurred: 'An error occurred during processing.',
@@ -589,6 +631,12 @@ export const translations = {
     intradayStyleTF: '4H (Tendencia) ➔ 15m (Estructura) ➔ 5m (Entrada)',
     swingStyleTitle: '🌊 Swing Trading (Varios Días)',
     swingStyleTF: 'Daily (Macro Tendencia) ➔ 4H (Estructura) ➔ 1H (Entrada)',
+    positionStyleTitle: '🌐 Trading de Posición (Largo Plazo)',
+    positionStyleTF: 'Weekly (Macro) ➔ Daily (Tendencia) ➔ 4H (Entrada)',
+    activeHoldingHintLabel: 'Temporalidades recomendadas para tu estilo',
+    tfStep1Short: '1. HTF Tendencia / Contexto',
+    tfStep2Short: '2. MTF Estructura',
+    tfStep3Short: '3. LTF Entrada',
 
     // Analysis Result View
     analysisHeader: 'Análisis Institucional y Plan de Trading',
@@ -770,6 +818,22 @@ export const translations = {
     starterPackTitle: 'Starter',
     proPackTitle: 'Pro Trader',
     institutionalPackTitle: 'Institutional Master',
+
+    // Audit Share & Export
+    exportAuditBtn: 'Exportar Informe / PDF',
+    exportAuditModalTitle: 'Exportar y Compartir Auditoría MetaTrader',
+    exportAuditModalSubtitle: 'Informe gráfico completo en PDF, tarjeta PNG o resumen de texto',
+    auditReportHeader: 'INFORME DE AUDITORÍA METATRADER',
+    auditPerformanceTitle: 'Resumen de Rendimiento y Métricas Clave',
+    auditPsychologyTitle: 'Psicología de Trading y Patrones de Conducta',
+    auditActionableTitle: 'Recomendaciones Prácticas de Trading',
+    auditNewsTitle: 'Correlación con Noticias Macroeconómicas',
+    auditMistakesTitle: 'Principales Errores Identificados',
+    downloadAuditPngBtn: 'Descargar Informe PNG',
+    copyAuditPngBtn: 'Copiar Imagen de Auditoría',
+    copyAuditTextBtn: 'Copiar Informe de Texto',
+    printPdfAuditBtn: 'Imprimir / Exportar a PDF',
+    auditCardPreviewTitle: 'VISTA PREVIA DEL INFORME GRÁFICO (PNG / PDF)',
 
     // Common & Alerts
     errorOccurred: 'Ocurrió un error durante el procesamiento.',

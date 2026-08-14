@@ -80,21 +80,21 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
   const filtered = filterImpact === 'HIGH' ? events.filter((e) => e.impact === 'HIGH') : events;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-5 animate-fadeIn">
+    <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-7 shadow-xl space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+        <div className="flex items-center space-x-3.5">
+          <div className="p-3 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/25 shadow-sm">
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
               <span>{t.calendarWidgetTitle}</span>
-              <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30 flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30 flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3" /> {t.liveFeedBadge}
               </span>
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#86868b] mt-0.5">
               {t.calendarWidgetSubtitle} ({selectedDate})
             </p>
           </div>
@@ -103,41 +103,41 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setFilterImpact((prev) => (prev === 'HIGH' ? 'ALL' : 'HIGH'))}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer flex items-center space-x-1.5 active:scale-95 ${
               filterImpact === 'HIGH'
-                ? 'bg-red-500/20 border-red-500/40 text-red-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300'
+                ? 'bg-red-500/20 border-red-500/40 text-red-300 shadow-sm'
+                : 'bg-white/[0.06] border-white/[0.08] text-white hover:bg-white/[0.12]'
             }`}
           >
-            <Filter className="w-3 h-3" />
+            <Filter className="w-3.5 h-3.5" />
             <span>{filterImpact === 'HIGH' ? t.onlyHighImpact : t.allNews}</span>
           </button>
         </div>
       </div>
 
       {/* Date Selector & Presets Bar */}
-      <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-black/40 p-4 rounded-2xl border border-white/[0.08] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
         <form onSubmit={handleDateSubmit} className="flex flex-wrap items-center gap-2 flex-1">
-          <label className="text-xs font-bold text-slate-300 whitespace-nowrap">{t.selectDate}</label>
+          <label className="text-xs font-semibold text-[#86868b] whitespace-nowrap">{t.selectDate}</label>
           <input
             type="text"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             placeholder="20.8.2026"
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 w-32 sm:w-44 font-mono"
+            className="bg-black/60 border border-white/[0.08] rounded-full px-3.5 py-1.5 text-xs text-white placeholder-[#86868b]/60 focus:outline-none focus:border-white/30 w-32 sm:w-44 font-mono transition"
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center space-x-1 transition cursor-pointer disabled:opacity-50 active:scale-95"
+            className="px-4 py-1.5 rounded-full bg-white text-black hover:bg-[#f5f5f7] text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 shadow-sm"
           >
-            {isLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+            {isLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-black" /> : <Search className="w-3.5 h-3.5 text-black" />}
             <span>{t.loadCalendar}</span>
           </button>
         </form>
 
         <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1 sm:pt-0">
-          <span className="text-[10px] text-slate-500 uppercase font-bold whitespace-nowrap">{t.quickSelects}</span>
+          <span className="text-[10px] text-[#86868b] uppercase font-bold whitespace-nowrap">{t.quickSelects}</span>
           <button
             type="button"
             onClick={() => {
@@ -145,10 +145,10 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
               setSelectedDate(todayStr);
               fetchCalendarData(todayStr);
             }}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-all whitespace-nowrap cursor-pointer active:scale-95 ${
               selectedDate === getTodayFormatted()
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-xs'
+                : 'bg-white/[0.06] text-[#86868b] border-white/[0.08] hover:text-white hover:bg-white/[0.12]'
             }`}
           >
             📅 {t.today} ({getTodayFormatted()})
@@ -160,10 +160,10 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
               setSelectedDate(tomorrowStr);
               fetchCalendarData(tomorrowStr);
             }}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-all whitespace-nowrap cursor-pointer active:scale-95 ${
               selectedDate === getTomorrowFormatted()
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-xs'
+                : 'bg-white/[0.06] text-[#86868b] border-white/[0.08] hover:text-white hover:bg-white/[0.12]'
             }`}
           >
             🔮 {t.tomorrow} ({getTomorrowFormatted()})
@@ -172,46 +172,46 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
       </div>
 
       {marketAdvice && (
-        <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs flex items-start space-x-2.5">
+        <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/25 text-amber-200 text-xs flex items-start space-x-3">
           <Zap className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <div className="font-bold text-amber-300 mb-0.5">{t.mentorDateAdvice} {selectedDate}:</div>
-            <p className="text-slate-300">{marketAdvice}</p>
+            <p className="text-[#a1a1a6] leading-relaxed">{marketAdvice}</p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs">
+        <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs">
           {error}
         </div>
       )}
 
       {/* Events Grid */}
       {isLoading ? (
-        <div className="py-12 text-center text-slate-400 space-y-2">
+        <div className="py-14 text-center text-[#86868b] space-y-3">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-400" />
-          <p className="text-xs font-bold text-slate-300">{t.loadingCalendarData}</p>
+          <p className="text-xs font-semibold text-white">{t.loadingCalendarData}</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-8 text-center text-slate-400 text-xs">
+        <div className="py-12 text-center text-[#86868b] text-xs font-medium">
           {t.noEventsFoundForDate}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filtered.map((event) => (
             <div
               key={event.id}
-              className={`p-3.5 rounded-xl border transition-all ${
+              className={`p-4 rounded-2xl border transition-all ${
                 event.impact === 'HIGH'
-                  ? 'bg-slate-950/90 border-red-500/30 hover:border-red-500/60'
-                  : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                  ? 'bg-black/40 border-red-500/25 hover:border-red-500/50'
+                  : 'bg-black/40 border-white/[0.08] hover:border-white/[0.15]'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center space-x-2">
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                       event.currency === 'USD'
                         ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                         : event.currency === 'EUR'
@@ -221,28 +221,28 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
                   >
                     {event.currency}
                   </span>
-                  <span className="text-xs font-bold text-slate-200">{event.date}</span>
+                  <span className="text-xs font-bold text-[#f5f5f7]">{event.date}</span>
                 </div>
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-slate-950 flex items-center gap-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-black flex items-center gap-1">
                   🔴 HIGH
                 </span>
               </div>
 
-              <div className="text-xs font-semibold text-slate-100 mb-1.5">{event.title}</div>
+              <div className="text-xs font-semibold text-white mb-2">{event.title}</div>
 
               {(event.forecast || event.previous) && (
-                <div className="flex items-center space-x-4 text-[10px] text-slate-400 border-t border-slate-800/80 pt-2 mb-2">
+                <div className="flex items-center space-x-4 text-[10px] text-[#86868b] border-t border-white/[0.06] pt-2 mb-2">
                   <div>
-                    {t.forecastLabel}: <span className="font-bold text-slate-200">{event.forecast || '-'}</span>
+                    {t.forecastLabel}: <span className="font-bold text-white">{event.forecast || '-'}</span>
                   </div>
                   <div>
-                    {t.previousLabel}: <span className="font-bold text-slate-200">{event.previous || '-'}</span>
+                    {t.previousLabel}: <span className="font-bold text-white">{event.previous || '-'}</span>
                   </div>
                 </div>
               )}
 
               {event.warningText && (
-                <div className="p-2 rounded-lg bg-red-950/50 border border-red-500/30 text-[10px] text-red-300 flex items-start space-x-1.5">
+                <div className="p-2.5 rounded-xl bg-red-950/40 border border-red-500/25 text-[10px] text-red-300 flex items-start space-x-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
                   <span>{event.warningText}</span>
                 </div>

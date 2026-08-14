@@ -46,62 +46,62 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Journal Stats Header */}
+      {/* Journal Stats Header - Apple Glass Bento Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
-            <div className="text-xs font-semibold text-slate-400">{t.totalAnalyses}</div>
-            <div className="text-2xl font-black text-white mt-1">{journal.length}</div>
+            <div className="text-xs font-semibold text-[#86868b]">{t.totalAnalyses}</div>
+            <div className="text-3xl font-extrabold text-white mt-1">{journal.length}</div>
           </div>
-          <div className="p-3 bg-slate-800 rounded-xl text-emerald-400">
+          <div className="p-3.5 bg-white/[0.06] rounded-2xl text-emerald-400 border border-white/[0.08]">
             <History className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
-            <div className="text-xs font-semibold text-slate-400">{t.winRate}</div>
-            <div className="text-2xl font-black text-emerald-400 mt-1">{winRate}%</div>
+            <div className="text-xs font-semibold text-[#86868b]">{t.winRate}</div>
+            <div className="text-3xl font-extrabold text-emerald-400 mt-1">{winRate}%</div>
           </div>
-          <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
+          <div className="p-3.5 bg-emerald-500/15 rounded-2xl text-emerald-400 border border-emerald-500/25">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
-            <div className="text-xs font-semibold text-slate-400">{t.winningTrades}</div>
-            <div className="text-2xl font-black text-emerald-400 mt-1">{wins} / {closedTrades.length}</div>
+            <div className="text-xs font-semibold text-[#86868b]">{t.winningTrades}</div>
+            <div className="text-3xl font-extrabold text-emerald-400 mt-1">{wins} <span className="text-sm font-semibold text-[#86868b]">/ {closedTrades.length}</span></div>
           </div>
-          <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
+          <div className="p-3.5 bg-emerald-500/15 rounded-2xl text-emerald-400 border border-emerald-500/25">
             <TrendingUp className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
-            <div className="text-xs font-semibold text-slate-400">{t.losingTrades}</div>
-            <div className="text-2xl font-black text-red-400 mt-1">{losses}</div>
+            <div className="text-xs font-semibold text-[#86868b]">{t.losingTrades}</div>
+            <div className="text-3xl font-extrabold text-red-400 mt-1">{losses}</div>
           </div>
-          <div className="p-3 bg-red-500/10 rounded-xl text-red-400">
+          <div className="p-3.5 bg-red-500/15 rounded-2xl text-red-400 border border-red-500/25">
             <TrendingDown className="w-5 h-5" />
           </div>
         </div>
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-800">
+      <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-white/[0.08]">
           <div>
-            <h3 className="text-base font-bold text-slate-100">{t.tradeJournal}</h3>
-            <p className="text-xs text-slate-400">Track real results and evaluate AI accuracy</p>
+            <h3 className="text-base font-bold text-white tracking-tight">{t.tradeJournal}</h3>
+            <p className="text-xs text-[#86868b] mt-0.5">Track real results and evaluate AI accuracy</p>
           </div>
 
           <div className="flex items-center space-x-2">
             <button
               onClick={exportJournalData}
               disabled={journal.length === 0}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.08] text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-40 active:scale-95 shadow-sm"
             >
               <Download className="w-3.5 h-3.5 text-emerald-400" />
               <span>{t.exportJournal} (JSON)</span>
@@ -109,16 +109,16 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Filters - Apple Segmented Bar */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-black/40 rounded-full border border-white/[0.08] w-fit mb-5">
           {(['ALL', 'LONG', 'SHORT', 'WIN', 'LOSS'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer ${
                 filter === f
-                  ? 'bg-emerald-500 text-slate-950 shadow'
-                  : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                  ? 'bg-white/15 text-white font-bold shadow-sm'
+                  : 'text-[#86868b] hover:text-white hover:bg-white/5'
               }`}
             >
               {f === 'ALL' ? t.allFilters : f}
@@ -128,7 +128,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
         {/* Entries List */}
         {filteredJournal.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 text-xs">
+          <div className="text-center py-16 text-[#86868b] text-xs font-medium">
             {journal.length === 0 ? t.emptyJournal : 'No entries match selected filter.'}
           </div>
         ) : (
@@ -136,64 +136,64 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             {filteredJournal.map((entry) => (
               <div
                 key={entry.id}
-                className="p-4 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl transition flex flex-col md:flex-row md:items-center justify-between gap-3"
+                className="p-4 sm:p-5 bg-black/40 border border-white/[0.06] hover:border-white/[0.12] rounded-2xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
               >
-                <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onSelectEntry(entry)}>
+                <div className="flex items-center space-x-4 cursor-pointer" onClick={() => onSelectEntry(entry)}>
                   {entry.uploadedImages[0] && (
-                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-slate-900 border border-slate-800 flex-shrink-0 hidden sm:block">
-                      <img src={entry.uploadedImages[0]} alt="Chart" className="w-full h-full object-cover" />
+                    <div className="w-16 h-12 rounded-xl overflow-hidden bg-black border border-white/[0.08] flex-shrink-0 hidden sm:block shadow-sm">
+                      <img src={entry.uploadedImages[0]} alt="Chart" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     </div>
                   )}
 
                   <div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2.5">
                       <span className="font-extrabold text-white text-sm">{entry.symbol}</span>
                       <span
-                        className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                           entry.signal === 'LONG'
-                            ? 'bg-emerald-500/20 text-emerald-400'
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                             : entry.signal === 'SHORT'
-                            ? 'bg-red-500/20 text-red-400'
-                            : 'bg-amber-500/20 text-amber-400'
+                            ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                         }`}
                       >
                         {entry.signal}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-400">{entry.timeframe}</span>
+                      <span className="text-[10px] font-mono text-[#86868b]">{entry.timeframe}</span>
                     </div>
 
-                    <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
-                      <span>{t.entryZone}: <strong className="text-slate-200">{entry.entryZone?.recommended || (entry.entryZone?.min ? `${entry.entryZone.min} - ${entry.entryZone.max}` : 'N/A')}</strong></span>
+                    <div className="text-xs text-[#86868b] mt-1.5 flex flex-wrap items-center gap-3">
+                      <span>{t.entryZone}: <strong className="text-white">{entry.entryZone?.recommended || (entry.entryZone?.min ? `${entry.entryZone.min} - ${entry.entryZone.max}` : 'N/A')}</strong></span>
                       <span>SL: <strong className="text-red-400">{entry.stopLoss?.price ?? 'N/A'}</strong></span>
                       <span>TP1: <strong className="text-emerald-400">{entry.takeProfitTargets?.[0]?.price ?? 'N/A'}</strong></span>
-                      <span>R:R <strong className="text-slate-200">{entry.overallRiskRewardRatio ?? 'N/A'}</strong></span>
+                      <span>R:R <strong className="text-[#f5f5f7]">{entry.overallRiskRewardRatio ?? 'N/A'}</strong></span>
                     </div>
                   </div>
                 </div>
 
                 {/* Outcome Toggle & Controls */}
                 <div className="flex flex-wrap items-center gap-2 self-start md:self-auto mt-2 md:mt-0">
-                  <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                  <div className="flex items-center space-x-1 bg-black/60 p-1 rounded-full border border-white/[0.08]">
                     <button
                       onClick={() => onUpdateOutcome(entry.id, 'WIN')}
-                      className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer active:scale-95 ${
-                        entry.tradeOutcome === 'WIN' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-emerald-400'
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold transition cursor-pointer active:scale-95 ${
+                        entry.tradeOutcome === 'WIN' ? 'bg-emerald-500 text-black shadow-xs' : 'text-[#86868b] hover:text-emerald-400'
                       }`}
                     >
                       WIN
                     </button>
                     <button
                       onClick={() => onUpdateOutcome(entry.id, 'LOSS')}
-                      className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer active:scale-95 ${
-                        entry.tradeOutcome === 'LOSS' ? 'bg-red-500 text-white' : 'text-slate-400 hover:text-red-400'
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold transition cursor-pointer active:scale-95 ${
+                        entry.tradeOutcome === 'LOSS' ? 'bg-red-500 text-white shadow-xs' : 'text-[#86868b] hover:text-red-400'
                       }`}
                     >
                       LOSS
                     </button>
                     <button
                       onClick={() => onUpdateOutcome(entry.id, 'BREAKEVEN')}
-                      className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer active:scale-95 ${
-                        entry.tradeOutcome === 'BREAKEVEN' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-amber-400'
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold transition cursor-pointer active:scale-95 ${
+                        entry.tradeOutcome === 'BREAKEVEN' ? 'bg-amber-500 text-black shadow-xs' : 'text-[#86868b] hover:text-amber-400'
                       }`}
                     >
                       BE
@@ -202,7 +202,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
                   <button
                     onClick={() => onSelectEntry(entry)}
-                    className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer active:scale-95"
+                    className="p-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white transition cursor-pointer active:scale-95 border border-white/[0.08]"
                     title="View details"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -210,7 +210,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
                   <button
                     onClick={() => onRemoveEntry(entry.id)}
-                    className="p-2 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition cursor-pointer active:scale-95"
+                    className="p-2 rounded-full bg-white/[0.06] hover:bg-red-500/20 text-[#86868b] hover:text-red-400 transition cursor-pointer active:scale-95 border border-white/[0.08]"
                     title="Remove entry"
                   >
                     <Trash2 className="w-4 h-4" />

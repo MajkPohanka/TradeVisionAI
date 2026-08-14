@@ -29,6 +29,7 @@ export default function App() {
     return {
       holdingPeriod: 'intraday',
       riskTolerance: 'balanced',
+      strategies: ['price_action', 'smc_ict', 'wyckoff', 'trend_breakout', 'supply_demand'],
       strategy: 'price_action',
       customRules: '',
       customMentorPrompt: '',
@@ -36,10 +37,22 @@ export default function App() {
       accountRiskPercent: 1.0,
       presets: [
         {
+          id: 'default_all_confluence',
+          name: 'Multi-Methodology Master (PA + SMC + Wyckoff + S&D + Trend)',
+          holdingPeriod: 'intraday',
+          riskTolerance: 'balanced',
+          strategies: ['price_action', 'smc_ict', 'wyckoff', 'trend_breakout', 'supply_demand'],
+          strategy: 'price_action',
+          customRules: '',
+          customMentorPrompt: 'Hledej průsečík (konfluenci) mezi Price Action, SMC likviditou, Wyckoff fází a Supply/Demand zónami.',
+          accountRiskPercent: 1.0,
+        },
+        {
           id: 'default_ict',
           name: 'ICT Silver Bullet',
           holdingPeriod: 'intraday',
           riskTolerance: 'balanced',
+          strategies: ['smc_ict', 'price_action'],
           strategy: 'smc_ict',
           customRules: 'Vyžaduj FVG + Order Block konfluenci na 15m. Stop Loss za Swing High/Low.',
           customMentorPrompt: 'Odpovídej jako ICT mentor se zaměřením na Killzones (NY / London session).',
@@ -290,7 +303,13 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-black text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative overflow-x-hidden">
+      {/* Apple Subtle Ambient Lighting Meshes */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-emerald-500/10 via-teal-500/5 to-transparent blur-[140px] rounded-full" />
+        <div className="absolute top-[40%] right-[-10%] w-[600px] h-[600px] bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-transparent blur-[160px] rounded-full" />
+      </div>
+
       {/* Header Bar */}
       <Header
         settings={settings}
@@ -304,10 +323,14 @@ export default function App() {
           setIsPaywallTriggered(false);
           setIsCreditsModalOpen(true);
         }}
+        onGoHome={() => {
+          setActiveTab('analyzer');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 relative z-10">
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
           {activeTab === 'analyzer' && (
             <>
@@ -325,11 +348,12 @@ export default function App() {
                 isLoading={isLoading}
                 onLoadSampleChart={handleLoadSampleChart}
                 language={settings.language}
+                holdingPeriod={settings.holdingPeriod}
               />
 
               {/* Error Banner */}
               {error && (
-                <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg backdrop-blur-xl">
                   <div className="flex items-center space-x-3">
                     <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
                     <span className="font-medium">{error}</span>
@@ -338,7 +362,7 @@ export default function App() {
                     <button
                       onClick={handleAnalyzeChart}
                       disabled={isLoading}
-                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 flex-shrink-0"
+                      className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 flex-shrink-0 active:scale-95"
                     >
                       <span>Zkusit znovu analýzu</span>
                     </button>
@@ -390,14 +414,14 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-auto border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      {/* Apple Clean Footer */}
+      <footer className="mt-auto border-t border-white/[0.08] bg-black/60 backdrop-blur-xl py-6 text-center text-xs text-[#86868b] relative z-10">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>AIAUTOTRADER.com • {t.appSubtitle}</span>
+            <span className="font-medium text-[#a1a1a6]">AIAUTOTRADER.com • {t.appSubtitle}</span>
           </div>
-          <p>© {new Date().getFullYear()} AIAUTOTRADER.com. Všechna práva vyhrazena.</p>
+          <p className="text-[#86868b]">© {new Date().getFullYear()} AIAUTOTRADER.com. Všechna práva vyhrazena.</p>
         </div>
       </footer>
 

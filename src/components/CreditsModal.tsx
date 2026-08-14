@@ -186,66 +186,66 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
   return (
     <div
       id="credits-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md overflow-y-auto"
       onClick={onClose}
     >
       <div
         id="credits-modal-container"
-        className="relative w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl shadow-emerald-500/10 overflow-hidden my-auto"
+        className="relative w-full max-w-2xl bg-[#121216]/95 backdrop-blur-3xl border border-white/[0.12] rounded-3xl shadow-2xl overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
-        <div className="relative px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/20 text-slate-950">
-              <Zap className="w-5 h-5 fill-slate-950 stroke-[2.5]" />
+        <div className="relative px-6 py-5 border-b border-white/[0.08] bg-black/40 flex items-center justify-between">
+          <div className="flex items-center space-x-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-white/[0.08] border border-white/[0.12] flex items-center justify-center shadow-sm text-emerald-400">
+              <Zap className="w-5 h-5 fill-emerald-400 stroke-[2.5]" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
                 {t.creditsTitle}
-                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
                   $1 / Analýza
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#86868b] mt-0.5">
                 {t.creditsSubtitle}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-2 rounded-full text-[#86868b] hover:text-white hover:bg-white/10 transition cursor-pointer"
             aria-label="Zavřít"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-6 max-h-[80vh] overflow-y-auto no-scrollbar">
+        <div className="p-6 sm:p-7 space-y-6 max-h-[80vh] overflow-y-auto no-scrollbar">
           {/* Paywall Alert Banner (if triggered by 0 credits attempt) */}
           {isTriggeredByPaywall && remaining <= 0 && (
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start space-x-3 text-amber-200">
+            <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start space-x-3 text-amber-200">
               <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div className="text-xs sm:text-sm">
                 <p className="font-semibold text-amber-300">{t.insufficientCreditsTitle}</p>
-                <p className="text-slate-300 mt-0.5 text-xs">{t.insufficientCreditsDesc}</p>
+                <p className="text-[#a1a1a6] mt-0.5 text-xs">{t.insufficientCreditsDesc}</p>
               </div>
             </div>
           )}
 
           {/* Current Status Box */}
-          <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-slate-850 border border-slate-800 rounded-xl gap-3">
-            <div className="flex items-center space-x-3 w-full sm:w-auto">
-              <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 text-emerald-400">
+          <div className="flex flex-col sm:flex-row items-center justify-between p-4.5 bg-black/40 border border-white/[0.08] rounded-2xl gap-3">
+            <div className="flex items-center space-x-3.5 w-full sm:w-auto">
+              <div className="w-10 h-10 rounded-2xl bg-white/[0.06] flex items-center justify-center border border-white/[0.08] text-emerald-400">
                 <Key className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <div className="text-xs text-slate-400">{t.remainingCredits}</div>
-                <div className="text-xl font-extrabold text-white flex items-center gap-1.5">
+                <div className="text-xs text-[#86868b] font-medium">{t.remainingCredits}</div>
+                <div className="text-xl font-extrabold text-white flex items-center gap-2">
                   <span className={remaining > 0 ? 'text-emerald-400' : 'text-rose-400'}>
                     {remaining}
                   </span>
-                  <span className="text-xs text-slate-400 font-normal">
+                  <span className="text-xs text-[#86868b] font-normal">
                     {language === 'en' ? 'analyses available' : language === 'es' ? 'análisis disponibles' : 'analýz k dispozici'}
                   </span>
                 </div>
@@ -253,13 +253,13 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
             </div>
 
             {currentLicense?.key && (
-              <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
-                <span className="font-mono text-slate-300 font-semibold select-all">
+              <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end bg-black/60 px-3.5 py-1.5 rounded-full border border-white/[0.08] text-xs">
+                <span className="font-mono text-[#f5f5f7] font-semibold select-all">
                   {currentLicense.key}
                 </span>
                 <button
                   onClick={handleCopyKey}
-                  className="p-1 rounded text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                  className="p-1 rounded text-[#86868b] hover:text-white transition cursor-pointer"
                   title={t.copyKeyBtn}
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -270,14 +270,14 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
 
           {/* Messages */}
           {verifySuccess && (
-            <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
+            <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs flex items-center space-x-2">
               <Check className="w-4 h-4 shrink-0" />
               <span>{verifySuccess}</span>
             </div>
           )}
 
           {verifyError && (
-            <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center space-x-2">
+            <div className="p-3.5 bg-rose-500/15 border border-rose-500/30 rounded-2xl text-rose-300 text-xs flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{verifyError}</span>
             </div>
@@ -285,24 +285,24 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
 
           {/* Package Selection Cards */}
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            <div className="text-xs font-semibold text-[#86868b] uppercase tracking-wider mb-3">
               {language === 'en' ? 'Select Credit Package' : language === 'es' ? 'Seleccionar Paquete de Créditos' : 'Vyberte balíček kreditů'}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               {packages.map((pkg) => {
                 const isSelected = selectedPkgId === pkg.id;
                 return (
                   <div
                     key={pkg.id}
                     onClick={() => setSelectedPkgId(pkg.id)}
-                    className={`relative p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`relative p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-emerald-950/30 border-emerald-500 shadow-md shadow-emerald-500/10 scale-[1.02]'
-                        : 'bg-slate-850/80 border-slate-800 hover:border-slate-700 hover:bg-slate-800/80'
+                        ? 'bg-white/[0.08] border-white/40 shadow-lg scale-[1.02]'
+                        : 'bg-black/30 border-white/[0.08] hover:border-white/[0.18] hover:bg-black/50'
                     }`}
                   >
                     {pkg.popular && (
-                      <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-extrabold tracking-wider shadow">
+                      <div className="absolute -top-2.5 right-3 px-2.5 py-0.5 rounded-full bg-white text-black text-[10px] font-extrabold tracking-wider shadow">
                         {t.popularTag}
                       </div>
                     )}
@@ -311,15 +311,15 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-white">{pkg.name}</span>
                         {isSelected && (
-                          <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950">
+                          <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center text-black">
                             <Check className="w-3 h-3 stroke-[3]" />
                           </div>
                         )}
                       </div>
 
-                      <div className="mt-2 flex items-baseline gap-1">
+                      <div className="mt-2.5 flex items-baseline gap-1">
                         <span className="text-2xl font-extrabold text-white">${pkg.priceUsd}</span>
-                        <span className="text-xs text-slate-400">USD</span>
+                        <span className="text-xs text-[#86868b]">USD</span>
                       </div>
 
                       <div className="mt-1 flex items-center gap-1.5">
@@ -327,13 +327,13 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                           {pkg.credits} {t.creditsBadge.toLowerCase()}
                         </span>
                         {pkg.tag && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
                             {pkg.tag}
                           </span>
                         )}
                       </div>
 
-                      <p className="mt-2 text-[11px] text-slate-400 leading-relaxed">
+                      <p className="mt-2.5 text-[11px] text-[#86868b] leading-relaxed">
                         {pkg.description}
                       </p>
                     </div>
@@ -348,42 +348,42 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
             id="proceed-checkout-btn"
             disabled={isProcessing}
             onClick={() => handleProceedToCheckout()}
-            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm sm:text-base flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer active:scale-[0.99] disabled:opacity-50"
+            className="w-full py-4 px-5 rounded-full bg-white text-black hover:bg-[#f5f5f7] font-bold text-sm sm:text-base flex items-center justify-center space-x-2 shadow-xl transition cursor-pointer active:scale-[0.99] disabled:opacity-50"
           >
             {isProcessing ? (
               <>
-                <RefreshCw className="w-5 h-5 animate-spin text-slate-950" />
+                <RefreshCw className="w-5 h-5 animate-spin text-black" />
                 <span>Zpracovávám platbu...</span>
               </>
             ) : (
               <>
-                <CreditCard className="w-5 h-5 stroke-[2.5]" />
+                <CreditCard className="w-5 h-5 stroke-[2.5] text-black" />
                 <span>{t.checkoutWithStripe}</span>
               </>
             )}
           </button>
 
           {/* License Key & Restore Section */}
-          <div className="pt-3 border-t border-slate-800">
+          <div className="pt-3 border-t border-white/[0.08]">
             {!showKeyInput ? (
               <button
                 onClick={() => setShowKeyInput(true)}
-                className="text-xs text-slate-400 hover:text-emerald-400 transition flex items-center space-x-1.5 mx-auto cursor-pointer"
+                className="text-xs text-[#86868b] hover:text-white transition flex items-center space-x-1.5 mx-auto cursor-pointer"
               >
                 <Key className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t.enterKeyBtn} (nebo obnovit ze zadaného e-mailu)</span>
               </button>
             ) : (
-              <form onSubmit={handleVerifyKey} className="space-y-2.5">
+              <form onSubmit={handleVerifyKey} className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-[#86868b] flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5 text-emerald-400" />
                     {t.licenseKeyLabel}
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowKeyInput(false)}
-                    className="text-[11px] text-slate-500 hover:text-slate-300"
+                    className="text-[11px] text-[#86868b] hover:text-white cursor-pointer"
                   >
                     Skrýt
                   </button>
@@ -394,12 +394,12 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                     value={inputKey}
                     onChange={(e) => setInputKey(e.target.value)}
                     placeholder={t.licenseKeyPlaceholder}
-                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="flex-1 px-4 py-2.5 bg-black/40 border border-white/[0.08] rounded-full text-xs text-white placeholder-[#86868b]/60 focus:outline-none focus:border-white/30 transition"
                   />
                   <button
                     type="submit"
                     disabled={isVerifying || !inputKey.trim()}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 bg-white/[0.08] hover:bg-white/[0.15] text-white border border-white/[0.08] rounded-full text-xs font-semibold transition cursor-pointer disabled:opacity-50 active:scale-95"
                   >
                     {isVerifying ? 'Ověřuji...' : t.verifyKeyBtn}
                   </button>
@@ -409,7 +409,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
           </div>
 
           {/* Trust Notice */}
-          <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-[11px] text-slate-400 flex items-start space-x-2.5">
+          <div className="p-3.5 bg-black/30 border border-white/[0.06] rounded-2xl text-[11px] text-[#86868b] flex items-start space-x-2.5">
             <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">{t.magicLinkNotice}</p>
           </div>

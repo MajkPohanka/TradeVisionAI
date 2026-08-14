@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { ChartUploader } from './components/ChartUploader';
 import { StrategyPreferences } from './components/StrategyPreferences';
@@ -8,8 +8,9 @@ import { EconomicCalendarWidget } from './components/EconomicCalendarWidget';
 import { TradeJournal } from './components/TradeJournal';
 import { MentorChatDrawer } from './components/MentorChatDrawer';
 import { GitHubExportModal } from './components/GitHubExportModal';
+import { CreditsModal } from './components/CreditsModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AnalysisResult, StrategySettings } from './types';
+import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
 import { getSampleBTCChartDataUrl } from './utils/sampleChart';
 import { getTranslation } from './utils/translations';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -76,6 +77,91 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
 
+  // License & Credits State
+  const [currentLicense, setCurrentLicense] = useState<LicenseStatus | null>(() => {
+    try {
+      const savedKey = localStorage.getItem('aiautotrader_license_key');
+      const savedCredits = localStorage.getItem('aiautotrader_credits');
+      if (savedKey) {
+        return {
+          key: savedKey,
+          credits: savedCredits !== null ? parseInt(savedCredits, 10) : 2,
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load license from localStorage', e);
+    }
+    return null;
+  });
+  const [isCreditsModalOpen, setIsCreditsModalOpen] = useState<boolean>(false);
+  const [isPaywallTriggered, setIsPaywallTriggered] = useState<boolean>(false);
+
+  // Update License callback
+  const handleLicenseUpdated = useCallback((license: LicenseStatus) => {
+    setCurrentLicense(license);
+    try {
+      localStorage.setItem('aiautotrader_license_key', license.key);
+      localStorage.setItem('aiautotrader_credits', String(license.credits));
+    } catch (e) {
+      console.error('Error saving license to localStorage:', e);
+    }
+  }, []);
+
+  // Check URL parameters on mount (?key=... or ?session_id=...) & sync with server
+  useEffect(() => {
+    const initCredits = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlKey = urlParams.get('key');
+        const sessionId = urlParams.get('session_id');
+
+        if (sessionId) {
+          // Confirm newly paid session
+          const res = await fetch('/api/credits/confirm-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          const data = await res.json();
+          if (data.success && data.license) {
+            handleLicenseUpdated(data.license);
+            setIsCreditsModalOpen(true);
+            // Clean URL query
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+          }
+        }
+
+        const activeKey = urlKey || currentLicense?.key;
+        if (activeKey) {
+          const res = await fetch(`/api/credits/status?key=${encodeURIComponent(activeKey)}`);
+          const data = await res.json();
+          if (data.success && data.license) {
+            handleLicenseUpdated(data.license);
+          }
+          if (urlKey) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } else {
+          // Auto-claim starter trial (2 free credits) for fresh visitors
+          const res = await fetch('/api/credits/claim-trial', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          const data = await res.json();
+          if (data.success && data.license) {
+            handleLicenseUpdated(data.license);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to initialize credits:', e);
+      }
+    };
+
+    initCredits();
+  }, [handleLicenseUpdated]);
+
   // Sync journal to local storage
   useEffect(() => {
     try {
@@ -105,6 +191,13 @@ export default function App() {
       return;
     }
 
+    // Check client-side credits before call
+    if (currentLicense && currentLicense.credits <= 0) {
+      setIsPaywallTriggered(true);
+      setIsCreditsModalOpen(true);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -115,6 +208,7 @@ export default function App() {
         body: JSON.stringify({
           images,
           settings,
+          licenseKey: currentLicense?.key || undefined,
         }),
       });
 
@@ -129,8 +223,29 @@ export default function App() {
         throw new Error(`Server vrátil neplatnou odpověď (HTTP ${res.status}). Zkuste to prosím znovu.`);
       }
 
+      // Handle insufficient credits 402 code
+      if (res.status === 402 || data.code === 'INSUFFICIENT_CREDITS') {
+        if (data.licenseKey) {
+          handleLicenseUpdated({
+            key: data.licenseKey,
+            credits: 0,
+          });
+        }
+        setIsPaywallTriggered(true);
+        setIsCreditsModalOpen(true);
+        throw new Error(data.error || 'Vyčerpali jste všechny kredity. Doplňte prosím kredity pro pokračování.');
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Při analýze grafu došlo k neznámé chybě.');
+      }
+
+      // Update remaining credits from authoritative server response
+      if (typeof data.remainingCredits === 'number' && data.licenseKey) {
+        handleLicenseUpdated({
+          key: data.licenseKey,
+          credits: data.remainingCredits,
+        });
       }
 
       const resultWithMetadata: AnalysisResult = {
@@ -184,6 +299,11 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenGithubModal={() => setIsGithubModalOpen(true)}
         savedCount={journal.length}
+        creditsCount={currentLicense?.credits ?? 0}
+        onOpenCreditsModal={() => {
+          setIsPaywallTriggered(false);
+          setIsCreditsModalOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -295,6 +415,16 @@ export default function App() {
         isOpen={isGithubModalOpen}
         onClose={() => setIsGithubModalOpen(false)}
         language={settings.language}
+      />
+
+      {/* Credits & Paywall Modal */}
+      <CreditsModal
+        isOpen={isCreditsModalOpen}
+        onClose={() => setIsCreditsModalOpen(false)}
+        language={settings.language}
+        currentLicense={currentLicense}
+        onLicenseUpdated={handleLicenseUpdated}
+        isTriggeredByPaywall={isPaywallTriggered}
       />
     </div>
   );

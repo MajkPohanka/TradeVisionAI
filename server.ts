@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import { CreditManager, CREDIT_PACKAGES } from './server/creditManager';
 
 dotenv.config();
 
@@ -200,13 +201,174 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Credit & Billing API Endpoints
+app.get('/api/credits/packages', (_req, res) => {
+  res.json({
+    success: true,
+    packages: Object.values(CREDIT_PACKAGES),
+    stripeConfigured: CreditManager.isStripeConfigured(),
+  });
+});
+
+app.get('/api/credits/status', (req, res) => {
+  const key = (req.query.key as string) || '';
+  if (!key) {
+    return res.status(400).json({ success: false, error: 'Chybí licenční klíč.' });
+  }
+
+  const license = CreditManager.getLicense(key);
+  if (!license) {
+    return res.status(404).json({ success: false, error: 'Licenční klíč nebyl nalezen.' });
+  }
+
+  res.json({
+    success: true,
+    license: {
+      key: license.key,
+      credits: license.credits,
+      tier: license.tier,
+      email: license.email,
+      totalPurchased: license.totalPurchased,
+      totalUsed: license.totalUsed,
+      createdAt: license.createdAt,
+    },
+  });
+});
+
+app.post('/api/credits/verify', (req, res) => {
+  const { key, email } = req.body;
+
+  if (key) {
+    const license = CreditManager.getLicense(key);
+    if (license) {
+      return res.json({
+        success: true,
+        license: {
+          key: license.key,
+          credits: license.credits,
+          tier: license.tier,
+          email: license.email,
+        },
+      });
+    }
+  }
+
+  if (email) {
+    const licenses = CreditManager.findLicensesByEmail(email);
+    if (licenses.length > 0) {
+      // Return the license with highest remaining credits or most recent
+      const best = licenses.sort((a, b) => b.credits - a.credits || b.createdAt - a.createdAt)[0];
+      return res.json({
+        success: true,
+        license: {
+          key: best.key,
+          credits: best.credits,
+          tier: best.tier,
+          email: best.email,
+        },
+      });
+    }
+  }
+
+  res.status(404).json({
+    success: false,
+    error: 'Zadaný licenční klíč ani e-mail nebyl v systému nalezen.',
+  });
+});
+
+app.post('/api/credits/claim-trial', (req, res) => {
+  try {
+    const { email } = req.body;
+    // Issue a starter trial key with 2 free analysis credits
+    const trialLicense = CreditManager.createLicense(2, 'trial', email || 'trial@aiautotrader.com');
+    res.json({
+      success: true,
+      license: trialLicense,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Nepodařilo se vygenerovat zkušební kredity.' });
+  }
+});
+
+app.post('/api/credits/create-checkout-session', async (req, res) => {
+  try {
+    const { packageId, existingKey, customerEmail, appUrl } = req.body;
+    const result = await CreditManager.createCheckoutSession({
+      packageId: packageId || 'pro',
+      existingKey,
+      customerEmail,
+      appUrl: appUrl || `${req.protocol}://${req.get('host')}`,
+    });
+
+    res.json({
+      success: true,
+      checkoutUrl: result.url,
+      sessionId: result.sessionId,
+      mode: result.mode,
+      key: result.key,
+    });
+  } catch (err: any) {
+    console.error('Error creating checkout session:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Nepodařilo se vytvořit platební relaci.',
+    });
+  }
+});
+
+app.post('/api/credits/confirm-session', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: 'Chybí ID platební relace.' });
+    }
+
+    const result = await CreditManager.confirmPaymentSession(sessionId);
+    if (!result.success || !result.license) {
+      return res.status(400).json({ success: false, error: result.error || 'Platba nebyla ověřena.' });
+    }
+
+    res.json({
+      success: true,
+      license: result.license,
+    });
+  } catch (err: any) {
+    console.error('Error confirming payment session:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Nepodařilo se ověřit platbu.',
+    });
+  }
+});
+
 // Primary Chart Analysis Endpoint with Multi-Methodology & Economic Calendar Context
 app.post('/api/analyze-chart', async (req, res) => {
   try {
-    const { images, settings } = req.body;
+    const { images, settings, licenseKey } = req.body;
 
     if (!images || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ error: 'Je potřeba nahrát alespoň jeden obrázek grafu z TradingView.' });
+    }
+
+    // 1. Credit & License Verification
+    let activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
+    let currentLicense = activeKey ? CreditManager.getLicense(activeKey) : null;
+
+    // If no key provided or key not found, check if we should auto-grant a trial key on the first visit
+    if (!currentLicense) {
+      // Auto-issue 2 free starter credits if fresh user
+      currentLicense = CreditManager.createLicense(2, 'trial', 'newuser@aiautotrader.com');
+      activeKey = currentLicense.key;
+    }
+
+    if (currentLicense.credits <= 0) {
+      return res.status(402).json({
+        success: false,
+        code: 'INSUFFICIENT_CREDITS',
+        error: 'Nemáte dostatek kreditů pro spuštění AI analýzy. Pro pokračování prosím doplňte kredity ($1 za analýzu nebo výhodný balíček).',
+        remainingCredits: 0,
+        licenseKey: currentLicense.key,
+      });
     }
 
     const ai = getGeminiClient();
@@ -422,9 +584,14 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     const responseText = response.text || '{}';
     const parsedData = safeExtractJson(responseText);
 
+    // Atomically consume 1 credit for the successful analysis
+    const consumption = CreditManager.consumeCredit(activeKey);
+
     res.json({
       success: true,
       data: parsedData,
+      licenseKey: activeKey,
+      remainingCredits: consumption.remaining,
     });
   } catch (error: any) {
     console.error('Error analyzing chart:', error);

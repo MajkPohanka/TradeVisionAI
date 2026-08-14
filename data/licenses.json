@@ -1,0 +1,53 @@
+[
+  {
+    "key": "AIAUTO-DEMO-TEST-2026",
+    "credits": 1000,
+    "tier": "vip_tester",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 1000,
+    "totalUsed": 0,
+    "createdAt": 1786700137552
+  },
+  {
+    "key": "AIAUTO-U85R-LZD7-BWCT",
+    "credits": 1000,
+    "tier": "pro",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 1000,
+    "totalUsed": 0,
+    "createdAt": 1786700140950,
+    "stripeSessionIds": [
+      "SANDBOX_SES_1786700140949_2na0w"
+    ]
+  },
+  {
+    "key": "AIAUTO-L9VU-55HN-ZZFG",
+    "credits": 1000,
+    "tier": "trial",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 1000,
+    "totalUsed": 0,
+    "createdAt": 1786700145139,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "AIAUTO-8C4N-GSD5-J3V9",
+    "credits": 1000,
+    "tier": "trial",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 1000,
+    "totalUsed": 0,
+    "createdAt": 1786700170805,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "AIAUTO-BWZ8-B8T3-FTMB",
+    "credits": 1000,
+    "tier": "trial",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 1000,
+    "totalUsed": 0,
+    "createdAt": 1786700170807,
+    "stripeSessionIds": []
+  }
+]

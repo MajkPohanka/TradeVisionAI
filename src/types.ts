@@ -162,3 +162,24 @@ export interface MentorChatMessage {
   timestamp: number;
 }
 
+export interface CreditPackage {
+  id: string;
+  name: string;
+  priceUsd: number;
+  credits: number;
+  bonusCredits: number;
+  popular?: boolean;
+  tag?: string;
+  description: string;
+}
+
+export interface LicenseStatus {
+  key: string;
+  credits: number;
+  tier?: string;
+  email?: string;
+  totalPurchased?: number;
+  totalUsed?: number;
+  createdAt?: number;
+}
+

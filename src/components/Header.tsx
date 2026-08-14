@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Github, History, Sliders, Globe, FileSpreadsheet, Calendar } from 'lucide-react';
+import { TrendingUp, Github, History, Sliders, Globe, FileSpreadsheet, Calendar, Zap } from 'lucide-react';
 import { StrategySettings, LanguageOption } from '../types';
 import { getTranslation } from '../utils/translations';
 
@@ -10,6 +10,8 @@ interface HeaderProps {
   setActiveTab: (tab: 'analyzer' | 'audit' | 'calendar' | 'journal') => void;
   onOpenGithubModal: () => void;
   savedCount: number;
+  creditsCount: number;
+  onOpenCreditsModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenGithubModal,
   savedCount,
+  creditsCount,
+  onOpenCreditsModal,
 }) => {
   const t = getTranslation(settings.language);
 
@@ -113,6 +117,23 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Utilities */}
           <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+            {/* Credits / License Button */}
+            <button
+              id="header-credits-btn"
+              onClick={onOpenCreditsModal}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer active:scale-95 shadow-sm ${
+                creditsCount > 0
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200'
+                  : 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 animate-pulse'
+              }`}
+              title="Kredity & Licenční Správa / Credits & License"
+            >
+              <Zap className={`w-3.5 h-3.5 ${creditsCount > 0 ? 'text-emerald-400 fill-emerald-400/20' : 'text-amber-400 fill-amber-400/20'}`} />
+              <span>
+                {creditsCount > 0 ? `${creditsCount} ${t.creditsBadge}` : t.buyCreditsBtn}
+              </span>
+            </button>
+
             {/* Language Selector Cycle */}
             <button
               onClick={cycleLanguage}

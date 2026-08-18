@@ -169,9 +169,60 @@ export default function App() {
     setError(null);
   };
 
+  // Helper to ensure all images uploaded to server maintain ultra-sharp resolution (1920px, high quality)
+  // while keeping individual payload under ~500KB to ensure fast network transit
+  const compressImageForAnalysis = (dataUrl: string, maxDim = 1920, quality = 0.88): Promise<string> => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined' || !dataUrl || !dataUrl.startsWith('data:')) {
+        resolve(dataUrl);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', quality);
+            canvas.width = 0;
+            canvas.height = 0;
+            resolve(compressed);
+            return;
+          }
+        } catch (e) {
+          console.warn('Image optimization fallback to original:', e);
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
   const handleAnalyzeChart = async () => {
     if (images.length === 0) {
-      setError(settings.language === 'cs' ? 'Nahrajte prosím alespoň jeden snímek grafu.' : settings.language === 'es' ? 'Cargue al menos una captura de pantalla del gráfico.' : 'Please upload at least one chart screenshot.');
+      setError(
+        settings.language === 'cs'
+          ? 'Nahrajte prosím alespoň jeden snímek grafu.'
+          : settings.language === 'es'
+          ? 'Cargue al menos una captura de pantalla del gráfico.'
+          : 'Please upload at least one chart screenshot.'
+      );
       return;
     }
 
@@ -179,38 +230,61 @@ export default function App() {
     setError(null);
 
     try {
+      // 1. Pre-compress images on client to keep total payload strictly under ~1 MB
+      const optimizedImages = await Promise.all(
+        images.map((img) => compressImageForAnalysis(img))
+      );
+
+      const activeLicenseKey = currentLicense?.key || 'TRADEOY-VIP-1000';
+
       const response = await fetch('/api/analyze-chart', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          images: images,
-          image: images[0],
+          images: optimizedImages,
           settings: settings,
-          licenseKey: currentLicense?.key,
+          licenseKey: activeLicenseKey,
         }),
       });
 
       let data: any = {};
       try {
         const text = await response.text();
-        data = JSON.parse(text);
+        data = text ? JSON.parse(text) : {};
       } catch (e) {
-        throw new Error('Chyba při zpracování odpovědi z analytického serveru.');
+        throw new Error(
+          settings.language === 'cs'
+            ? 'Chyba při zpracování odpovědi z analytického serveru. Zkuste to prosím znovu.'
+            : settings.language === 'es'
+            ? 'Error al procesar la respuesta del servidor analítico. Inténtelo de nuevo.'
+            : 'Error processing response from the analysis server. Please try again.'
+        );
       }
 
-      if (response.status === 402 || data.requiresCredits) {
+      if (response.status === 402 || data.requiresCredits || data.code === 'INSUFFICIENT_CREDITS') {
         if (data.license) {
           handleLicenseUpdated(data.license);
         }
         setIsPaywallTriggered(true);
         setIsCreditsModalOpen(true);
-        throw new Error(data.error || 'Pro spuštění AI analýzy nemáte dostatek kreditů. Zakupte si balíček pro pokračování.');
+        throw new Error(
+          data.error ||
+            (settings.language === 'cs'
+              ? 'Pro spuštění AI analýzy nemáte dostatek kreditů. Zakupte si balíček pro pokračování.'
+              : 'Insufficient credits for AI analysis. Please top up credits to continue.')
+        );
       }
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Analýza selhala. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.');
+        throw new Error(
+          data.error ||
+            data.details ||
+            (settings.language === 'cs'
+              ? 'Analýza selhala. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.'
+              : 'Analysis failed. Please check chart image quality and retry.')
+        );
       }
 
       if (data.remainingCredits !== undefined && currentLicense) {
@@ -224,7 +298,7 @@ export default function App() {
         ...data.data,
         id: data.data.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
         timestamp: data.data.timestamp || Date.now(),
-        uploadedImages: (data.data.uploadedImages && data.data.uploadedImages.length > 0) ? data.data.uploadedImages : images,
+        uploadedImages: (data.data.uploadedImages && data.data.uploadedImages.length > 0) ? data.data.uploadedImages : optimizedImages,
       };
 
       setAnalysisResult(fullResult);
@@ -237,7 +311,20 @@ export default function App() {
       }, 150);
     } catch (err: any) {
       console.error('Analysis error:', err);
-      setError(err.message || 'Nepodařilo se dokončit analýzu grafu.');
+      const rawMsg = err?.message || String(err);
+      
+      // Translate Safari WebKit 'Load failed' or Chrome 'Failed to fetch' into user-friendly message
+      if (rawMsg === 'Load failed' || rawMsg.includes('Failed to fetch') || rawMsg.includes('NetworkError') || err.name === 'TypeError') {
+        setError(
+          settings.language === 'cs'
+            ? 'Spojení se serverem bylo přerušeno nebo nahrávání vypršelo. Klikněte na „Zkusit znovu analýzu“ níže.'
+            : settings.language === 'es'
+            ? 'La conexión con el servidor se interrumpió. Haga clic en "Reintentar análisis" a continuación.'
+            : 'Connection to the server was interrupted or timed out. Please click "Retry analysis" below.'
+        );
+      } else {
+        setError(rawMsg);
+      }
     } finally {
       setIsLoading(false);
     }

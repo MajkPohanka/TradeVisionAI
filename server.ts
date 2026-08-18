@@ -63,16 +63,16 @@ app.post(
   }
 );
 
-// 3. Memory & Payload Protection: 25mb limit supports large MetaTrader HTML statements and multi-timeframe images
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+// 3. Memory & Payload Protection: 50mb limit supports multi-timeframe high-res charts and large MetaTrader statements
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Handle JSON payload size errors explicitly
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err && (err.type === 'entity.too.large' || err.status === 413)) {
     return res.status(413).json({
       success: false,
-      error: 'Nahraný soubor nebo data jsou příliš velká (limit je 25 MB).',
+      error: 'Nahraný soubor nebo data jsou příliš velká (limit je 50 MB).',
     });
   }
   next(err);
@@ -323,13 +323,14 @@ async function callGeminiWithRetry(
   requestParams: any,
   maxRetries = 1
 ) {
-  const primaryModel = requestParams.model || 'gemini-3.7-flash';
-  // Fallback chain across distinct model pools
+  const primaryModel = requestParams.model || 'gemini-2.5-flash';
+  // Fallback chain across distinct model pools and quota buckets
   const modelsToTry = Array.from(new Set([
     primaryModel,
-    'gemini-3.7-flash',
-    'gemini-flash-latest',
+    'gemini-2.5-flash',
     'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
+    'gemini-3.7-flash',
   ]));
 
   let lastError: any = null;
@@ -338,7 +339,7 @@ async function callGeminiWithRetry(
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Časový limit vypršel (60s).')), 60000)
+          setTimeout(() => reject(new Error('Časový limit vypršel (30s).')), 30000)
         );
 
         const response: any = await Promise.race([
@@ -352,7 +353,7 @@ async function callGeminiWithRetry(
         return response;
       } catch (err: any) {
         lastError = err;
-        const errMsg = err?.message || String(err);
+        const errMsg = err?.message || String(err) || JSON.stringify(err);
         const isNotFound =
           errMsg.includes('404') ||
           errMsg.includes('NOT_FOUND') ||
@@ -373,19 +374,21 @@ async function callGeminiWithRetry(
           errMsg.includes('429') ||
           errMsg.includes('RESOURCE_EXHAUSTED') ||
           errMsg.includes('quota') ||
+          errMsg.includes('Quota exceeded') ||
+          errMsg.includes('exceeded your current quota') ||
           err?.status === 429 ||
-          err?.code === 429;
+          err?.code === 429 ||
+          err?.error?.code === 429 ||
+          err?.error?.status === 'RESOURCE_EXHAUSTED';
 
-        console.log(`[Gemini API] Model ${modelName} attempt ${attempt + 1} response: ${isRateLimit ? '429 Quota Exceeded' : isNotFound ? '404 Not Found' : isTransient ? '503 High Demand (Fallback triggered)' : errMsg}`);
-
-        // If high demand (503), rate limit (429), or model not found (404),
+        // If rate limit (429/quota), high demand (503), or model not found (404),
         // immediately fall back to the next model in modelsToTry!
         if (isNotFound || isRateLimit || isTransient) {
           break;
         }
 
         if (attempt < maxRetries) {
-          const delay = 500 + Math.floor(Math.random() * 300);
+          const delay = 400 + Math.floor(Math.random() * 200);
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
@@ -464,8 +467,8 @@ app.get('/api/credits/status', (req, res) => {
   });
 });
 
-app.post('/api/credits/verify', (req, res) => {
-  const { key, email } = req.body;
+const handleLicenseVerify = (req: express.Request, res: express.Response) => {
+  const { key, email } = req.body || {};
 
   if (key && typeof key === 'string') {
     const license = CreditManager.getLicense(key);
@@ -502,7 +505,10 @@ app.post('/api/credits/verify', (req, res) => {
     success: false,
     error: 'Zadaný licenční klíč ani e-mail nebyl v systému nalezen.',
   });
-});
+};
+
+app.post('/api/credits/verify', handleLicenseVerify);
+app.post('/api/credits/check-license', handleLicenseVerify);
 
 app.post('/api/credits/claim-trial', (req, res) => {
   try {
@@ -848,7 +854,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.7-flash',
+        model: 'gemini-2.5-flash',
         contents: [...imageParts, { text: promptText }],
         config: {
           systemInstruction: systemInstruction,
@@ -877,14 +883,14 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     }
     console.error('Error analyzing chart:', error);
     const errMsg = error?.message || String(error);
-    const isTimeout = errMsg.includes('503') || errMsg.includes('Deadline expired') || errMsg.includes('UNAVAILABLE');
+    const isTimeout = errMsg.includes('503') || errMsg.includes('Deadline expired') || errMsg.includes('UNAVAILABLE') || errMsg.includes('Časový limit');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
 
-    let userFriendlyError = 'An error occurred during chart analysis. Please verify your GEMINI_API_KEY.';
+    let userFriendlyError = 'Nastala chyba při analýze grafu. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.';
     if (isRateLimit) {
-      userFriendlyError = 'API quota or rate limit exceeded (429). Please wait ~1 minute and retry.';
+      userFriendlyError = 'API limit byl dočasně překročen (429). Počkejte prosím ~1 minutu a zkuste to znovu.';
     } else if (isTimeout) {
-      userFriendlyError = 'Gemini API service temporarily unavailable (503 / Timeout). Please click retry.';
+      userFriendlyError = 'Služba analýzy je dočasně vytížena (503 / Timeout). Klikněte prosím na tlačítko Zkusit znovu.';
     }
 
     res.status(500).json({
@@ -1036,7 +1042,7 @@ Return strictly a JSON object conforming to this schema:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.7-flash',
+        model: 'gemini-2.5-flash',
         contents: contentParts,
         config: {
           systemInstruction: systemPrompt,
@@ -1161,7 +1167,7 @@ Rules for mentor response:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.7-flash',
+        model: 'gemini-2.5-flash',
         contents: promptContent,
         config: {
           systemInstruction: systemPrompt,

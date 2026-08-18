@@ -140,7 +140,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
     }, 3200);
   }, []);
 
-  const compressImage = (dataUrl: string, maxWidth = 1080, maxHeight = 1080, quality = 0.72): Promise<string> => {
+  const compressImage = (dataUrl: string, maxWidth = 1920, maxHeight = 1080, quality = 0.88): Promise<string> => {
     return new Promise((resolve) => {
       if (typeof window === 'undefined') {
         resolve(dataUrl);
@@ -169,7 +169,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'medium';
+            ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, width, height);
             const compressedUrl = canvas.toDataURL('image/jpeg', quality);
             canvas.width = 0;

@@ -713,12 +713,15 @@ User Preferences & Execution Constraints:
 ${langPrompt}`;
 
     const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
-Carefully read the exact price scale, visible ticker/symbol, timeframe, candlestick patterns, and structural levels.
+CRITICAL ASSET & PRICE OCR INSTRUCTION:
+- Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image. Do NOT default or invent EUR/USD unless EUR/USD is clearly written on the chart!
+- Price Scale: Look at the exact vertical right-hand price scale and horizontal price levels (e.g., if XAUUSD is at 2850.50, all numbers in entryZone, stopLoss, and takeProfit MUST match this exact 2800-2900 numerical range).
+- Timeframe: Read the exact visible timeframe interval (e.g. 4H, 1H, 15m, 5m, 1m). If multiple charts were uploaded, list them top-down (e.g. '4H + 15M + 5M').
 
 Return STRICTLY a JSON object conforming to this exact schema (no markdown outside JSON):
 
 {
-  "symbol": "Detected asset symbol e.g. EUR/USD, BTC/USDT, XAU/USD, US100, NVDA",
+  "symbol": "Exact detected asset symbol from chart (e.g. XAU/USD, BTC/USDT, EUR/USD, US100, NVDA)",
   "timeframe": "Detected chart timeframe. If multiple chart images were uploaded, list all detected timeframes in top-down order (e.g. '4H + 15M + 5M' or 'H1 + M15 + M5')",
   "signal": "LONG" | "SHORT" | "NEUTRAL_WAIT",
   "confidenceScore": number between 35 and 96 calculated strictly from confluence count (HTF alignment, liquidity sweep, displacement, POI mitigation, R:R strength),

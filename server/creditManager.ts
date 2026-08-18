@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import Stripe from 'stripe';
 
 export interface LicenseRecord {
@@ -25,6 +26,26 @@ export interface CreditPackage {
   description: string;
 }
 
+export const VIP_UNLIMITED_EMAILS = ['majklpohanka@gmail.com'];
+export const VIP_UNLIMITED_KEYS = ['AIAUTO-DEMO-TEST-2026', 'TRADEOY-VIP-1000'];
+
+export function isUnlimitedUser(record?: LicenseRecord | null, email?: string): boolean {
+  if (email && VIP_UNLIMITED_EMAILS.includes(email.trim().toLowerCase())) {
+    return true;
+  }
+  if (record) {
+    if (record.email && VIP_UNLIMITED_EMAILS.includes(record.email.trim().toLowerCase())) {
+      return true;
+    }
+    if (record.key && VIP_UNLIMITED_KEYS.includes(record.key.toUpperCase())) {
+      return true;
+    }
+    if (record.tier === 'vip_unlimited' || record.tier === 'unlimited') {
+      return true;
+    }
+  }
+  return false;
+}
 export const CREDIT_PACKAGES: Record<string, CreditPackage> = {
   starter: {
     id: 'starter',
@@ -57,14 +78,17 @@ export const CREDIT_PACKAGES: Record<string, CreditPackage> = {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const LICENSES_FILE = path.join(DATA_DIR, 'licenses.json');
+const LICENSES_BACKUP_FILE = path.join(DATA_DIR, 'licenses.backup.json');
+const LICENSES_TEMP_FILE = path.join(DATA_DIR, 'licenses.json.tmp');
 
 // In-memory cache backed by disk storage
 let licensesCache: Map<string, LicenseRecord> = new Map();
 let isInitialized = false;
+let isSaving = false;
 
-// Ensure storage is loaded
-function ensureLoaded() {
-  if (isInitialized) return;
+// Ensure storage is loaded with automated backup recovery
+function ensureLoaded(force = false) {
+  if (isInitialized && !force) return;
   isInitialized = true;
 
   try {
@@ -72,19 +96,54 @@ function ensureLoaded() {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
+    let loadedSuccessfully = false;
+
+    // 1. Try reading primary file
     if (fs.existsSync(LICENSES_FILE)) {
-      const fileData = fs.readFileSync(LICENSES_FILE, 'utf-8');
-      const parsed = JSON.parse(fileData);
-      if (Array.isArray(parsed)) {
-        for (const item of parsed) {
-          if (item && item.key) {
-            licensesCache.set(item.key.toUpperCase(), item);
+      try {
+        const fileData = fs.readFileSync(LICENSES_FILE, 'utf-8');
+        if (fileData.trim()) {
+          const parsed = JSON.parse(fileData);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            for (const item of parsed) {
+              if (item && item.key) {
+                licensesCache.set(item.key.toUpperCase(), item);
+              }
+            }
+            loadedSuccessfully = true;
           }
         }
+      } catch (parseErr) {
+        console.error('[CreditManager] Primary licenses.json was corrupted. Attempting backup restore...', parseErr);
       }
-    } else {
-      // Seed master development testing license with 1000 credits
+    }
+
+    // 2. If primary failed or was empty, attempt recovery from backup
+    if (!loadedSuccessfully && fs.existsSync(LICENSES_BACKUP_FILE)) {
+      try {
+        const backupData = fs.readFileSync(LICENSES_BACKUP_FILE, 'utf-8');
+        if (backupData.trim()) {
+          const parsedBackup = JSON.parse(backupData);
+          if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
+            for (const item of parsedBackup) {
+              if (item && item.key) {
+                licensesCache.set(item.key.toUpperCase(), item);
+              }
+            }
+            loadedSuccessfully = true;
+            console.log('[CreditManager] Successfully recovered licenses from backup file.');
+          }
+        }
+      } catch (backupErr) {
+        console.error('[CreditManager] Failed to recover from backup:', backupErr);
+      }
+    }
+
+    // 3. Seed default VIP/tester licenses if completely empty
+    if (!loadedSuccessfully || licensesCache.size === 0) {
       const demoKey = 'AIAUTO-DEMO-TEST-2026';
+      const vipKey = 'TRADEOY-VIP-1000';
+      
       const demoRecord: LicenseRecord = {
         key: demoKey,
         credits: 1000,
@@ -94,39 +153,98 @@ function ensureLoaded() {
         totalUsed: 0,
         createdAt: Date.now(),
       };
+      const vipRecord: LicenseRecord = {
+        key: vipKey,
+        credits: 1000,
+        tier: 'vip',
+        email: 'majklpohanka@gmail.com',
+        totalPurchased: 1000,
+        totalUsed: 0,
+        createdAt: Date.now(),
+      };
       licensesCache.set(demoKey, demoRecord);
+      licensesCache.set(vipKey, vipRecord);
       saveToDisk();
     }
   } catch (err) {
-    console.error('Error loading licenses storage:', err);
+    console.error('[CreditManager] Fatal error loading licenses storage:', err);
   }
 }
 
-// Persist licenses cache to disk
+// Atomically persist licenses cache to disk with backup to prevent corruption on crash
 function saveToDisk() {
+  if (isSaving) {
+    // If a save is already in-flight, schedule an immediate deferred save
+    setTimeout(saveToDisk, 20);
+    return;
+  }
+  isSaving = true;
+
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     const dataArray = Array.from(licensesCache.values());
-    fs.writeFileSync(LICENSES_FILE, JSON.stringify(dataArray, null, 2), 'utf-8');
+    const jsonContent = JSON.stringify(dataArray, null, 2);
+
+    // 1. Write to temporary file first (atomic staging)
+    fs.writeFileSync(LICENSES_TEMP_FILE, jsonContent, 'utf-8');
+
+    // 2. If primary file currently exists and is valid, create a backup
+    if (fs.existsSync(LICENSES_FILE)) {
+      try {
+        fs.copyFileSync(LICENSES_FILE, LICENSES_BACKUP_FILE);
+      } catch (backupErr) {
+        // Non-fatal backup warning
+      }
+    }
+
+    // 3. Atomic rename replaces destination in a single OS kernel step
+    fs.renameSync(LICENSES_TEMP_FILE, LICENSES_FILE);
   } catch (err) {
-    console.error('Error saving licenses storage:', err);
+    console.error('[CreditManager] Error atomically saving licenses storage:', err);
+  } finally {
+    isSaving = false;
   }
 }
 
-// Generate unique, readable license key formatted as AIAUTO-XXXX-XXXX-XXXX
+// Generate unique, readable license key formatted as TRADEOY-XXXX-XXXX-XXXX using cryptographically secure PRNG
 export function generateLicenseKey(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // omit easily confused 0, O, 1, I
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // omit ambiguous 0, O, 1, I
   const segment = (len = 4) => {
+    const bytes = crypto.randomBytes(len);
     let res = '';
     for (let i = 0; i < len; i++) {
-      res += chars.charAt(Math.floor(Math.random() * chars.length));
+      res += chars.charAt(bytes[i] % chars.length);
     }
     return res;
   };
-  return `AIAUTO-${segment()}-${segment()}-${segment()}`;
+  return `TRADEOY-${segment()}-${segment()}-${segment()}`;
 }
+
+// In-memory active credit reservations to prevent TOCTOU race conditions and allow safe rollback
+interface ActiveCreditReservation {
+  id: string;
+  licenseKey: string;
+  amount: number;
+  timestamp: number;
+  status: 'PENDING' | 'COMMITTED' | 'ROLLEDBACK';
+}
+
+const activeReservations = new Map<string, ActiveCreditReservation>();
+
+// Clean up stale reservations periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, res] of activeReservations.entries()) {
+    if (now - res.timestamp > 15 * 60 * 1000) {
+      activeReservations.delete(id);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// In-memory IP tracking for trial claims
+const trialClaimsByIp = new Map<string, { count: number; firstClaim: number }>();
 
 // Lazy initialization for Stripe client
 let stripeClient: Stripe | null = null;
@@ -154,7 +272,17 @@ export const CreditManager = {
     if (!key) return null;
     ensureLoaded();
     const cleanKey = key.trim().toUpperCase();
-    return licensesCache.get(cleanKey) || null;
+    let record = licensesCache.get(cleanKey);
+    if (!record) {
+      // Check disk in case it was updated by another process/worker
+      ensureLoaded(true);
+      record = licensesCache.get(cleanKey);
+    }
+    if (record && isUnlimitedUser(record)) {
+      record.credits = 999999;
+      record.tier = 'vip_unlimited';
+    }
+    return record || null;
   },
 
   // Create or issue a new license with specified credits
@@ -176,6 +304,33 @@ export const CreditManager = {
     return record;
   },
 
+  // Claim Starter Trial License with IP rate-limiting (max 2 trials per IP per 24 hours)
+  claimTrialLicense(email?: string, clientIp = 'unknown'): { success: boolean; license?: LicenseRecord; error?: string } {
+    ensureLoaded();
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    const ipData = trialClaimsByIp.get(clientIp);
+    if (ipData) {
+      if (now - ipData.firstClaim < ONE_DAY) {
+        if (ipData.count >= 2) {
+          return {
+            success: false,
+            error: 'Byl vyčerpán limit pro bezplatné zkušební kredity pro vaše připojení (max 2 účty / 24h).',
+          };
+        }
+        ipData.count++;
+      } else {
+        trialClaimsByIp.set(clientIp, { count: 1, firstClaim: now });
+      }
+    } else {
+      trialClaimsByIp.set(clientIp, { count: 1, firstClaim: now });
+    }
+
+    const license = this.createLicense(2, 'starter_trial', email || 'trial@tradeoy.com');
+    return { success: true, license };
+  },
+
   // Add credits to an existing license or by session ID
   addCredits(key: string, amount: number, sessionId?: string): LicenseRecord | null {
     ensureLoaded();
@@ -195,36 +350,134 @@ export const CreditManager = {
     return record;
   },
 
-  // Atomically check & consume 1 credit for an analysis
-  consumeCredit(key: string): { success: boolean; remaining: number; error?: string } {
+  // 1. ATOMIC CREDIT RESERVATION (Check + Deduct in one atomic step before calling Gemini)
+  reserveCredit(key: string, amount = 1): {
+    success: boolean;
+    reservationId?: string;
+    remainingCredits: number;
+    licenseKey?: string;
+    error?: string;
+  } {
     ensureLoaded();
     const record = this.getLicense(key);
     if (!record) {
       return {
         success: false,
-        remaining: 0,
+        remainingCredits: 0,
         error: 'Neplatný nebo nenalezený licenční klíč.',
       };
     }
 
-    if (record.credits <= 0) {
+    // VIP Unlimited account bypass - never deplete or block
+    if (isUnlimitedUser(record)) {
+      const reservationId = `RES_VIP_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+      record.credits = 999999;
+      record.tier = 'vip_unlimited';
+      record.totalUsed = (record.totalUsed || 0) + amount;
+      record.lastUsedAt = Date.now();
+      licensesCache.set(record.key, record);
+
+      activeReservations.set(reservationId, {
+        id: reservationId,
+        licenseKey: record.key,
+        amount: 0,
+        timestamp: Date.now(),
+        status: 'PENDING',
+      });
+
+      return {
+        success: true,
+        reservationId,
+        remainingCredits: 999999,
+        licenseKey: record.key,
+      };
+    }
+
+    if (record.credits < amount || record.credits <= 0) {
       return {
         success: false,
-        remaining: 0,
+        remainingCredits: record.credits,
+        licenseKey: record.key,
         error: 'Vyčerpali jste všechny zakoupené kredity. Pro pokračování prosím doplňte kredity.',
       };
     }
 
-    record.credits -= 1;
-    record.totalUsed += 1;
+    // Atomically decrement immediately
+    record.credits -= amount;
+    record.totalUsed = (record.totalUsed || 0) + amount;
     record.lastUsedAt = Date.now();
     licensesCache.set(record.key, record);
     saveToDisk();
 
+    const reservationId = `RES_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+    activeReservations.set(reservationId, {
+      id: reservationId,
+      licenseKey: record.key,
+      amount,
+      timestamp: Date.now(),
+      status: 'PENDING',
+    });
+
     return {
       success: true,
-      remaining: record.credits,
+      reservationId,
+      remainingCredits: record.credits,
+      licenseKey: record.key,
     };
+  },
+
+  // 2. COMMIT RESERVATION: Mark as permanently used upon AI success
+  commitReservation(reservationId?: string): boolean {
+    if (!reservationId) return false;
+    const res = activeReservations.get(reservationId);
+    if (res && res.status === 'PENDING') {
+      res.status = 'COMMITTED';
+      return true;
+    }
+    return false;
+  },
+
+  // 3. ROLLBACK RESERVATION: Exact-once refund if Gemini fails
+  rollbackReservation(reservationId?: string): { success: boolean; remainingCredits: number } {
+    if (!reservationId) return { success: false, remainingCredits: 0 };
+    const res = activeReservations.get(reservationId);
+    if (!res) {
+      return { success: false, remainingCredits: 0 };
+    }
+
+    // Strictly enforce that rollback can only happen once on pending reservations
+    if (res.status !== 'PENDING') {
+      const existing = this.getLicense(res.licenseKey);
+      return { success: false, remainingCredits: existing?.credits || 0 };
+    }
+
+    res.status = 'ROLLEDBACK';
+    ensureLoaded();
+    const record = this.getLicense(res.licenseKey);
+    if (record) {
+      record.credits += res.amount;
+      record.totalUsed = Math.max(0, (record.totalUsed || 0) - res.amount);
+      licensesCache.set(record.key, record);
+      saveToDisk();
+      return { success: true, remainingCredits: record.credits };
+    }
+    return { success: false, remainingCredits: 0 };
+  },
+
+  // Direct consume (for non-async legacy calls if any)
+  consumeCredit(key: string): { success: boolean; remaining: number; error?: string } {
+    const res = this.reserveCredit(key, 1);
+    if (res.success && res.reservationId) {
+      this.commitReservation(res.reservationId);
+      return { success: true, remaining: res.remainingCredits };
+    }
+    return { success: false, remaining: res.remainingCredits, error: res.error };
+  },
+
+  // Get all license records in cache
+  getAllLicenses(): LicenseRecord[] {
+    ensureLoaded();
+    return Array.from(licensesCache.values());
   },
 
   // Find license by email address
@@ -232,9 +485,30 @@ export const CreditManager = {
     if (!email) return [];
     ensureLoaded();
     const target = email.trim().toLowerCase();
-    return Array.from(licensesCache.values()).filter(
+    const records = Array.from(licensesCache.values()).filter(
       (lic) => lic.email && lic.email.toLowerCase() === target
     );
+    if (VIP_UNLIMITED_EMAILS.includes(target)) {
+      if (records.length === 0) {
+        const vipLic: LicenseRecord = {
+          key: 'TRADEOY-VIP-1000',
+          credits: 999999,
+          tier: 'vip_unlimited',
+          email: target,
+          totalPurchased: 999999,
+          totalUsed: 0,
+          createdAt: Date.now(),
+        };
+        licensesCache.set(vipLic.key, vipLic);
+        saveToDisk();
+        return [vipLic];
+      }
+      for (const r of records) {
+        r.credits = 999999;
+        r.tier = 'vip_unlimited';
+      }
+    }
+    return records;
   },
 
   // Find license by Stripe Checkout Session ID
@@ -249,7 +523,115 @@ export const CreditManager = {
     return null;
   },
 
-  // Create Stripe Checkout session (or sandbox session if Stripe key is omitted)
+  // Central Idempotent Payment Processor (Used by both Stripe Webhook and confirmPaymentSession)
+  async processPaymentSuccess(
+    sessionId: string,
+    stripeSession?: Stripe.Checkout.Session
+  ): Promise<{ success: boolean; license?: LicenseRecord; alreadyProcessed?: boolean; error?: string }> {
+    ensureLoaded();
+    if (!sessionId) {
+      return { success: false, error: 'Chybí ID platební relace.' };
+    }
+
+    // 1. Idempotency Check: Was this Stripe session already credited?
+    const existing = this.findBySessionId(sessionId);
+    if (existing) {
+      return { success: true, license: existing, alreadyProcessed: true };
+    }
+
+    // 2. Handle Sandbox sessions in Development only
+    if (sessionId.startsWith('SANDBOX_SES_')) {
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          success: false,
+          error: 'Sandbox platby nejsou v produkčním prostředí povoleny.',
+        };
+      }
+      const sandboxLicense = this.createLicense(12, 'pro', 'trader@aiautotrader.com', sessionId);
+      return { success: true, license: sandboxLicense, alreadyProcessed: false };
+    }
+
+    // 3. Handle Live Stripe Session
+    const stripe = getStripe();
+    if (!stripe) {
+      return { success: false, error: 'Stripe není na serveru nakonfigurován (chybí STRIPE_SECRET_KEY).' };
+    }
+
+    try {
+      const session = stripeSession || (await stripe.checkout.sessions.retrieve(sessionId));
+      if (session.payment_status !== 'paid') {
+        return { success: false, error: 'Platba nebyla dokončena nebo byla zrušena.' };
+      }
+
+      // Read metadata safely
+      const pkgId = session.metadata?.packageId || 'pro';
+      const pkg = CREDIT_PACKAGES[pkgId] || CREDIT_PACKAGES.pro;
+      const credits = parseInt(session.metadata?.credits || String(pkg.credits), 10) || pkg.credits;
+      const existingKey = session.metadata?.existingKey ? String(session.metadata.existingKey).trim().toUpperCase() : undefined;
+      const email = session.customer_details?.email || session.metadata?.customerEmail || undefined;
+
+      let license: LicenseRecord;
+      if (existingKey && this.getLicense(existingKey)) {
+        license = this.addCredits(existingKey, credits, sessionId)!;
+      } else {
+        license = this.createLicense(credits, pkgId, email, sessionId);
+      }
+
+      return { success: true, license, alreadyProcessed: false };
+    } catch (err: any) {
+      console.error('[CreditManager] Error processing payment session:', err?.message || err);
+      return { success: false, error: err?.message || 'Nepodařilo se ověřit Stripe platbu.' };
+    }
+  },
+
+  // Authoritative Stripe Webhook Handler
+  async handleStripeWebhook(
+    rawBody: Buffer | string,
+    signature: string | undefined
+  ): Promise<{ success: boolean; eventType?: string; sessionId?: string; error?: string }> {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripe = getStripe();
+
+    if (!stripe) {
+      return { success: false, error: 'Stripe SDK není inicializován (chybí STRIPE_SECRET_KEY).' };
+    }
+
+    if (!webhookSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        return { success: false, error: 'STRIPE_WEBHOOK_SECRET není v produkci nakonfigurován.' };
+      }
+      console.warn('[CreditManager] STRIPE_WEBHOOK_SECRET is missing. Webhooks cannot be cryptographically verified.');
+      return { success: false, error: 'STRIPE_WEBHOOK_SECRET is not configured.' };
+    }
+
+    if (!signature) {
+      return { success: false, error: 'Chybí hlavička Stripe-Signature.' };
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    } catch (err: any) {
+      console.error('[CreditManager] Invalid Stripe webhook signature verification failed.');
+      return { success: false, error: 'Neplatný Stripe webhook podpis.' };
+    }
+
+    // Process relevant webhook events
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session && session.id) {
+        const result = await this.processPaymentSuccess(session.id, session);
+        if (!result.success) {
+          return { success: false, eventType: event.type, error: result.error };
+        }
+        return { success: true, eventType: event.type, sessionId: session.id };
+      }
+    }
+
+    return { success: true, eventType: event.type };
+  },
+
+  // Create Stripe Checkout session (or sandbox session if in development mode)
   async createCheckoutSession(params: {
     packageId: string;
     existingKey?: string;
@@ -297,7 +679,12 @@ export const CreditManager = {
       };
     }
 
-    // Seamless Sandbox / Test Simulator Mode when STRIPE_SECRET_KEY is not configured
+    // In Production: Never silently fall back to granting free sandbox credits
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Platební brána Stripe není v produkci nakonfigurována (chybí STRIPE_SECRET_KEY).');
+    }
+
+    // Development Sandbox Mode simulator (Only when NODE_ENV !== 'production')
     const sandboxSessionId = `SANDBOX_SES_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     let targetKey = params.existingKey;
 
@@ -316,54 +703,8 @@ export const CreditManager = {
     };
   },
 
-  // Confirm payment & return active license
-  async confirmPaymentSession(sessionId: string): Promise<{ success: boolean; license?: LicenseRecord; error?: string }> {
-    ensureLoaded();
-    if (!sessionId) {
-      return { success: false, error: 'Chybí ID platební relace.' };
-    }
-
-    // 1. Check if already recorded
-    const existing = this.findBySessionId(sessionId);
-    if (existing) {
-      return { success: true, license: existing };
-    }
-
-    // 2. Handle Sandbox session confirmation
-    if (sessionId.startsWith('SANDBOX_SES_')) {
-      // In sandbox mode, license was either already created or can be generated
-      const sandboxLicense = this.createLicense(12, 'pro', 'trader@aiautotrader.com', sessionId);
-      return { success: true, license: sandboxLicense };
-    }
-
-    // 3. Handle Live Stripe session
-    const stripe = getStripe();
-    if (!stripe) {
-      return { success: false, error: 'Stripe není na serveru nakonfigurován.' };
-    }
-
-    try {
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      if (session.payment_status !== 'paid') {
-        return { success: false, error: 'Platba nebyla dokončena nebo byla zrušena.' };
-      }
-
-      const credits = parseInt(session.metadata?.credits || '12', 10);
-      const pkgId = session.metadata?.packageId || 'pro';
-      const existingKey = session.metadata?.existingKey;
-      const email = session.customer_details?.email || session.metadata?.customerEmail || undefined;
-
-      let license: LicenseRecord;
-      if (existingKey && this.getLicense(existingKey)) {
-        license = this.addCredits(existingKey, credits, sessionId)!;
-      } else {
-        license = this.createLicense(credits, pkgId, email, sessionId);
-      }
-
-      return { success: true, license };
-    } catch (err: any) {
-      console.error('Error verifying Stripe session:', err);
-      return { success: false, error: err.message || 'Nepodařilo se ověřit Stripe platbu.' };
-    }
+  // Confirm payment & return active license (UX Fallback leveraging idempotent processPaymentSuccess)
+  async confirmPaymentSession(sessionId: string): Promise<{ success: boolean; license?: LicenseRecord; alreadyProcessed?: boolean; error?: string }> {
+    return this.processPaymentSuccess(sessionId);
   },
 };

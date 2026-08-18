@@ -1,37 +1,42 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Upload,
   Camera,
-  Image as ImageIcon,
   Trash2,
-  Plus,
   Sparkles,
   Layers,
-  Clipboard,
   HelpCircle,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Compass,
-  ArrowRight,
+  ChevronDown,
+  ChevronUp,
   Zap,
   TrendingUp,
   Waves,
   Globe,
+  Sliders,
   CheckCircle2,
+  AlertCircle,
+  Plus,
+  Command,
+  Check,
+  RotateCcw,
+  X,
 } from 'lucide-react';
-import { convertSvgToPng } from '../utils/sampleChart';
 import { LanguageOption, HoldingPeriod } from '../types';
 import { getTranslation } from '../utils/translations';
+import { convertSvgToPng } from '../utils/sampleChart';
 
 interface ChartUploaderProps {
   images: string[];
   onImagesChange: (images: string[]) => void;
   onAnalyze: () => void;
   isLoading: boolean;
-  onLoadSampleChart: () => void;
+  onResetAnalysis?: () => void;
+  hasAnalysisResult?: boolean;
   language?: LanguageOption;
   holdingPeriod?: HoldingPeriod;
+  onOpenSettings?: () => void;
 }
 
 export const ChartUploader: React.FC<ChartUploaderProps> = ({
@@ -39,109 +44,109 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   onImagesChange,
   onAnalyze,
   isLoading,
-  onLoadSampleChart,
+  onResetAnalysis,
+  hasAnalysisResult = false,
   language = 'cs',
   holdingPeriod = 'intraday',
+  onOpenSettings,
 }) => {
   const t = getTranslation(language as LanguageOption);
   const [showGuide, setShowGuide] = useState(false);
+  const [showConfirmResetModal, setShowConfirmResetModal] = useState(false);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
+  const [isMac, setIsMac] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const targetSlotRef = useRef<number | null>(null);
 
-  // Dynamic TF recommendation mapping based on selected Holding Period
-  const holdingRecommendations: Record<
+  // Detect platform for keyboard shortcut display (Mac vs Windows/Linux)
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      setIsMac(/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform || navigator.userAgent));
+    }
+  }, []);
+
+  // Timeframe Slot Definitions based on Holding Period
+  const slotDefinitions: Record<
     HoldingPeriod,
     {
-      title: string;
+      periodTitle: string;
       icon: any;
-      accentColor: string;
-      bgColor: string;
-      borderColor: string;
-      textColor: string;
-      badgeColor: string;
-      steps: [string, string, string];
-      summary: string;
+      accent: string;
+      slots: {
+        step: string;
+        tf: string;
+        role: string;
+        desc: string;
+      }[];
     }
   > = {
     scalp: {
-      title: t.scalpStyleTitle,
+      periodTitle: t.scalpStyleTitle,
       icon: Zap,
-      accentColor: 'text-amber-400',
-      bgColor: 'bg-amber-950/40',
-      borderColor: 'border-amber-500/40',
-      textColor: 'text-amber-300',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-      steps: ['1. Snímek: 1H (HTF Kontext & S/R)', '2. Snímek: 15m (MTF Struktura & FVG)', '3. Snímek: 5m / 1m (LTF Vstup & CHoCH)'],
-      summary: t.scalpStyleTF,
+      accent: 'amber',
+      slots: [
+        { step: '01', tf: '1H', role: 'Higher Timeframe', desc: 'HTF Trend & Hlavní S/R úrovně' },
+        { step: '02', tf: '15m', role: 'Market Structure', desc: 'MTF Struktura & FVG zóny' },
+        { step: '03', tf: '5m / 1m', role: 'Entry & Trigger', desc: 'LTF Vstupní trigger & CHoCH' },
+      ],
     },
     intraday: {
-      title: t.intradayStyleTitle,
+      periodTitle: t.intradayStyleTitle,
       icon: TrendingUp,
-      accentColor: 'text-cyan-400',
-      bgColor: 'bg-cyan-950/40',
-      borderColor: 'border-cyan-500/40',
-      textColor: 'text-cyan-300',
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-      steps: ['1. Snímek: 4H (HTF Trend & Likvidita)', '2. Snímek: 15m (MTF Struktura & BOS)', '3. Snímek: 5m (LTF Vstup & Trigger)'],
-      summary: t.intradayStyleTF,
+      accent: 'emerald',
+      slots: [
+        { step: '01', tf: '4H', role: 'Higher Timeframe', desc: 'HTF Kontext & Hlavní likvidita' },
+        { step: '02', tf: '15m', role: 'Market Structure', desc: 'MTF Struktura trhu & BOS zóny' },
+        { step: '03', tf: '5m', role: 'Entry & Trigger', desc: 'LTF Exekuce & Přesný vstup' },
+      ],
     },
     swing: {
-      title: t.swingStyleTitle,
+      periodTitle: t.swingStyleTitle,
       icon: Waves,
-      accentColor: 'text-purple-400',
-      bgColor: 'bg-purple-950/40',
-      borderColor: 'border-purple-500/40',
-      textColor: 'text-purple-300',
-      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-      steps: ['1. Snímek: Daily (Makro Trend & Zóny)', '2. Snímek: 4H (MTF Struktura & S&D)', '3. Snímek: 1H (LTF Vstup & Potvrzení)'],
-      summary: t.swingStyleTF,
+      accent: 'purple',
+      slots: [
+        { step: '01', tf: 'Daily (1D)', role: 'Macro Context', desc: 'Makro trend & Denní likvidita' },
+        { step: '02', tf: '4H', role: 'Market Structure', desc: 'Struktura trhu & S&D zóny' },
+        { step: '03', tf: '1H / 15m', role: 'Entry & Trigger', desc: 'Lokální reakce & Potvrzení' },
+      ],
     },
     position: {
-      title: t.positionStyleTitle,
+      periodTitle: t.positionStyleTitle,
       icon: Globe,
-      accentColor: 'text-emerald-400',
-      bgColor: 'bg-emerald-950/40',
-      borderColor: 'border-emerald-500/40',
-      textColor: 'text-emerald-300',
-      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-      steps: ['1. Snímek: Weekly (Makro Kontext)', '2. Snímek: Daily (Trend & Fáze trhu)', '3. Snímek: 4H (Vstup & Risk Control)'],
-      summary: t.positionStyleTF,
+      accent: 'cyan',
+      slots: [
+        { step: '01', tf: 'Weekly (1W)', role: 'Macro Cycle', desc: 'Týdenní cykly & Makro POI' },
+        { step: '02', tf: 'Daily (1D)', role: 'Market Phase', desc: 'Fáze trhu & Akumulace/Distribuce' },
+        { step: '03', tf: '4H', role: 'Position Entry', desc: 'Vstupní timing & Risk control' },
+      ],
     },
   };
 
-  const currentHint = holdingRecommendations[holdingPeriod] || holdingRecommendations.intraday;
-  const CurrentIcon = currentHint.icon;
+  const currentConfig = slotDefinitions[holdingPeriod] || slotDefinitions.intraday;
+  const HoldingIcon = currentConfig.icon;
+  const MAX_IMAGES = 3;
 
-  // Global paste handler for image from clipboard
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  // Normalized 3-slot array representations
+  const currentSlots = [images[0] || null, images[1] || null, images[2] || null];
 
-      const imageFiles: File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) imageFiles.push(file);
-        }
-      }
-      if (imageFiles.length > 0) {
-        processAndAddFiles(imageFiles);
-      }
-    };
+  // Helper for displaying auto-dismissing toast notifications
+  const showToast = useCallback((text: string, type: 'success' | 'info' | 'warning' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => {
+      setToastMessage((prev) => (prev?.text === text ? null : prev));
+    }, 3200);
+  }, []);
 
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [images]);
-
-  const compressImage = (dataUrl: string, maxWidth = 1200, maxHeight = 1200, quality = 0.78): Promise<string> => {
+  const compressImage = (dataUrl: string, maxWidth = 1080, maxHeight = 1080, quality = 0.72): Promise<string> => {
     return new Promise((resolve) => {
       if (typeof window === 'undefined') {
         resolve(dataUrl);
         return;
       }
       const img = new Image();
-      // Only set crossOrigin if loading external http URLs, not local data: URLs
       if (dataUrl.startsWith('http')) {
         img.crossOrigin = 'anonymous';
       }
@@ -164,9 +169,11 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
+            ctx.imageSmoothingQuality = 'medium';
             ctx.drawImage(img, 0, 0, width, height);
             const compressedUrl = canvas.toDataURL('image/jpeg', quality);
+            canvas.width = 0;
+            canvas.height = 0;
             resolve(compressedUrl);
             return;
           }
@@ -180,15 +187,21 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
     });
   };
 
-  const MAX_IMAGES = 3;
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve((e.target?.result as string) || '');
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
 
-  const processAndAddFiles = async (files: File[]) => {
-    const availableSlots = MAX_IMAGES - images.length;
-    if (availableSlots <= 0) return;
+  // Unified File Processing Pipeline used across Clipboard Paste, File Select, Drag&Drop, and Camera
+  const processAndAddFiles = useCallback(async (files: File[], requestedSlotIndex?: number) => {
+    if (files.length === 0) return;
 
-    const filesToProcess = files.slice(0, availableSlots);
-    const processed: string[] = [];
-    for (const file of filesToProcess) {
+    const processedUrls: string[] = [];
+    for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
       const dataUrl = await readFileAsDataUrl(file);
       let finalUrl = dataUrl;
@@ -196,57 +209,221 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         finalUrl = await convertSvgToPng(dataUrl);
       }
       const compressed = await compressImage(finalUrl);
-      processed.push(compressed);
+      processedUrls.push(compressed);
     }
-    if (processed.length > 0) {
-      onImagesChange([...images, ...processed].slice(0, MAX_IMAGES));
-    }
-  };
 
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        resolve((e.target?.result as string) || '');
-      };
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
-  };
+    if (processedUrls.length === 0) return;
+
+    // Slot assignment logic:
+    // SCENARIO 1: User selected 3 (or more) images at once -> directly fill slots 0 (HTF), 1 (MTF), 2 (LTF) in order of selection
+    if (processedUrls.length >= 3) {
+      const newSlots = [processedUrls[0], processedUrls[1], processedUrls[2]];
+      onImagesChange(newSlots);
+      setActiveSlotIndex(null);
+      showToast(
+        language === 'cs'
+          ? '✓ Všechny 3 grafy (HTF, MTF, LTF) byly načteny v přesném pořadí vašeho výběru!'
+          : language === 'es'
+          ? '✓ Los 3 gráficos se cargaron en el orden exacto de selección.'
+          : '✓ All 3 charts loaded in the exact order of selection.',
+        'success'
+      );
+      return;
+    }
+
+    // SCENARIO 2: User selected 2 images at once -> fill starting from requestedSlot or first empty slot
+    if (processedUrls.length === 2) {
+      let startIndex = typeof requestedSlotIndex === 'number' && requestedSlotIndex >= 0 && requestedSlotIndex < MAX_IMAGES
+        ? requestedSlotIndex
+        : currentSlots.findIndex((s) => !s);
+
+      if (startIndex === -1 || startIndex > 1) {
+        startIndex = 0;
+      }
+
+      const updatedSlots = [...currentSlots];
+      updatedSlots[startIndex] = processedUrls[0];
+      updatedSlots[startIndex + 1 < MAX_IMAGES ? startIndex + 1 : 0] = processedUrls[1];
+
+      const cleanedImages = [updatedSlots[0], updatedSlots[1], updatedSlots[2]].filter(Boolean) as string[];
+      onImagesChange(cleanedImages);
+
+      const nextEmpty = updatedSlots.findIndex((s) => !s);
+      setActiveSlotIndex(nextEmpty !== -1 ? nextEmpty : null);
+      showToast(
+        language === 'cs'
+          ? '✓ 2 grafy byly načteny v pořadí výběru'
+          : language === 'es'
+          ? '✓ 2 gráficos cargados en orden de selección'
+          : '✓ 2 charts loaded in selection order',
+        'success'
+      );
+      return;
+    }
+
+    // SCENARIO 3: Single image uploaded/pasted
+    let destinationSlotIndex: number | null = null;
+
+    if (typeof requestedSlotIndex === 'number' && requestedSlotIndex >= 0 && requestedSlotIndex < MAX_IMAGES) {
+      destinationSlotIndex = requestedSlotIndex;
+    } else {
+      // Find first empty slot among [0, 1, 2]
+      const firstEmptyIndex = currentSlots.findIndex((slot) => !slot);
+      if (firstEmptyIndex !== -1) {
+        destinationSlotIndex = firstEmptyIndex;
+      } else {
+        // All 3 slots are occupied!
+        showToast(
+          language === 'cs'
+            ? 'Všechny 3 sloty jsou již obsazené. Klikněte na konkrétní slot pro jeho nahrazení.'
+            : language === 'es'
+            ? 'Las 3 ranuras ya están ocupadas. Haga clic en una ranura específica para reemplazarla.'
+            : 'All 3 slots are already filled. Click a specific slot to replace it.',
+          'warning'
+        );
+        return;
+      }
+    }
+
+    // Build new normalized 3-slot array
+    const updatedSlots = [...currentSlots];
+    updatedSlots[destinationSlotIndex] = processedUrls[0];
+
+    // Filter out trailing empty slots but maintain filled slots order
+    const cleanedImages: string[] = [];
+    for (let i = 0; i < MAX_IMAGES; i++) {
+      if (updatedSlots[i]) {
+        cleanedImages.push(updatedSlots[i] as string);
+      }
+    }
+
+    onImagesChange(cleanedImages);
+
+    // Provide visual feedback for the destination slot
+    const targetTfName = currentConfig.slots[destinationSlotIndex]?.tf || `Slot ${destinationSlotIndex + 1}`;
+    showToast(`✓ Graf vložen do ${targetTfName}`, 'success');
+
+    // Auto-advance recommended focus to the next empty slot if any
+    const nextEmptyIndex = updatedSlots.findIndex((slot) => !slot);
+    if (nextEmptyIndex !== -1) {
+      setActiveSlotIndex(nextEmptyIndex);
+    } else {
+      setActiveSlotIndex(null);
+    }
+  }, [currentSlots, currentConfig, onImagesChange, language, showToast]);
+
+  // Global Clipboard Paste Handler (Ctrl+V / Cmd+V)
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // Do not intercept if user is typing in a native text input, textarea, or contentEditable element
+      const activeElement = document.activeElement;
+      if (
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          (activeElement as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
+      const items = e.clipboardData?.items;
+      if (!items || items.length === 0) return;
+
+      const imageFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            imageFiles.push(file);
+          }
+        }
+      }
+
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        processAndAddFiles(imageFiles, activeSlotIndex !== null ? activeSlotIndex : undefined);
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, [activeSlotIndex, processAndAddFiles]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files) as File[];
-      processAndAddFiles(files);
+      const target = targetSlotRef.current !== null ? targetSlotRef.current : (activeSlotIndex !== null ? activeSlotIndex : undefined);
+      processAndAddFiles(files, target);
       e.target.value = '';
+      targetSlotRef.current = null;
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const triggerUploadForSlot = (slotIdx: number, useCamera = false) => {
+    targetSlotRef.current = slotIdx;
+    setActiveSlotIndex(slotIdx);
+    if (useCamera) {
+      cameraInputRef.current?.click();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const removeSlotImage = (index: number) => {
+    const updatedSlots = [...currentSlots];
+    updatedSlots[index] = null;
+    const cleaned = updatedSlots.filter(Boolean) as string[];
+    onImagesChange(cleaned);
+    setActiveSlotIndex(index); // Focus the newly empty slot
+    const slotTf = currentConfig.slots[index]?.tf || `Slot ${index + 1}`;
+    showToast(
+      language === 'cs'
+        ? `Snímek pro ${slotTf} byl odstraněn.`
+        : language === 'es'
+        ? `Gráfico para ${slotTf} eliminado.`
+        : `Chart for ${slotTf} removed.`,
+      'info'
+    );
+  };
+
+  const handleDropOnSlot = (e: React.DragEvent<HTMLDivElement>, slotIdx: number) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files) as File[];
-      processAndAddFiles(files);
+      processAndAddFiles(files, slotIdx);
     }
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const removeImage = (index: number) => {
-    const updated = images.filter((_, i) => i !== index);
-    onImagesChange(updated);
-  };
+  // Find next recommended empty slot for visual badge indication
+  const nextEmptySlotIndex = currentSlots.findIndex((slot) => !slot);
 
   return (
-    <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.37)] relative overflow-hidden transition-all"
-    >
+    <section className="space-y-6 relative">
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed top-20 right-4 sm:right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+          <div
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2.5 shadow-2xl border ${
+              toastMessage.type === 'success'
+                ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200'
+                : toastMessage.type === 'warning'
+                ? 'bg-amber-950 border-amber-500/50 text-amber-200'
+                : 'bg-cyan-950 border-cyan-500/50 text-cyan-200'
+            }`}
+          >
+            {toastMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            )}
+            <span>{toastMessage.text}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden File Inputs */}
       <input
         type="file"
         ref={fileInputRef}
@@ -264,31 +441,53 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         className="hidden"
       />
 
-      {/* Background Glow */}
-      <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+      {/* 1. Page Header & Workflow Context */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <span>{t.uploaderTitle}</span>
-          </h2>
-          <p className="text-xs text-[#86868b] mt-1">
+          <div className="flex items-center space-x-2.5 text-xs text-[#86868b] font-medium mb-1.5 flex-wrap gap-y-1">
+            <span className="uppercase tracking-wider">Trading Workflow</span>
+            <span>•</span>
+            <span className="text-emerald-400 font-semibold flex items-center gap-1">
+              <HoldingIcon className="w-3.5 h-3.5" />
+              {currentConfig.periodTitle}
+            </span>
+            <span>•</span>
+            {/* Decent, high-visibility keyboard shortcut badge */}
+            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-mono font-bold">
+              <span>{isMac ? '⌘ + V' : 'Ctrl + V'}</span>
+              <span className="font-sans font-normal text-[10px] text-emerald-400/80 hidden sm:inline">pro vložení screenshotu</span>
+            </span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            {t.uploaderTitle}
+          </h1>
+          <p className="text-xs sm:text-sm text-[#a1a1a6] mt-1 max-w-2xl leading-relaxed">
             {t.uploaderSubtitle}
           </p>
         </div>
 
-        {/* Header Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        {/* Secondary & Advanced Action Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#18181c] hover:bg-[#222226] text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+              title="Nastavení AI Mentora & Strategie"
+            >
+              <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Nastavení analýzy</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowGuide(!showGuide)}
-            className={`inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer active:scale-95 backdrop-blur-md ${
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 ${
               showGuide
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                : 'bg-white/[0.05] text-[#a1a1a6] border-white/[0.08] hover:text-white hover:bg-white/10'
+                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                : 'bg-[#18181c] text-[#a1a1a6] border-white/10 hover:text-white hover:bg-[#222226]'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
@@ -296,314 +495,312 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
 
-          <button
-            type="button"
-            onClick={onLoadSampleChart}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all duration-200 cursor-pointer active:scale-95 backdrop-blur-md shadow-xs"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{t.loadSampleChart}</span>
-          </button>
+          {(images.length > 0 || hasAnalysisResult) && (
+            <button
+              type="button"
+              onClick={() => setShowConfirmResetModal(true)}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/25 text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm"
+              title={t.clearAndNewAnalysis}
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-red-400" />
+              <span>{t.clearAndNewAnalysis}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Interactive Timeframe Guide & Strategy Matrix */}
+      {/* 2. Expandable Timeframe Guide (Contextual) */}
       {showGuide && (
-        <div className="mb-6 p-5 rounded-2xl bg-black/60 border border-cyan-500/30 text-[#f5f5f7] text-xs space-y-5 shadow-xl backdrop-blur-xl animate-fadeIn">
-          <div className="flex items-start justify-between border-b border-white/[0.08] pb-3">
-            <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
-                <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-xs">{t.timeframeGuideTitle}</h3>
-                <p className="text-[11px] text-[#86868b]">{t.timeframeGuideSubtitle}</p>
-              </div>
+        <div className="p-5 rounded-2xl bg-[#141418] border border-cyan-500/25 text-[#f5f5f7] text-xs space-y-4 shadow-lg animate-fadeIn">
+          <div className="flex items-center space-x-2.5 border-b border-white/[0.08] pb-3">
+            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+              <Compass className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-xs">{t.timeframeGuideTitle}</h3>
+              <p className="text-[11px] text-[#86868b]">{t.timeframeGuideSubtitle}</p>
             </div>
           </div>
 
-          {/* 1. Upload Order Steps */}
-          <div>
-            <h4 className="font-bold text-cyan-300 text-[11px] uppercase tracking-wider mb-2.5 flex items-center space-x-1.5">
-              <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>{t.timeframeOrderTitle}</span>
-            </h4>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Step 1 */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/40 transition">
-                <div className="flex items-center space-x-2 mb-1.5 text-emerald-400 font-bold text-[11px]">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-300">1</span>
-                  <span>{t.tfStep1Title}</span>
-                </div>
-                <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep1Desc}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
+              <div className="text-emerald-400 font-bold text-[11px] mb-1 flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-center text-[10px] leading-4">1</span>
+                <span>{t.tfStep1Title}</span>
               </div>
-
-              {/* Step 2 */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/40 transition">
-                <div className="flex items-center space-x-2 mb-1.5 text-cyan-400 font-bold text-[11px]">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center text-[10px] text-cyan-300">2</span>
-                  <span>{t.tfStep2Title}</span>
-                </div>
-                <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep2Desc}</p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/40 transition">
-                <div className="flex items-center space-x-2 mb-1.5 text-teal-400 font-bold text-[11px]">
-                  <span className="w-5 h-5 rounded-full bg-teal-500/20 flex items-center justify-center text-[10px] text-teal-300">3</span>
-                  <span>{t.tfStep3Title}</span>
-                </div>
-                <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep3Desc}</p>
-              </div>
+              <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep1Desc}</p>
             </div>
-          </div>
-
-          {/* 2. Strategy Matrix Grid */}
-          <div>
-            <h4 className="font-bold text-amber-300 text-[11px] uppercase tracking-wider mb-2.5 flex items-center space-x-1.5">
-              <Layers className="w-3.5 h-3.5 text-amber-400" />
-              <span>{t.tradingStyleMatrixTitle}</span>
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Scalping */}
-              <div className="p-3 rounded-2xl bg-white/[0.03] border border-amber-500/20 flex flex-col justify-between">
-                <div className="font-bold text-amber-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{t.scalpStyleTitle}</span>
-                </div>
-                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
-                  {t.scalpStyleTF}
-                </div>
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
+              <div className="text-cyan-400 font-bold text-[11px] mb-1 flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-center text-[10px] leading-4">2</span>
+                <span>{t.tfStep2Title}</span>
               </div>
-
-              {/* Intraday */}
-              <div className="p-3 rounded-2xl bg-white/[0.03] border border-cyan-500/20 flex flex-col justify-between">
-                <div className="font-bold text-cyan-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{t.intradayStyleTitle}</span>
-                </div>
-                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
-                  {t.intradayStyleTF}
-                </div>
+              <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep2Desc}</p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
+              <div className="text-purple-400 font-bold text-[11px] mb-1 flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-purple-500/20 text-center text-[10px] leading-4">3</span>
+                <span>{t.tfStep3Title}</span>
               </div>
-
-              {/* Swing */}
-              <div className="p-3 rounded-2xl bg-white/[0.03] border border-purple-500/20 flex flex-col justify-between">
-                <div className="font-bold text-purple-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
-                  <Waves className="w-3.5 h-3.5 text-purple-400" />
-                  <span>{t.swingStyleTitle}</span>
-                </div>
-                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
-                  {t.swingStyleTF}
-                </div>
-              </div>
-
-              {/* Position */}
-              <div className="p-3 rounded-2xl bg-white/[0.03] border border-emerald-500/20 flex flex-col justify-between">
-                <div className="font-bold text-emerald-300 text-[11px] flex items-center space-x-1.5 mb-1.5">
-                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{t.positionStyleTitle}</span>
-                </div>
-                <div className="text-[11px] font-mono text-white bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[0.06] mt-1 text-center">
-                  {t.positionStyleTF}
-                </div>
-              </div>
+              <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep3Desc}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Dynamic Active Holding Period Recommendation Bar */}
-      <div className={`mb-5 p-4 rounded-2xl ${currentHint.bgColor} ${currentHint.borderColor} border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all shadow-md backdrop-blur-xl`}>
-        <div className="flex items-center space-x-3">
-          <div className={`w-9 h-9 rounded-2xl ${currentHint.bgColor} ${currentHint.borderColor} border flex items-center justify-center ${currentHint.accentColor} shrink-0 shadow-xs`}>
-            <CurrentIcon className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
-                {t.activeHoldingHintLabel}:
-              </span>
-              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${currentHint.badgeColor}`}>
-                {currentHint.title}
-              </span>
-            </div>
-            <p className="text-xs font-semibold text-white font-mono mt-0.5">
-              {currentHint.summary}
-            </p>
-          </div>
-        </div>
+      {/* 3. PRIMARY WORKFLOW: 3 DEDICATED TIMEFRAME UPLOAD SLOTS WITH INTUITIVE CLICK-TO-SELECT & PASTE FOCUS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {currentConfig.slots.map((slot, idx) => {
+          const currentImg = currentSlots[idx];
+          const hasImage = Boolean(currentImg);
+          const isSelected = activeSlotIndex === idx;
+          const isRecommendedNext = !hasImage && nextEmptySlotIndex === idx;
 
-        {/* 3 Step Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {currentHint.steps.map((step, sIdx) => (
-            <span
-              key={sIdx}
-              className="text-[10px] px-2.5 py-1 rounded-full bg-black/50 text-[#f5f5f7] border border-white/[0.08] font-medium whitespace-nowrap shadow-xs backdrop-blur-md"
+          return (
+            <div
+              key={idx}
+              onClick={() => setActiveSlotIndex(idx)}
+              onDrop={(e) => handleDropOnSlot(e, idx)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className={`rounded-2xl transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer relative ${
+                isSelected
+                  ? 'bg-[#151b17] border-2 border-emerald-400 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/20'
+                  : hasImage
+                  ? 'bg-[#121216] border border-emerald-500/40 hover:border-emerald-500/60 shadow-md'
+                  : isRecommendedNext
+                  ? 'bg-[#121216]/90 border border-dashed border-emerald-500/40 hover:border-emerald-400/70 shadow-sm'
+                  : 'bg-[#121216]/80 hover:bg-[#18181e] border border-white/10 hover:border-white/20'
+              }`}
             >
-              {step}
-            </span>
-          ))}
-        </div>
+              {/* Slot Header */}
+              <div className={`p-4 border-b border-white/[0.06] flex items-center justify-between transition-colors ${
+                isSelected ? 'bg-emerald-500/10' : 'bg-black/30'
+              }`}>
+                <div className="flex items-center space-x-2.5">
+                  <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                    isSelected ? 'bg-emerald-500 text-black' : 'bg-white/[0.08] text-[#86868b]'
+                  }`}>
+                    {slot.step}
+                  </span>
+                  <div>
+                    <div className="flex items-center space-x-1.5">
+                      <span className={`text-xs font-bold ${isSelected ? 'text-emerald-300' : 'text-white'}`}>
+                        {slot.tf}
+                      </span>
+                      <span className="text-[10px] text-[#86868b]">• {slot.role}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  {hasImage ? (
+                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Připraveno
+                    </span>
+                  ) : isSelected ? (
+                    <span className="text-[10px] font-semibold text-emerald-300 flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40 animate-pulse">
+                      Aktivní cíl (Ctrl+V)
+                    </span>
+                  ) : isRecommendedNext ? (
+                    <span className="text-[10px] font-medium text-emerald-400/80 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
+                      Další na řadě
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Slot Content: Image Preview OR Upload Target */}
+              <div className="p-4 flex-1 flex flex-col justify-center">
+                {hasImage ? (
+                  <div className="relative rounded-xl overflow-hidden aspect-video bg-black group border border-white/10">
+                    <img
+                      src={currentImg || ''}
+                      alt={`Timeframe slot ${slot.tf}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerUploadForSlot(idx, false);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white text-xs font-medium transition cursor-pointer"
+                      >
+                        Změnit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSlotImage(idx);
+                        }}
+                        className="p-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"
+                        title="Odstranit snímek"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerUploadForSlot(idx, false);
+                    }}
+                    className={`border border-dashed rounded-xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[160px] group ${
+                      isSelected
+                        ? 'border-emerald-400 bg-emerald-950/20'
+                        : 'border-white/15 hover:border-emerald-400/50 bg-black/20 hover:bg-emerald-950/10'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 transition ${
+                      isSelected
+                        ? 'bg-emerald-500/20 text-emerald-300 scale-110'
+                        : 'bg-white/[0.04] group-hover:bg-emerald-500/10 text-[#86868b] group-hover:text-emerald-400'
+                    }`}>
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div className={`text-xs font-bold transition ${
+                      isSelected ? 'text-emerald-300' : 'text-white group-hover:text-emerald-300'
+                    }`}>
+                      Nahrát {slot.tf} graf
+                    </div>
+                    <div className="text-[11px] text-[#86868b] mt-1 text-center max-w-[200px] leading-snug">
+                      {slot.desc}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06] opacity-80 group-hover:opacity-100">
+                      <span className="text-[10px] text-emerald-400 font-semibold hover:underline">Vybrat soubor</span>
+                      <span className="text-[#86868b] text-[10px]">•</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerUploadForSlot(idx, true);
+                        }}
+                        className="text-[10px] text-cyan-400 font-medium hover:underline flex items-center gap-1"
+                      >
+                        <Camera className="w-3 h-3" />
+                        Kamera
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Slot Footer Helper with Keyboard Shortcut instruction */}
+              <div className={`px-4 py-2.5 border-t text-[11px] flex items-center justify-between transition-colors ${
+                isSelected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-black/20 border-white/[0.04] text-[#86868b]'
+              }`}>
+                <span>{isSelected ? `Stiskněte ${isMac ? '⌘+V' : 'Ctrl+V'} pro vložení sem` : `Účel: ${slot.role}`}</span>
+                <span className="font-mono text-[10px] font-bold">{slot.tf}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Main Upload Area */}
-      {images.length === 0 ? (
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onClick={() => fileInputRef.current?.click()}
-          className="border border-dashed border-white/20 hover:border-emerald-500/50 bg-black/40 hover:bg-black/60 rounded-3xl p-10 text-center transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center min-h-[240px] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-        >
-          <div className="w-16 h-16 rounded-3xl bg-white/[0.05] border border-white/[0.1] group-hover:border-emerald-500/40 group-hover:scale-105 transition-all duration-300 flex items-center justify-center mb-4 text-emerald-400 shadow-xl shadow-emerald-500/10">
-            <Upload className="w-8 h-8" />
+      {/* 4. PRIMARY CALL-TO-ACTION (Dominant execution button) */}
+      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#121216] border border-white/[0.08] rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center space-x-3 text-xs text-[#a1a1a6]">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+            <Layers className="w-4 h-4" />
           </div>
-
-          <p className="text-base font-bold text-white tracking-tight">
-            {t.clickToBrowse}
-          </p>
-          <p className="text-xs text-[#86868b] mt-1 max-w-sm">
-            {t.supportedFormats}
-          </p>
-
-          <div className="flex items-center space-x-3 mt-6 pt-5 border-t border-white/[0.08]">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
-            >
-              <Clipboard className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{t.clickToBrowse.split(' ')[0]}</span>
-            </button>
-
-            {/* Mobile Camera Snapshot */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                cameraInputRef.current?.click();
-              }}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
-            >
-              <Camera className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Camera</span>
-            </button>
+          <div>
+            <div className="text-white font-bold text-xs sm:text-sm">
+              Stav podkladů: {images.length} / {MAX_IMAGES} grafy
+            </div>
+            <div className="text-[11px] text-[#86868b]">
+              {images.length === 0
+                ? `Nahrajte nebo vložte přes ${isMac ? '⌘+V' : 'Ctrl+V'} alespoň 1 snímek grafu pro spuštění analýzy.`
+                : images.length < 3
+                ? 'Tip: 3 timeframy (HTF + MTF + LTF) poskytují nejvyšší přesnost konfluence.'
+                : 'Všechny 3 timeframy jsou připraveny pro multi-timeframe syntézu.'}
+            </div>
           </div>
         </div>
-      ) : (
-        <div className="space-y-5">
-          {/* Quick Toolbar for Multi-Chart Uploads */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-black/50 rounded-2xl border border-white/[0.08] backdrop-blur-md">
-            <div className="flex items-center space-x-2">
-              {images.length < MAX_IMAGES && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{t.addMoreCharts}</span>
-                  </button>
 
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-semibold text-white border border-white/[0.08] transition cursor-pointer active:scale-95"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Camera</span>
-                  </button>
-                </>
-              )}
+        <button
+          type="button"
+          onClick={onAnalyze}
+          disabled={images.length === 0 || isLoading}
+          className="w-full sm:w-auto sm:min-w-[300px] md:min-w-[360px] lg:min-w-[400px] px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm sm:text-base transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-2.5 shadow-lg shadow-emerald-500/20 active:scale-98 shrink-0"
+        >
+          {isLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <span>{t.analyzingBtn}</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4 text-black fill-black" />
+              <span>{t.analyzeBtn}</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Confirmation Dialog: Delete and Create New Analysis */}
+      {showConfirmResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-md bg-[#141418] border border-white/10 rounded-2xl sm:rounded-3xl p-6 shadow-2xl space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start space-x-3.5">
+              <div className="p-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-white leading-snug">
+                  {t.confirmResetTitle}
+                </h3>
+                <p className="text-xs text-[#a1a1a6] leading-relaxed">
+                  {t.confirmResetDesc}
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-[#86868b]">
-                {t.uploadedCharts} <strong className="text-emerald-400">{images.length}/{MAX_IMAGES}</strong>
-              </span>
-
+            <div className="flex items-center justify-end space-x-3 pt-2">
               <button
                 type="button"
-                onClick={() => onImagesChange([])}
-                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold transition cursor-pointer active:scale-95"
+                onClick={() => setShowConfirmResetModal(false)}
+                className="px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white text-xs font-semibold transition cursor-pointer active:scale-95"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onImagesChange([]);
+                  setActiveSlotIndex(0);
+                  if (onResetAnalysis) {
+                    onResetAnalysis();
+                  }
+                  setShowConfirmResetModal(false);
+                  showToast(
+                    language === 'cs'
+                      ? 'Analýza i grafy byly smazány. Můžete nahrát nové snímky.'
+                      : language === 'es'
+                      ? 'Gráficos y análisis borrados. Puede cargar nuevos gráficos.'
+                      : 'Analysis and charts cleared. Ready for new uploads.',
+                    'info'
+                  );
+                }}
+                className="px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer active:scale-95 shadow-lg shadow-red-500/20"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{t.clearAll}</span>
+                <span>{t.confirmResetBtn}</span>
               </button>
             </div>
           </div>
-
-          {/* Thumbnails Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-            {images.map((img, idx) => (
-              <div
-                key={idx}
-                className="relative group rounded-2xl overflow-hidden border border-white/[0.1] bg-black aspect-video shadow-lg"
-              >
-                <img
-                  src={img}
-                  alt={`Chart ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 flex items-center space-x-1 shadow-sm">
-                  <Layers className="w-3 h-3" />
-                  <span>{currentHint.steps[idx] ? currentHint.steps[idx] : `Graf ${idx + 1}`}</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => removeImage(idx)}
-                  className="absolute top-2.5 right-2.5 p-2 rounded-full bg-red-500/80 hover:bg-red-600 text-white shadow-md transition opacity-90 group-hover:opacity-100 cursor-pointer active:scale-90"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-
-            {/* Add More Image Slot if < 3 */}
-            {images.length < MAX_IMAGES && (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border border-dashed border-white/15 hover:border-emerald-500/50 bg-white/[0.02] hover:bg-white/[0.05] rounded-2xl aspect-video flex flex-col items-center justify-center transition-all duration-200 cursor-pointer text-[#86868b] hover:text-emerald-400 group"
-              >
-                <div className="p-3 rounded-full bg-white/[0.04] group-hover:bg-emerald-500/10 mb-1.5 transition">
-                  <Plus className="w-5 h-5 text-[#86868b] group-hover:text-emerald-400" />
-                </div>
-                <span className="text-xs font-semibold text-white">{t.addMoreCharts}</span>
-                <span className="text-[10px] text-[#86868b] mt-0.5">(Max {MAX_IMAGES} grafy)</span>
-              </div>
-            )}
-          </div>
-
-          {/* Action Trigger - Apple High-End Primary Button */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onAnalyze}
-              disabled={isLoading}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-extrabold text-sm shadow-xl shadow-emerald-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center space-x-2.5 cursor-pointer"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  <span>{t.analyzingBtn}</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-black fill-black" />
-                  <span>{t.analyzeBtn}</span>
-                </>
-              )}
-            </button>
-          </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

@@ -50,7 +50,7 @@ export const ShareAuditModal: React.FC<ShareAuditModalProps> = ({
   );
 
   // Formatted Text Summary for WhatsApp, Telegram, Discord, Email
-  const formattedText = `📊 *AIAUTOTRADER.com — ${t.auditReportHeader}*
+  const formattedText = `📊 *TRADEOY.com — ${t.auditReportHeader}*
 📅 ${dateStr}
 
 📈 *${t.auditPerformanceTitle}:*
@@ -109,7 +109,7 @@ ${(auditResult.actionableRecommendations || [])
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      link.download = `AIAUTOTRADER_MetaTrader_Audit_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `TRADEOY_MetaTrader_Audit_${new Date().toISOString().slice(0, 10)}.png`;
       link.click();
     } catch (err) {
       console.error('Failed to generate PNG image:', err);
@@ -143,7 +143,7 @@ ${(auditResult.actionableRecommendations || [])
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      link.download = `AIAUTOTRADER_MetaTrader_Audit_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `TRADEOY_MetaTrader_Audit_${new Date().toISOString().slice(0, 10)}.png`;
       link.click();
       setCopiedImage(true);
       setTimeout(() => setCopiedImage(false), 2500);
@@ -180,7 +180,7 @@ ${(auditResult.actionableRecommendations || [])
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `AIAUTOTRADER.com — ${t.auditReportHeader}`,
+          title: `TRADEOY.com — ${t.auditReportHeader}`,
           text: formattedText,
         });
       } catch (err) {
@@ -199,7 +199,7 @@ ${(auditResult.actionableRecommendations || [])
   return (
     <div
       id="share-audit-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/90 overflow-y-auto"
       onClick={onClose}
     >
       <div
@@ -379,7 +379,7 @@ ${(auditResult.actionableRecommendations || [])
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: '#ffffff', fontWeight: '900', fontSize: '15px', letterSpacing: '0.4px' }}>
-                          AIAUTOTRADER.com
+                          TRADEOY.com
                         </span>
                         <span
                           style={{
@@ -724,7 +724,7 @@ ${(auditResult.actionableRecommendations || [])
                     fontWeight: '600',
                   }}
                 >
-                  <span>AIAUTOTRADER.com • Institutional AI Trading Analysis</span>
+                  <span>TRADEOY.com • Institutional AI Trading Analysis</span>
                   <span style={{ color: '#9ca3af' }}>Prop-Firm & Portfolio Auditing Engine</span>
                 </div>
               </div>

@@ -23,6 +23,7 @@ interface CreditsModalProps {
   currentLicense: LicenseStatus | null;
   onLicenseUpdated: (license: LicenseStatus) => void;
   isTriggeredByPaywall?: boolean;
+  onOpenTermsModal?: () => void;
 }
 
 export const CreditsModal: React.FC<CreditsModalProps> = ({
@@ -32,6 +33,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
   currentLicense,
   onLicenseUpdated,
   isTriggeredByPaywall = false,
+  onOpenTermsModal,
 }) => {
   const t = getTranslation(language);
 
@@ -186,12 +188,12 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
   return (
     <div
       id="credits-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 overflow-y-auto"
       onClick={onClose}
     >
       <div
         id="credits-modal-container"
-        className="relative w-full max-w-2xl bg-[#121216]/95 backdrop-blur-3xl border border-white/[0.12] rounded-3xl shadow-2xl overflow-hidden my-auto"
+        className="relative w-full max-w-2xl bg-[#121216] border border-white/[0.12] rounded-3xl shadow-2xl overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
@@ -243,10 +245,16 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                 <div className="text-xs text-[#86868b] font-medium">{t.remainingCredits}</div>
                 <div className="text-xl font-extrabold text-white flex items-center gap-2">
                   <span className={remaining > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {remaining}
+                    {remaining >= 9999 ? '∞ Neomezeně' : remaining}
                   </span>
                   <span className="text-xs text-[#86868b] font-normal">
-                    {language === 'en' ? 'analyses available' : language === 'es' ? 'análisis disponibles' : 'analýz k dispozici'}
+                    {remaining >= 9999
+                      ? '(VIP Trader Účet)'
+                      : language === 'en'
+                      ? 'analyses available'
+                      : language === 'es'
+                      ? 'análisis disponibles'
+                      : 'analýz k dispozici'}
                   </span>
                 </div>
               </div>
@@ -409,9 +417,22 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
           </div>
 
           {/* Trust Notice */}
-          <div className="p-3.5 bg-black/30 border border-white/[0.06] rounded-2xl text-[11px] text-[#86868b] flex items-start space-x-2.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <p className="leading-relaxed">{t.magicLinkNotice}</p>
+          <div className="p-3.5 bg-black/30 border border-white/[0.06] rounded-2xl text-[11px] text-[#86868b] flex flex-col gap-2">
+            <div className="flex items-start space-x-2.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">{t.magicLinkNotice}</p>
+            </div>
+            {onOpenTermsModal && (
+              <div className="pt-2 border-t border-white/[0.04] text-center">
+                <button
+                  type="button"
+                  onClick={onOpenTermsModal}
+                  className="text-[11px] text-[#86868b] hover:text-white underline transition cursor-pointer"
+                >
+                  {language === 'cs' ? 'Podmínky nákupu, Zřeknutí se odpovědnosti & Reklamace' : language === 'es' ? 'Condiciones de compra y Aviso legal' : 'Purchase terms, Disclaimer & Refund policy'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

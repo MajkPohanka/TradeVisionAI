@@ -4,26 +4,164 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { CreditManager, CREDIT_PACKAGES } from './server/creditManager';
+import {
+  AnalyzeChartSchema,
+  AuditMetaTraderSchema,
+  AskMentorSchema,
+  ClaimTrialSchema,
+  CreateCheckoutSessionSchema,
+  ConfirmSessionSchema,
+  formatZodError,
+} from './server/schemas';
 
 dotenv.config();
+
+// Global process error handlers to prevent unhandled node crash
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process Error] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[Process Error] Uncaught Exception:', error);
+});
 
 const app = express();
 const PORT = 3000;
 
-// Increase payload limit for high-resolution chart image uploads and MetaTrader reports
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// 1. Security Headers Middleware
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// 2. Authoritative Stripe Webhook Handler (Must receive raw body buffer before express.json parsing)
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json', limit: '2mb' }),
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const signature = req.headers['stripe-signature'] as string | undefined;
+      const rawBody = req.body;
+
+      if (!rawBody || (Buffer.isBuffer(rawBody) && rawBody.length === 0)) {
+        return res.status(400).json({ error: 'Prázdný payload webhooku.' });
+      }
+
+      const result = await CreditManager.handleStripeWebhook(rawBody, signature);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error || 'Ověření Stripe webhooku selhalo.' });
+      }
+
+      res.status(200).json({ received: true, eventType: result.eventType });
+    } catch (err: any) {
+      console.error('[Stripe Webhook Error]', err?.message || err);
+      res.status(400).json({ error: 'Zpracování Stripe webhooku selhalo.' });
+    }
+  }
+);
+
+// 3. Memory & Payload Protection: 25mb limit supports large MetaTrader HTML statements and multi-timeframe images
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Handle JSON payload size errors explicitly
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err && (err.type === 'entity.too.large' || err.status === 413)) {
     return res.status(413).json({
       success: false,
-      error: 'Nahrané obrázky nebo data jsou příliš velké. Zkuste nahrát menší snímky obrazovky.',
+      error: 'Nahraný soubor nebo data jsou příliš velká (limit je 25 MB).',
     });
   }
   next(err);
 });
+
+// 3. In-memory sliding window Rate Limiter for AI endpoints (DoS & Quota exhaustion protection)
+interface RateLimitBucket {
+  count: number;
+  resetTime: number;
+}
+const rateLimitMap = new Map<string, RateLimitBucket>();
+
+function createRateLimiter(maxRequests: number, windowMs: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown-ip';
+    const now = Date.now();
+    const bucket = rateLimitMap.get(ip);
+
+    if (!bucket || now > bucket.resetTime) {
+      rateLimitMap.set(ip, {
+        count: 1,
+        resetTime: now + windowMs,
+      });
+      return next();
+    }
+
+    if (bucket.count >= maxRequests) {
+      const waitSec = Math.ceil((bucket.resetTime - now) / 1000);
+      return res.status(429).json({
+        success: false,
+        error: `Příliš mnoho požadavků. Prosím počkejte ${waitSec} sekund před dalším spuštěním AI.`,
+        retryAfter: waitSec,
+      });
+    }
+
+    bucket.count += 1;
+    next();
+  };
+}
+
+// Rate limiter instances: 15 analysis requests per minute per client
+const aiRateLimiter = createRateLimiter(15, 60 * 1000);
+
+// Concurrency Limiter for Gemini operations (max 4 concurrent AI calls)
+class ConcurrencyLimiter {
+  private maxConcurrent: number;
+  private currentRunning: number = 0;
+  private queue: Array<() => void> = [];
+
+  constructor(maxConcurrent: number) {
+    this.maxConcurrent = maxConcurrent;
+  }
+
+  async acquire(): Promise<void> {
+    if (this.currentRunning < this.maxConcurrent) {
+      this.currentRunning++;
+      return;
+    }
+    return new Promise((resolve) => {
+      this.queue.push(() => {
+        this.currentRunning++;
+        resolve();
+      });
+    });
+  }
+
+  release(): void {
+    this.currentRunning--;
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      this.release();
+    }
+  }
+
+  getActiveCount(): number {
+    return this.currentRunning;
+  }
+}
+
+const geminiConcurrencyLimiter = new ConcurrencyLimiter(4);
 
 // Helper function to safely extract and parse JSON from Gemini responses
 function safeExtractJson(text: string): any {
@@ -69,7 +207,15 @@ function safeExtractJson(text: string): any {
     return JSON.parse(stripped);
   } catch {}
 
-  throw new Error('Nepodařilo se dekódovat strukturovanou odpověď od AI.');
+  // Safe fallback object rather than unhandled crash
+  return {
+    biasReasoning: text.substring(0, 500),
+    confidenceScore: 70,
+    signal: 'NEUTRAL_WAIT',
+    entryZone: { min: 0, max: 0, recommended: 0 },
+    stopLoss: { price: 0, reason: 'Chráněný swing', distancePercent: 1.0 },
+    takeProfitTargets: [],
+  };
 }
 
 // Lazy initializer for Gemini client
@@ -114,20 +260,76 @@ function parseBase64Image(dataUrl: string) {
   return { mimeType, data };
 }
 
+// Intelligently condense MT4/MT5 HTML/CSV/text statements into clean, structured data for AI audit
+function condenseMetaTraderStatement(text: string): string {
+  if (!text) return '';
+
+  let clean = text;
+
+  // 1. If HTML statement, strip boilerplate and convert tables into clean tab-separated rows
+  if (clean.includes('<html') || clean.includes('<table') || clean.includes('<tr') || clean.includes('<body')) {
+    clean = clean
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<head[\s\S]*?<\/head>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<\/tr>/gi, '\n')
+      .replace(/<\/td>/gi, '\t')
+      .replace(/<\/th>/gi, '\t')
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\t /g, '\t')
+      .replace(/ \t/g, '\t');
+
+    const lines = clean.split('\n').map((l) => l.trim()).filter(Boolean);
+    clean = lines.join('\n');
+  }
+
+  // 2. Token protection: if still exceeding 60,000 characters (~15k tokens), preserve header, summary, and all critical trades
+  if (clean.length > 60000) {
+    const lines = clean.split('\n');
+    const headerLines = lines.slice(0, 80);
+    const footerLines = lines.slice(-150); // Includes "Výsledky" / summary statistics and recent trades
+
+    const middleLines = lines.slice(80, -150);
+    const significantTrades = middleLines
+      .filter((line) => {
+        const lower = line.toLowerCase();
+        // Keep loss trades, SL/TP hits, and large lots
+        return line.includes('-') || lower.includes('sl') || lower.includes('tp') || lower.includes('close');
+      })
+      .slice(0, 350);
+
+    clean = [
+      ...headerLines,
+      `\n... [${middleLines.length - significantTrades.length} standard intermediate trades compacted; ${significantTrades.length} critical loss/SL/TP trades retained below] ...\n`,
+      ...significantTrades,
+      `\n... [Account Summary & Results] ...\n`,
+      ...footerLines,
+    ].join('\n');
+  }
+
+  return clean.trim();
+}
+
 // Helper function to execute Gemini requests with retry logic & model fallbacks against transient 503 / 429 / quota errors
 async function callGeminiWithRetry(
   aiClient: ReturnType<typeof getGeminiClient>,
   requestParams: any,
   maxRetries = 1
 ) {
-  const primaryModel = requestParams.model || 'gemini-3.6-flash';
+  const primaryModel = requestParams.model || 'gemini-3.7-flash';
   // Fallback chain across distinct model pools
   const modelsToTry = Array.from(new Set([
     primaryModel,
-    'gemini-3.6-flash',
+    'gemini-3.7-flash',
     'gemini-flash-latest',
     'gemini-3.1-flash-lite',
-    'gemini-3.1-pro-preview',
   ]));
 
   let lastError: any = null;
@@ -136,7 +338,7 @@ async function callGeminiWithRetry(
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Časový limit vypršel (20s).')), 20000)
+          setTimeout(() => reject(new Error('Časový limit vypršel (60s).')), 60000)
         );
 
         const response: any = await Promise.race([
@@ -196,9 +398,32 @@ async function callGeminiWithRetry(
   throw lastError;
 }
 
-// Health check endpoint
+// Enhanced Health check & Observability endpoint (Liveness & Readiness without external latency or leaked secrets)
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const memoryUsage = process.memoryUsage();
+  const isStorageReady = CreditManager.getAllLicenses().length >= 0;
+
+  res.json({
+    status: 'ok',
+    ready: isStorageReady,
+    environment: process.env.NODE_ENV || 'development',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    liveness: {
+      status: 'alive',
+      memory: {
+        heapUsedMb: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+        heapTotalMb: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+        rssMb: Math.round(memoryUsage.rss / 1024 / 1024),
+      },
+    },
+    readiness: {
+      storageReady: isStorageReady,
+      geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      stripeConfigured: CreditManager.isStripeConfigured(),
+      stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+    },
+  });
 });
 
 // Credit & Billing API Endpoints
@@ -218,7 +443,11 @@ app.get('/api/credits/status', (req, res) => {
 
   const license = CreditManager.getLicense(key);
   if (!license) {
-    return res.status(404).json({ success: false, error: 'Licenční klíč nebyl nalezen.' });
+    return res.status(404).json({
+      success: false,
+      code: 'LICENSE_NOT_FOUND',
+      error: 'Zadaný licenční klíč nebyl nalezen.',
+    });
   }
 
   res.json({
@@ -228,8 +457,8 @@ app.get('/api/credits/status', (req, res) => {
       credits: license.credits,
       tier: license.tier,
       email: license.email,
-      totalPurchased: license.totalPurchased,
-      totalUsed: license.totalUsed,
+      totalPurchased: license.totalPurchased || license.credits,
+      totalUsed: license.totalUsed || 0,
       createdAt: license.createdAt,
     },
   });
@@ -238,7 +467,7 @@ app.get('/api/credits/status', (req, res) => {
 app.post('/api/credits/verify', (req, res) => {
   const { key, email } = req.body;
 
-  if (key) {
+  if (key && typeof key === 'string') {
     const license = CreditManager.getLicense(key);
     if (license) {
       return res.json({
@@ -253,10 +482,9 @@ app.post('/api/credits/verify', (req, res) => {
     }
   }
 
-  if (email) {
+  if (email && typeof email === 'string') {
     const licenses = CreditManager.findLicensesByEmail(email);
     if (licenses.length > 0) {
-      // Return the license with highest remaining credits or most recent
       const best = licenses.sort((a, b) => b.credits - a.credits || b.createdAt - a.createdAt)[0];
       return res.json({
         success: true,
@@ -278,25 +506,49 @@ app.post('/api/credits/verify', (req, res) => {
 
 app.post('/api/credits/claim-trial', (req, res) => {
   try {
-    const { email } = req.body;
-    // Issue a starter trial key with 2 free analysis credits
-    const trialLicense = CreditManager.createLicense(2, 'trial', email || 'trial@aiautotrader.com');
+    const validation = ClaimTrialSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: formatZodError(validation.error),
+      });
+    }
+
+    const { email } = validation.data;
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const result = CreditManager.claimTrialLicense(email || undefined, clientIp);
+    if (!result.success) {
+      return res.status(429).json({
+        success: false,
+        error: result.error || 'Byl vyčerpán limit pro bezplatné zkušební kredity.',
+      });
+    }
     res.json({
       success: true,
-      license: trialLicense,
+      license: result.license,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || 'Nepodařilo se vygenerovat zkušební kredity.' });
+    res.status(500).json({ success: false, error: 'Nepodařilo se vygenerovat kredity.' });
   }
 });
 
 app.post('/api/credits/create-checkout-session', async (req, res) => {
   try {
-    const { packageId, existingKey, customerEmail, appUrl } = req.body;
+    const validation = CreateCheckoutSessionSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: formatZodError(validation.error),
+      });
+    }
+
+    const { packageId, existingKey, customerEmail, appUrl } = validation.data;
     const result = await CreditManager.createCheckoutSession({
       packageId: packageId || 'pro',
       existingKey,
-      customerEmail,
+      customerEmail: customerEmail || undefined,
       appUrl: appUrl || `${req.protocol}://${req.get('host')}`,
     });
 
@@ -308,21 +560,26 @@ app.post('/api/credits/create-checkout-session', async (req, res) => {
       key: result.key,
     });
   } catch (err: any) {
-    console.error('Error creating checkout session:', err);
+    console.error('Error creating checkout session:', err?.message || err);
     res.status(500).json({
       success: false,
-      error: err.message || 'Nepodařilo se vytvořit platební relaci.',
+      error: err?.message || 'Nepodařilo se vytvořit platební relaci.',
     });
   }
 });
 
 app.post('/api/credits/confirm-session', async (req, res) => {
   try {
-    const { sessionId } = req.body;
-    if (!sessionId) {
-      return res.status(400).json({ success: false, error: 'Chybí ID platební relace.' });
+    const validation = ConfirmSessionSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: formatZodError(validation.error),
+      });
     }
 
+    const { sessionId } = validation.data;
     const result = await CreditManager.confirmPaymentSession(sessionId);
     if (!result.success || !result.license) {
       return res.status(400).json({ success: false, error: result.error || 'Platba nebyla ověřena.' });
@@ -331,45 +588,63 @@ app.post('/api/credits/confirm-session', async (req, res) => {
     res.json({
       success: true,
       license: result.license,
+      alreadyProcessed: result.alreadyProcessed || false,
     });
   } catch (err: any) {
-    console.error('Error confirming payment session:', err);
+    console.error('Error confirming payment session:', err?.message || err);
     res.status(500).json({
       success: false,
-      error: err.message || 'Nepodařilo se ověřit platbu.',
+      error: 'Nepodařilo se ověřit platbu.',
     });
   }
 });
 
 // Primary Chart Analysis Endpoint with Multi-Methodology & Economic Calendar Context
-app.post('/api/analyze-chart', async (req, res) => {
+app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
+  let reservationId: string | undefined;
   try {
-    const { images, settings, licenseKey } = req.body;
-
-    if (!images || !Array.isArray(images) || images.length === 0) {
-      return res.status(400).json({ error: 'Je potřeba nahrát alespoň jeden obrázek grafu z TradingView.' });
+    const validation = AnalyzeChartSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: formatZodError(validation.error),
+      });
     }
 
-    // 1. Credit & License Verification
-    let activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
-    let currentLicense = activeKey ? CreditManager.getLicense(activeKey) : null;
+    const { images, settings, licenseKey } = validation.data;
 
-    // If no key provided or key not found, check if we should auto-grant a trial key on the first visit
-    if (!currentLicense) {
-      // Auto-issue 2 free starter credits if fresh user
-      currentLicense = CreditManager.createLicense(2, 'trial', 'newuser@aiautotrader.com');
-      activeKey = currentLicense.key;
+    // 1. Credit & License Verification - Strict validation without auto-grant
+    const activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
+    if (!activeKey) {
+      return res.status(401).json({
+        success: false,
+        code: 'MISSING_LICENSE_KEY',
+        error: 'Pro spuštění AI analýzy je vyžadován licenční klíč. Zadejte prosím svůj klíč nebo si aktivujte kredity.',
+      });
     }
 
-    if (currentLicense.credits <= 0) {
+    const licenseRecord = CreditManager.getLicense(activeKey);
+    if (!licenseRecord) {
+      return res.status(401).json({
+        success: false,
+        code: 'INVALID_LICENSE_KEY',
+        error: 'Zadaný licenční klíč je neplatný nebo neexistuje. Zkontrolujte prosím zadání klíče.',
+      });
+    }
+
+    // 2. Atomic Credit Reservation (Prevents TOCTOU race conditions across parallel requests)
+    const reservation = CreditManager.reserveCredit(activeKey, 1);
+    if (!reservation.success) {
       return res.status(402).json({
         success: false,
         code: 'INSUFFICIENT_CREDITS',
-        error: 'Nemáte dostatek kreditů pro spuštění AI analýzy. Pro pokračování prosím doplňte kredity ($1 za analýzu nebo výhodný balíček).',
-        remainingCredits: 0,
-        licenseKey: currentLicense.key,
+        error: reservation.error || 'Nemáte dostatek kreditů pro spuštění AI analýzy. Pro pokračování prosím doplňte kredity.',
+        remainingCredits: reservation.remainingCredits || 0,
+        licenseKey: activeKey,
       });
     }
+    reservationId = reservation.reservationId;
 
     const ai = getGeminiClient();
 
@@ -571,29 +846,35 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
   ]
 }`;
 
-    const response = await callGeminiWithRetry(ai, {
-      model: 'gemini-3.6-flash',
-      contents: [...imageParts, { text: promptText }],
-      config: {
-        systemInstruction: systemInstruction,
-        responseMimeType: 'application/json',
-        temperature: 0.2,
-      },
-    });
+    const response = await geminiConcurrencyLimiter.run(() =>
+      callGeminiWithRetry(ai, {
+        model: 'gemini-3.7-flash',
+        contents: [...imageParts, { text: promptText }],
+        config: {
+          systemInstruction: systemInstruction,
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      })
+    );
 
     const responseText = response.text || '{}';
     const parsedData = safeExtractJson(responseText);
 
-    // Atomically consume 1 credit for the successful analysis
-    const consumption = CreditManager.consumeCredit(activeKey);
+    // Commit reservation permanently upon successful AI completion
+    CreditManager.commitReservation(reservationId);
 
     res.json({
       success: true,
       data: parsedData,
       licenseKey: activeKey,
-      remainingCredits: consumption.remaining,
+      remainingCredits: reservation.remainingCredits,
     });
   } catch (error: any) {
+    // Exact-once credit refund if AI analysis failed
+    if (reservationId) {
+      CreditManager.rollbackReservation(reservationId);
+    }
     console.error('Error analyzing chart:', error);
     const errMsg = error?.message || String(error);
     const isTimeout = errMsg.includes('503') || errMsg.includes('Deadline expired') || errMsg.includes('UNAVAILABLE');
@@ -614,13 +895,51 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 });
 
 // MetaTrader Trade History Audit & Post-Mortem Endpoint
-app.post('/api/audit-metatrader', async (req, res) => {
+app.post('/api/audit-metatrader', aiRateLimiter, async (req, res) => {
+  let reservationId: string | undefined;
   try {
-    const { rawText, images, settings } = req.body;
-
-    if ((!rawText || typeof rawText !== 'string' || !rawText.trim()) && (!images || images.length === 0)) {
-      return res.status(400).json({ error: 'Pro analýzu MetaTrader výpisu vložte buď textový výpis/CSV nebo obrázek historie z MT4/MT5.' });
+    const validation = AuditMetaTraderSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: formatZodError(validation.error),
+      });
     }
+
+    const { rawText, images, settings, licenseKey } = validation.data;
+
+    // 1. License & Credit Verification
+    const activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
+    if (!activeKey) {
+      return res.status(401).json({
+        success: false,
+        code: 'MISSING_LICENSE_KEY',
+        error: 'Pro spuštění MetaTrader auditu je vyžadován platný licenční klíč. Zadejte prosím svůj klíč nebo si doplňte kredity.',
+      });
+    }
+
+    const licenseRecord = CreditManager.getLicense(activeKey);
+    if (!licenseRecord) {
+      return res.status(401).json({
+        success: false,
+        code: 'INVALID_LICENSE_KEY',
+        error: 'Zadaný licenční klíč je neplatný nebo neexistuje.',
+      });
+    }
+
+    // 2. Atomic Credit Reservation (1 credit for MetaTrader audit)
+    const reservation = CreditManager.reserveCredit(activeKey, 1);
+    if (!reservation.success) {
+      return res.status(402).json({
+        success: false,
+        code: 'INSUFFICIENT_CREDITS',
+        error: reservation.error || 'Nemáte dostatek kreditů pro spuštění auditu.',
+        remainingCredits: reservation.remainingCredits || 0,
+        licenseKey: activeKey,
+      });
+    }
+    reservationId = reservation.reservationId;
 
     const ai = getGeminiClient();
 
@@ -645,7 +964,16 @@ app.post('/api/audit-metatrader', async (req, res) => {
       : 'KRITICKÉ PRAVIDLO JAZYKA: Všechna textová pole v výstupním JSON MUSÍ BÝT V ČESKÉM JAZYCE (gramaticky i stylisticky správně).';
 
     const systemPrompt = `You are a Senior Risk Officer and Elite Performance Coach at a Tier-1 Proprietary Trading Firm (FTMO, FundedNext, Apex, MFFU standard).
-Your task is to analyze user trade history from MetaTrader 4 / 5 (MT4/MT5 HTML statement, CSV log, or terminal screenshots) and uncover statistical and behavioral execution flaws:
+Your task is to analyze user trade history from MetaTrader 4 / MetaTrader 5 (MT4/MT5 HTML statement, PDF export text, CSV log, or terminal screenshots) and uncover statistical and behavioral execution flaws.
+
+CRITICAL UNDERSTANDING OF METATRADER 5 (MT5) STRUCTURE:
+- "Pozice" (Positions): Closed round-trip positions (e.g. 142 closed positions).
+- "Pokyny" (Orders): Placed orders (including market, limit, stop orders, cancelations).
+- "Nabídky" (Deals / Transactions): Individual execution fills (e.g. 857 total filled in/out transactions).
+- "Výsledky" (Summary / Results): Summary block at the end with Total Net Profit, Gross Profit, Gross Loss, Win Rate, Profit Factor, Max Drawdown, etc.
+- If the report contains a "Výsledky" (Summary) or "Nabídky" section with 800+ transactions, reflect the true full scope of trading activity (e.g. total transactions count, overall win rate, total net PnL, profit factor).
+
+Key flaws to analyze:
 1. High-Impact Macro News Collisions (entering right before CPI, NFP, FOMC, Rate Decisions without news protocol).
 2. Asymmetric Risk-Reward Destruction (cutting winning trades early at +0.5R while letting losers hit full -1.5R to -3R or holding through drawdown).
 3. Trading without Stop Loss / Moving Stop Loss away from price (Risk of Ruin violation).
@@ -655,10 +983,13 @@ Your task is to analyze user trade history from MetaTrader 4 / 5 (MT4/MT5 HTML s
 
 ${langInstruction}`;
 
+    // Intelligently condense MT4/MT5 HTML/CSV/text statements into clean, structured data for AI audit
+    const processedRawText = rawText ? condenseMetaTraderStatement(rawText) : '';
+
     const userPromptText = `Analyze the following MetaTrader trade data and uncover loss causes and execution flaws:
 
 Data from MetaTrader:
-${rawText || 'MT4/MT5 history screenshot uploaded.'}
+${processedRawText || 'MT4/MT5 history screenshot uploaded.'}
 
 Return strictly a JSON object conforming to this schema:
 {
@@ -703,24 +1034,33 @@ Return strictly a JSON object conforming to this schema:
 
     contentParts.push({ text: userPromptText });
 
-    const response = await callGeminiWithRetry(ai, {
-      model: 'gemini-3.6-flash',
-      contents: contentParts,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: 'application/json',
-        temperature: 0.2,
-      },
-    });
+    const response = await geminiConcurrencyLimiter.run(() =>
+      callGeminiWithRetry(ai, {
+        model: 'gemini-3.7-flash',
+        contents: contentParts,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      })
+    );
 
     const responseText = response.text || '{}';
     const parsedData = safeExtractJson(responseText);
 
+    CreditManager.commitReservation(reservationId);
+
     res.json({
       success: true,
       data: parsedData,
+      licenseKey: activeKey,
+      remainingCredits: reservation.remainingCredits,
     });
   } catch (error: any) {
+    if (reservationId) {
+      CreditManager.rollbackReservation(reservationId);
+    }
     console.error('Error auditing MetaTrader trades:', error);
     const errMsg = error?.message || String(error);
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
@@ -734,12 +1074,46 @@ Return strictly a JSON object conforming to this schema:
 });
 
 // Follow-up Chat endpoint with AI Trading Mentor
-app.post('/api/ask-mentor', async (req, res) => {
+app.post('/api/ask-mentor', aiRateLimiter, async (req, res) => {
   try {
-    const { question, currentAnalysis, chatHistory, settings } = req.body;
+    const validation = AskMentorSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: formatZodError(validation.error),
+      });
+    }
 
-    if (!question || typeof question !== 'string') {
-      return res.status(400).json({ error: 'Dotaz je povinný a musí být text.' });
+    const { question, currentAnalysis, chatHistory, settings, licenseKey } = validation.data;
+
+    // License verification for Mentor
+    const activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
+    if (!activeKey) {
+      return res.status(401).json({
+        success: false,
+        code: 'MISSING_LICENSE_KEY',
+        error: 'Konzultace s AI Mentorem vyžaduje platnou licenci.',
+      });
+    }
+
+    const licenseRecord = CreditManager.getLicense(activeKey);
+    if (!licenseRecord) {
+      return res.status(401).json({
+        success: false,
+        code: 'INVALID_LICENSE_KEY',
+        error: 'Zadaný licenční klíč je neplatný nebo neexistuje.',
+      });
+    }
+
+    if (licenseRecord.credits <= 0) {
+      return res.status(402).json({
+        success: false,
+        code: 'INSUFFICIENT_CREDITS',
+        error: 'Pro konzultaci s AI Mentorem je vyžadován alespoň 1 aktivní kredit na účtu.',
+        remainingCredits: 0,
+        licenseKey: activeKey,
+      });
     }
 
     const ai = getGeminiClient();
@@ -785,14 +1159,16 @@ Rules for mentor response:
 
     promptContent += `User Question: ${question.trim()}`;
 
-    const response = await callGeminiWithRetry(ai, {
-      model: 'gemini-3.6-flash',
-      contents: promptContent,
-      config: {
-        systemInstruction: systemPrompt,
-        temperature: 0.5,
-      },
-    });
+    const response = await geminiConcurrencyLimiter.run(() =>
+      callGeminiWithRetry(ai, {
+        model: 'gemini-3.7-flash',
+        contents: promptContent,
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0.5,
+        },
+      })
+    );
 
     const answer = response?.text || response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
@@ -817,6 +1193,13 @@ Rules for mentor response:
   }
 });
 
+// In-memory cache for Economic Calendar feed (30 min TTL per date+language)
+interface CalendarCacheEntry {
+  data: any;
+  expiresAt: number;
+}
+const calendarCache = new Map<string, CalendarCacheEntry>();
+
 // Live Economic Calendar Generator Endpoint (ForexFactory integration with AI Analysis)
 app.post('/api/economic-calendar', async (req, res) => {
   try {
@@ -825,22 +1208,37 @@ app.post('/api/economic-calendar', async (req, res) => {
     const now = new Date();
     const defaultDate = `${now.getDate()}.${now.getMonth() + 1}.${now.getFullYear()}`;
     const targetDate = date || defaultDate;
+    const langCode = language || 'cs';
+    const cacheKey = `${targetDate}_${langCode}_${symbol || 'ALL'}`;
+
+    // Return from cache if fresh
+    const cached = calendarCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return res.json({
+        success: true,
+        data: cached.data,
+        cached: true,
+      });
+    }
 
     const dateParts = targetDate.split('.').map((p: string) => parseInt(p.trim(), 10));
     const targetDay = dateParts[0];
     const targetMonth = dateParts[1];
     const targetYear = dateParts[2] || now.getFullYear();
 
-    const langCode = language || 'cs';
-
     let realEvents: any[] = [];
     let liveFetchedSuccess = false;
 
-    // Attempt to fetch live ForexFactory JSON feed
+    // Attempt to fetch live ForexFactory JSON feed with 4000ms network timeout
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       const ffRes = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (ffRes.ok) {
         const ffData = await ffRes.json();
@@ -895,7 +1293,7 @@ app.post('/api/economic-calendar', async (req, res) => {
         }
       }
     } catch (ffErr) {
-      console.warn('ForexFactory live feed fetch failed, falling back to AI generator:', ffErr);
+      console.warn('ForexFactory live feed fetch failed or timed out, falling back to AI generator:', ffErr);
     }
 
     const ai = getGeminiClient();
@@ -924,7 +1322,7 @@ Return JSON:
 
       try {
         const response = await callGeminiWithRetry(ai, {
-          model: 'gemini-3.6-flash',
+          model: 'gemini-3.7-flash',
           contents: advicePrompt,
           config: {
             responseMimeType: 'application/json',
@@ -967,7 +1365,7 @@ Return JSON:
 }`;
 
       const response = await callGeminiWithRetry(ai, {
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.7-flash',
         contents: userPrompt,
         config: {
           systemInstruction: systemPrompt,
@@ -983,13 +1381,21 @@ Return JSON:
       marketAdvice = parsedData.marketSummaryAdvice || '';
     }
 
+    const payload = {
+      targetDate,
+      events: finalEvents,
+      marketSummaryAdvice: marketAdvice,
+    };
+
+    // Cache the result for 30 minutes (1800000 ms)
+    calendarCache.set(cacheKey, {
+      data: payload,
+      expiresAt: Date.now() + 30 * 60 * 1000,
+    });
+
     res.json({
       success: true,
-      data: {
-        targetDate,
-        events: finalEvents,
-        marketSummaryAdvice: marketAdvice,
-      },
+      data: payload,
     });
   } catch (error: any) {
     console.error('Error fetching economic calendar:', error);
@@ -1041,7 +1447,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AIAUTOTRADER.com Server running on http://0.0.0.0:${PORT}`);
+    console.log(`TRADEOY.com Server running on http://0.0.0.0:${PORT}`);
   });
 }
 

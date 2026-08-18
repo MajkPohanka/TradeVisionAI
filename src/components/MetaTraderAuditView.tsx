@@ -14,15 +14,23 @@ import {
   Download,
   Printer,
 } from 'lucide-react';
-import { MetaTraderAuditResult, StrategySettings } from '../types';
+import { MetaTraderAuditResult, StrategySettings, LicenseStatus } from '../types';
 import { getTranslation } from '../utils/translations';
 import { ShareAuditModal } from './ShareAuditModal';
 
 interface MetaTraderAuditViewProps {
   settings: StrategySettings;
+  currentLicense?: LicenseStatus | null;
+  onLicenseUpdated?: (license: LicenseStatus) => void;
+  onOpenCreditsModal?: () => void;
 }
 
-export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settings }) => {
+export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
+  settings,
+  currentLicense,
+  onLicenseUpdated,
+  onOpenCreditsModal,
+}) => {
   const t = getTranslation(settings.language);
   const [rawText, setRawText] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -31,8 +39,13 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
   const [error, setError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
+
   // Sample MT4/MT5 report data for quick loading
   const handleLoadSampleReport = () => {
+    setUploadedFileName('Sample_MT5_History.txt');
+    setUploadedFileSize('1.2 KB');
     setRawText(`Ticket\tOpen Time\tType\tSize\tItem\tPrice\tS/L\tT/P\tClose Time\tPrice\tProfit
 #102941\t2026.08.06 14:28\tBUY\t1.00\tEURUSD\t1.08500\t0.00000\t1.09200\t2026.08.06 14:32\t1.08120\t-380.00
 #102945\t2026.08.06 14:33\tSELL\t2.00\tEURUSD\t1.08100\t0.00000\t0.00000\t2026.08.06 14:36\t1.08350\t-500.00
@@ -41,23 +54,65 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
     setError(null);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      Array.from(e.target.files).forEach((file) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const files = Array.from(e.target.files);
+
+    files.forEach((file) => {
+      const isImage = file.type.startsWith('image/');
+      const isTextOrHtml =
+        file.type.includes('text') ||
+        file.type.includes('csv') ||
+        file.type.includes('html') ||
+        file.name.endsWith('.htm') ||
+        file.name.endsWith('.html') ||
+        file.name.endsWith('.csv') ||
+        file.name.endsWith('.txt') ||
+        file.name.endsWith('.log');
+
+      if (isTextOrHtml) {
+        const sizeFormatted = file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          : `${Math.round(file.size / 1024)} KB`;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target?.result as string;
+          if (content) {
+            setRawText(content);
+            setUploadedFileName(file.name);
+            setUploadedFileSize(sizeFormatted);
+            setError(null);
+          }
+        };
+        reader.readAsText(file);
+      } else if (isImage) {
         const reader = new FileReader();
         reader.onloadend = () => {
           if (typeof reader.result === 'string') {
             setImages((prev) => [...prev, reader.result as string]);
           }
         };
-        reader.readAsDataURL(file as File);
-      });
-    }
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
+  const handleClearText = () => {
+    setRawText('');
+    setUploadedFileName(null);
+    setUploadedFileSize(null);
   };
 
   const handleRunAudit = async () => {
     if (!rawText.trim() && images.length === 0) {
       setError(t.pasteMT4Text);
+      return;
+    }
+
+    if (currentLicense && currentLicense.credits <= 0) {
+      if (onOpenCreditsModal) onOpenCreditsModal();
+      setError('Nemáte dostatek kreditů pro spuštění auditu. Doplňte prosím kredity.');
       return;
     }
 
@@ -72,6 +127,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
           rawText,
           images,
           settings,
+          licenseKey: currentLicense?.key,
         }),
       });
 
@@ -86,8 +142,23 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
         throw new Error(`Chyba při komunikaci se serverem (HTTP ${res.status}).`);
       }
 
+      if (res.status === 402 || data.code === 'INSUFFICIENT_CREDITS') {
+        if (data.licenseKey && onLicenseUpdated) {
+          onLicenseUpdated({ key: data.licenseKey, credits: 0 });
+        }
+        if (onOpenCreditsModal) onOpenCreditsModal();
+        throw new Error(data.error || 'Vyčerpali jste všechny kredity. Doplňte prosím kredity.');
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Audit error');
+      }
+
+      if (typeof data.remainingCredits === 'number' && data.licenseKey && onLicenseUpdated) {
+        onLicenseUpdated({
+          key: data.licenseKey,
+          credits: data.remainingCredits,
+        });
       }
 
       setAuditResult({
@@ -106,13 +177,13 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
   return (
     <div className="space-y-6">
       {/* Intro Banner */}
-      <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 sm:p-7 shadow-xl relative overflow-hidden">
+      <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 sm:p-7 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
           <FileSpreadsheet className="w-56 h-56 text-purple-400" />
         </div>
 
         <div className="relative z-10 max-w-3xl space-y-2.5">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold backdrop-blur-md">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold">
             <Brain className="w-3.5 h-3.5 text-purple-400" />
             <span>{t.auditTitle}</span>
           </div>
@@ -126,7 +197,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
       </div>
 
       {/* Input Section */}
-      <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-5">
+      <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Upload className="w-4 h-4 text-emerald-400" />
@@ -142,41 +213,75 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Text/CSV/HTML paste area */}
-          <div>
-            <label className="text-xs font-semibold text-[#86868b] block mb-2">
-              {t.pasteMT4Text}
-            </label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[#86868b] flex items-center gap-1.5">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-purple-400" />
+                <span>{t.pasteMT4Text}</span>
+              </label>
+              <span className="text-[10px] text-[#6e6e73]">Max 10 MB</span>
+            </div>
+
+            {uploadedFileName && (
+              <div className="px-3 py-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-between text-xs text-purple-200">
+                <div className="flex items-center space-x-2 truncate">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span className="font-semibold truncate">{uploadedFileName}</span>
+                  {uploadedFileSize && <span className="text-[10px] text-purple-300/70">({uploadedFileSize})</span>}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearText}
+                  className="text-[11px] text-red-400 hover:text-red-300 ml-2 shrink-0 cursor-pointer"
+                >
+                  {t.clearAll}
+                </button>
+              </div>
+            )}
+
             <textarea
               rows={6}
               value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Ticket, Open Time, Type, Size, Symbol, Price, SL, TP, Close Time, Profit..."
+              onChange={(e) => {
+                setRawText(e.target.value);
+                if (uploadedFileName) {
+                  setUploadedFileName(null);
+                  setUploadedFileSize(null);
+                }
+              }}
+              placeholder="Vložte sem celý výpis z MetaTraderu (HTML, CSV nebo prostý text). Podporuje stovky až tisíce obchodů..."
               className="w-full bg-black/40 border border-white/[0.08] rounded-2xl p-4 text-xs text-[#f5f5f7] placeholder-[#86868b]/60 focus:outline-none focus:border-white/30 font-mono transition"
             />
           </div>
 
-          {/* Screenshot upload area */}
-          <div>
-            <label className="text-xs font-semibold text-[#86868b] block mb-2">
-              {t.orUploadScreenshot}
-            </label>
-            <div className="border border-dashed border-white/15 hover:border-purple-500/50 bg-black/30 rounded-2xl p-4 text-center h-[135px] flex flex-col items-center justify-center space-y-2 cursor-pointer relative transition group">
+          {/* Statement File (.html, .csv, .txt) or Screenshot upload area */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[#86868b] flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Nahrát soubor výpisu (HTML, CSV) nebo Screenshot</span>
+              </label>
+              <span className="text-[10px] text-emerald-400/80 font-medium">HTM, HTML, CSV, PNG, JPG</span>
+            </div>
+
+            <div className="border border-dashed border-white/15 hover:border-purple-500/50 bg-black/30 rounded-2xl p-4 text-center h-[148px] flex flex-col items-center justify-center space-y-2 cursor-pointer relative transition group">
               <input
                 type="file"
-                accept="image/*"
+                accept=".htm,.html,.csv,.txt,.log,image/*"
                 multiple
-                onChange={handleImageUpload}
+                onChange={handleFileUpload}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
               <Upload className="w-6 h-6 text-[#86868b] group-hover:text-purple-400 transition" />
-              <div className="text-xs font-semibold text-white">{t.orUploadScreenshot}</div>
-              <div className="text-[10px] text-[#86868b]">PNG, JPG, WEBP</div>
+              <div className="text-xs font-semibold text-white">Přetáhněte soubor výpisu nebo screenshot sem</div>
+              <div className="text-[10px] text-[#86868b]">HTML Statement, CSV report, TXT log, nebo snímek okna (max 10 MB)</div>
             </div>
 
             {images.length > 0 && (
-              <div className="flex items-center space-x-2 mt-2">
+              <div className="flex items-center space-x-2 mt-1">
                 <span className="text-xs text-emerald-400 font-bold">{t.uploadedCharts} {images.length}</span>
                 <button
+                  type="button"
                   onClick={() => setImages([])}
                   className="text-[10px] text-red-400 hover:underline cursor-pointer"
                 >
@@ -217,7 +322,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
       {auditResult && (
         <div className="space-y-6 animate-fadeIn">
           {/* Top Audit Action & Export Header Bar */}
-          <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+          <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center space-x-3.5">
               <div className="w-11 h-11 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-sm">
                 <FileSpreadsheet className="w-5 h-5" />
@@ -259,12 +364,12 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
 
           {/* Key Metrics Banner */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-5 bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl text-center shadow-lg">
+            <div className="p-5 bg-[#121216] border border-white/[0.08] rounded-3xl text-center shadow-lg">
               <div className="text-[11px] font-semibold text-[#86868b] uppercase">{t.tradesAnalyzed}</div>
               <div className="text-3xl font-extrabold text-white mt-1">{auditResult.tradesAnalyzedCount}</div>
             </div>
 
-            <div className="p-5 bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl text-center shadow-lg">
+            <div className="p-5 bg-[#121216] border border-white/[0.08] rounded-3xl text-center shadow-lg">
               <div className="text-[11px] font-semibold text-[#86868b] uppercase">{t.winRate}</div>
               <div
                 className={`text-3xl font-extrabold mt-1 ${
@@ -275,7 +380,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
               </div>
             </div>
 
-            <div className="p-5 bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl text-center shadow-lg">
+            <div className="p-5 bg-[#121216] border border-white/[0.08] rounded-3xl text-center shadow-lg">
               <div className="text-[11px] font-semibold text-[#86868b] uppercase">{t.totalPnL}</div>
               <div
                 className={`text-3xl font-extrabold mt-1 ${
@@ -287,7 +392,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
               </div>
             </div>
 
-            <div className="p-5 bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl text-center shadow-lg">
+            <div className="p-5 bg-[#121216] border border-white/[0.08] rounded-3xl text-center shadow-lg">
               <div className="text-[11px] font-semibold text-[#86868b] uppercase">{t.profitFactor}</div>
               <div className="text-3xl font-extrabold text-cyan-400 mt-1">{auditResult.profitFactor || 'N/A'}</div>
             </div>
@@ -295,7 +400,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
 
           {/* Primary Mistakes Breakdown */}
           {auditResult.primaryMistakes && auditResult.primaryMistakes.length > 0 && (
-            <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-4">
               <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                 <AlertOctagon className="w-4 h-4 text-red-400" />
                 <span>{t.primaryMistakes}</span>
@@ -332,7 +437,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
 
           {/* Economic News Correlations */}
           {auditResult.economicNewsCorrelations && auditResult.economicNewsCorrelations.length > 0 && (
-            <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-4">
               <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                 <Calendar className="w-4 h-4 text-amber-400" />
                 <span>{t.newsCorrelations}</span>
@@ -364,7 +469,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
           {/* Psychology & Recommendations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Psychology Assessment */}
-            <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-3">
+            <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-3">
               <h3 className="text-sm font-bold text-purple-300 flex items-center space-x-2">
                 <Brain className="w-4 h-4 text-purple-400" />
                 <span>{t.psychologyAssessment}</span>
@@ -375,7 +480,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({ settin
             </div>
 
             {/* Actionable Recommendations */}
-            <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-3">
+            <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 shadow-xl space-y-3">
               <h3 className="text-sm font-bold text-emerald-300 flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>{t.recommendations}</span>

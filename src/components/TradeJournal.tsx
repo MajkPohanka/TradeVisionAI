@@ -38,7 +38,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(journal, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `aiautotrader_journal_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute('download', `tradeoy_journal_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -48,7 +48,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
     <div className="space-y-6 animate-fadeIn">
       {/* Journal Stats Header - Apple Glass Bento Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
+        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
             <div className="text-xs font-semibold text-[#86868b]">{t.totalAnalyses}</div>
             <div className="text-3xl font-extrabold text-white mt-1">{journal.length}</div>
@@ -58,7 +58,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
+        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
             <div className="text-xs font-semibold text-[#86868b]">{t.winRate}</div>
             <div className="text-3xl font-extrabold text-emerald-400 mt-1">{winRate}%</div>
@@ -68,7 +68,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
+        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
             <div className="text-xs font-semibold text-[#86868b]">{t.winningTrades}</div>
             <div className="text-3xl font-extrabold text-emerald-400 mt-1">{wins} <span className="text-sm font-semibold text-[#86868b]">/ {closedTrades.length}</span></div>
@@ -78,7 +78,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
+        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div>
             <div className="text-xs font-semibold text-[#86868b]">{t.losingTrades}</div>
             <div className="text-3xl font-extrabold text-red-400 mt-1">{losses}</div>
@@ -90,7 +90,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 shadow-xl">
+      <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-white/[0.08]">
           <div>
             <h3 className="text-base font-bold text-white tracking-tight">{t.tradeJournal}</h3>

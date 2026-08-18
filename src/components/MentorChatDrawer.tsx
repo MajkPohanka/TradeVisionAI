@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot } from 'lucide-react';
-import { AnalysisResult, LanguageOption, MentorChatMessage, StrategySettings } from '../types';
+import { AnalysisResult, LanguageOption, MentorChatMessage, StrategySettings, LicenseStatus } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface MentorChatDrawerProps {
@@ -9,6 +9,8 @@ interface MentorChatDrawerProps {
   currentAnalysis: AnalysisResult | null;
   settings: StrategySettings;
   language?: LanguageOption;
+  currentLicense?: LicenseStatus | null;
+  onOpenCreditsModal?: () => void;
 }
 
 export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
@@ -17,6 +19,8 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
   currentAnalysis,
   settings,
   language = 'cs',
+  currentLicense,
+  onOpenCreditsModal,
 }) => {
   const activeLang = language || settings.language || 'cs';
   const t = getTranslation(activeLang);
@@ -71,6 +75,7 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
           currentAnalysis: currentAnalysis,
           chatHistory: updatedMessages,
           settings: { ...settings, language: activeLang },
+          licenseKey: currentLicense?.key,
         }),
       });
 
@@ -80,6 +85,10 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
         data = JSON.parse(text);
       } catch (e) {
         data = { success: false, error: 'Chyba při komunikaci s AI mentorem.' };
+      }
+
+      if (res.status === 402 || data.code === 'INSUFFICIENT_CREDITS' || res.status === 401) {
+        if (onOpenCreditsModal) onOpenCreditsModal();
       }
 
       if (!res.ok || !data.success || !data.answer) {
@@ -121,8 +130,8 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-md bg-[#0c0c0e]/95 backdrop-blur-3xl border-l border-white/[0.08] h-full flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/75 animate-fadeIn">
+      <div className="w-full max-w-md bg-[#0c0c0e] border-l border-white/[0.08] h-full flex flex-col shadow-2xl">
         {/* Header */}
         <div className="p-5 bg-black/40 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center space-x-3">

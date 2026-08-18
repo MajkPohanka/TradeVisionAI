@@ -80,7 +80,7 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({ 
   const filtered = filterImpact === 'HIGH' ? events.filter((e) => e.impact === 'HIGH') : events;
 
   return (
-    <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-7 shadow-xl space-y-6 animate-fadeIn">
+    <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-7 shadow-xl space-y-6 animate-fadeIn">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
         <div className="flex items-center space-x-3.5">

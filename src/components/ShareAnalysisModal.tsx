@@ -50,7 +50,7 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
     : t.waitNoEntrySignal;
 
   // Format text for WhatsApp / Telegram / Messenger text sharing
-  const formattedText = `📊 *AIAUTOTRADER.com - ${t.institutionalAnalysis}*
+  const formattedText = `📊 *TRADEOY.com - ${t.institutionalAnalysis}*
 Symbol: *${result.symbol || 'GRAF'}* (${result.timeframe || 'H1'})
 ${t.recommendedDirection}: *${signalText}*
 ${t.confidenceAI}: *${result.confidenceScore}%* | ${t.riskRewardRatioLabel}: *${result.overallRiskRewardRatio || '1:2.5'}*
@@ -101,7 +101,7 @@ ${(result.takeProfitTargets || [])
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      link.download = `AIAUTOTRADER_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `TRADEOY_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
       link.click();
     } catch (err) {
       console.error('Failed to generate PNG image:', err);
@@ -136,7 +136,7 @@ ${(result.takeProfitTargets || [])
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      link.download = `AIAUTOTRADER_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `TRADEOY_${result.symbol || 'Chart'}_${result.signal}_${new Date().toISOString().slice(0, 10)}.png`;
       link.click();
       setCopiedImage(true);
       setTimeout(() => setCopiedImage(false), 2500);
@@ -173,7 +173,7 @@ ${(result.takeProfitTargets || [])
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `AIAUTOTRADER.com - ${result.symbol}`,
+          title: `TRADEOY.com - ${result.symbol}`,
           text: formattedText,
         });
       } catch (err) {
@@ -190,7 +190,7 @@ ${(result.takeProfitTargets || [])
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 overflow-y-auto animate-fadeIn">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative my-8">
         {/* Header Modal Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90 sticky top-0 z-20">
@@ -352,7 +352,7 @@ ${(result.takeProfitTargets || [])
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: '#ffffff', fontWeight: '900', fontSize: '15px', letterSpacing: '0.3px' }}>
-                          AIAUTOTRADER.com
+                          TRADEOY.com
                         </span>
                         <span
                           style={{
@@ -681,9 +681,9 @@ ${(result.takeProfitTargets || [])
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Sparkles style={{ width: '13px', height: '13px', color: '#10b981' }} />
-                    <span>AIAUTOTRADER.com AI Engine v3.6</span>
+                    <span>TRADEOY.com AI Engine</span>
                   </div>
-                  <div>AIAUTOTRADER.com</div>
+                  <div>TRADEOY.com</div>
                 </div>
               </div>
             </div>

@@ -25,7 +25,7 @@ export interface StrategySettings {
   customMentorPrompt: string;
   language: LanguageOption;
   accountRiskPercent: number; // e.g. 1% or 2%
-  presets: StrategyPreset[];
+  presets?: StrategyPreset[];
   activePresetId?: string;
 }
 

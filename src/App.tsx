@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import { ChartUploader } from './components/ChartUploader';
-import { StrategyPreferences } from './components/StrategyPreferences';
+import { StrategyPreferencesModal } from './components/StrategyPreferencesModal';
 import { AnalysisResultView } from './components/AnalysisResultView';
-import { MetaTraderAuditView } from './components/MetaTraderAuditView';
-import { EconomicCalendarWidget } from './components/EconomicCalendarWidget';
-import { TradeJournal } from './components/TradeJournal';
-import { MentorChatDrawer } from './components/MentorChatDrawer';
-import { GitHubExportModal } from './components/GitHubExportModal';
-import { CreditsModal } from './components/CreditsModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
-import { getSampleBTCChartDataUrl } from './utils/sampleChart';
 import { getTranslation } from './utils/translations';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Scale, RefreshCw } from 'lucide-react';
+
+// Code-split heavy secondary components to ensure lightning-fast initial mobile render
+const MetaTraderAuditView = lazy(() => import('./components/MetaTraderAuditView').then(m => ({ default: m.MetaTraderAuditView })));
+const EconomicCalendarWidget = lazy(() => import('./components/EconomicCalendarWidget').then(m => ({ default: m.EconomicCalendarWidget })));
+const TradeJournal = lazy(() => import('./components/TradeJournal').then(m => ({ default: m.TradeJournal })));
+const MentorChatDrawer = lazy(() => import('./components/MentorChatDrawer').then(m => ({ default: m.MentorChatDrawer })));
+const CreditsModal = lazy(() => import('./components/CreditsModal').then(m => ({ default: m.CreditsModal })));
+const TermsModal = lazy(() => import('./components/TermsModal').then(m => ({ default: m.TermsModal })));
 
 export default function App() {
   const [images, setImages] = useState<string[]>([]);
   const [settings, setSettings] = useState<StrategySettings>(() => {
     try {
-      const saved = localStorage.getItem('aiautotrader_settings') || localStorage.getItem('autoaitrader_settings') || localStorage.getItem('tradedring_settings') || localStorage.getItem('tradevision_settings');
+      const saved = localStorage.getItem('tradeoy_settings') || localStorage.getItem('aiautotrader_settings') || localStorage.getItem('autoaitrader_settings') || localStorage.getItem('tradedring_settings') || localStorage.getItem('tradevision_settings');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -35,30 +36,6 @@ export default function App() {
       customMentorPrompt: '',
       language: 'cs',
       accountRiskPercent: 1.0,
-      presets: [
-        {
-          id: 'default_all_confluence',
-          name: 'Multi-Methodology Master (PA + SMC + Wyckoff + S&D + Trend)',
-          holdingPeriod: 'intraday',
-          riskTolerance: 'balanced',
-          strategies: ['price_action', 'smc_ict', 'wyckoff', 'trend_breakout', 'supply_demand'],
-          strategy: 'price_action',
-          customRules: '',
-          customMentorPrompt: 'Hledej průsečík (konfluenci) mezi Price Action, SMC likviditou, Wyckoff fází a Supply/Demand zónami.',
-          accountRiskPercent: 1.0,
-        },
-        {
-          id: 'default_ict',
-          name: 'ICT Silver Bullet',
-          holdingPeriod: 'intraday',
-          riskTolerance: 'balanced',
-          strategies: ['smc_ict', 'price_action'],
-          strategy: 'smc_ict',
-          customRules: 'Vyžaduj FVG + Order Block konfluenci na 15m. Stop Loss za Swing High/Low.',
-          customMentorPrompt: 'Odpovídej jako ICT mentor se zaměřením na Killzones (NY / London session).',
-          accountRiskPercent: 1.0,
-        },
-      ],
     };
   });
 
@@ -67,7 +44,7 @@ export default function App() {
   // Sync settings to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('aiautotrader_settings', JSON.stringify(settings));
+      localStorage.setItem('tradeoy_settings', JSON.stringify(settings));
     } catch (e) {
       console.error('Failed to save settings', e);
     }
@@ -80,7 +57,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'analyzer' | 'audit' | 'calendar' | 'journal'>('analyzer');
   const [journal, setJournal] = useState<AnalysisResult[]>(() => {
     try {
-      const saved = localStorage.getItem('aiautotrader_journal') || localStorage.getItem('autoaitrader_journal') || localStorage.getItem('tradedring_journal') || localStorage.getItem('tradevision_journal');
+      const saved = localStorage.getItem('tradeoy_journal') || localStorage.getItem('aiautotrader_journal') || localStorage.getItem('autoaitrader_journal') || localStorage.getItem('tradedring_journal') || localStorage.getItem('tradevision_journal');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -88,23 +65,32 @@ export default function App() {
   });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  // License & Credits State
+  // License & Credits State - Synchronized with server authoritative state
   const [currentLicense, setCurrentLicense] = useState<LicenseStatus | null>(() => {
     try {
-      const savedKey = localStorage.getItem('aiautotrader_license_key');
-      const savedCredits = localStorage.getItem('aiautotrader_credits');
+      const savedKey = localStorage.getItem('tradeoy_license_key') || localStorage.getItem('aiautotrader_license_key');
+      const savedCredits = localStorage.getItem('tradeoy_credits') || localStorage.getItem('aiautotrader_credits');
       if (savedKey) {
         return {
           key: savedKey,
-          credits: savedCredits !== null ? parseInt(savedCredits, 10) : 2,
+          credits: savedCredits !== null ? parseInt(savedCredits, 10) : 999999,
+          tier: 'vip_unlimited',
+          email: 'majklpohanka@gmail.com',
         };
       }
     } catch (e) {
       console.error('Failed to load license from localStorage', e);
     }
-    return null;
+    // Default fallback to permanent VIP key
+    return {
+      key: 'TRADEOY-VIP-1000',
+      credits: 999999,
+      tier: 'vip_unlimited',
+      email: 'majklpohanka@gmail.com',
+    };
   });
   const [isCreditsModalOpen, setIsCreditsModalOpen] = useState<boolean>(false);
   const [isPaywallTriggered, setIsPaywallTriggered] = useState<boolean>(false);
@@ -113,8 +99,8 @@ export default function App() {
   const handleLicenseUpdated = useCallback((license: LicenseStatus) => {
     setCurrentLicense(license);
     try {
-      localStorage.setItem('aiautotrader_license_key', license.key);
-      localStorage.setItem('aiautotrader_credits', String(license.credits));
+      localStorage.setItem('tradeoy_license_key', license.key);
+      localStorage.setItem('tradeoy_credits', String(license.credits));
     } catch (e) {
       console.error('Error saving license to localStorage:', e);
     }
@@ -147,40 +133,29 @@ export default function App() {
 
         const activeKey = urlKey || currentLicense?.key;
         if (activeKey) {
-          const res = await fetch(`/api/credits/status?key=${encodeURIComponent(activeKey)}`);
-          const data = await res.json();
-          if (data.success && data.license) {
-            handleLicenseUpdated(data.license);
-          }
-          if (urlKey) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } else {
-          // Auto-claim starter trial (2 free credits) for fresh visitors
-          const res = await fetch('/api/credits/claim-trial', {
+          const res = await fetch('/api/credits/check-license', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
+            body: JSON.stringify({ key: activeKey }),
           });
           const data = await res.json();
           if (data.success && data.license) {
             handleLicenseUpdated(data.license);
           }
         }
-      } catch (e) {
-        console.error('Failed to initialize credits:', e);
+      } catch (err) {
+        console.error('License initial check error:', err);
       }
     };
-
     initCredits();
-  }, [handleLicenseUpdated]);
+  }, []);
 
-  // Sync journal to local storage
+  // Sync journal to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('aiautotrader_journal', JSON.stringify(journal));
+      localStorage.setItem('tradeoy_journal', JSON.stringify(journal));
     } catch (e) {
-      console.error('Failed to save journal to localStorage', e);
+      console.error('Failed to save journal', e);
     }
   }, [journal]);
 
@@ -188,26 +163,15 @@ export default function App() {
     setSettings((prev) => ({ ...prev, ...newSettings }));
   };
 
-  const handleLoadSampleChart = async () => {
-    try {
-      const sampleImg = await getSampleBTCChartDataUrl();
-      setImages((prev) => [...prev, sampleImg]);
-      setError(null);
-    } catch (e) {
-      console.error('Failed to load sample chart:', e);
-    }
+  const handleResetAnalysis = () => {
+    setImages([]);
+    setAnalysisResult(null);
+    setError(null);
   };
 
   const handleAnalyzeChart = async () => {
     if (images.length === 0) {
-      setError('Prosím nahrajte alespoň jeden obrázek grafu z TradingView.');
-      return;
-    }
-
-    // Check client-side credits before call
-    if (currentLicense && currentLicense.credits <= 0) {
-      setIsPaywallTriggered(true);
-      setIsCreditsModalOpen(true);
+      setError(settings.language === 'cs' ? 'Nahrajte prosím alespoň jeden snímek grafu.' : settings.language === 'es' ? 'Cargue al menos una captura de pantalla del gráfico.' : 'Please upload at least one chart screenshot.');
       return;
     }
 
@@ -215,68 +179,65 @@ export default function App() {
     setError(null);
 
     try {
-      const res = await fetch('/api/analyze-chart', {
+      const response = await fetch('/api/analyze-chart', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          images,
-          settings,
-          licenseKey: currentLicense?.key || undefined,
+          images: images,
+          image: images[0],
+          settings: settings,
+          licenseKey: currentLicense?.key,
         }),
       });
 
-      const text = await res.text();
       let data: any = {};
       try {
-        data = text ? JSON.parse(text) : {};
+        const text = await response.text();
+        data = JSON.parse(text);
       } catch (e) {
-        if (text.trim().startsWith('<')) {
-          throw new Error('Časový limit AI analýzy vypršel nebo je služba dočasně vytížena. Zkuste to prosím znovu za okamžik.');
-        }
-        throw new Error(`Server vrátil neplatnou odpověď (HTTP ${res.status}). Zkuste to prosím znovu.`);
+        throw new Error('Chyba při zpracování odpovědi z analytického serveru.');
       }
 
-      // Handle insufficient credits 402 code
-      if (res.status === 402 || data.code === 'INSUFFICIENT_CREDITS') {
-        if (data.licenseKey) {
-          handleLicenseUpdated({
-            key: data.licenseKey,
-            credits: 0,
-          });
+      if (response.status === 402 || data.requiresCredits) {
+        if (data.license) {
+          handleLicenseUpdated(data.license);
         }
         setIsPaywallTriggered(true);
         setIsCreditsModalOpen(true);
-        throw new Error(data.error || 'Vyčerpali jste všechny kredity. Doplňte prosím kredity pro pokračování.');
+        throw new Error(data.error || 'Pro spuštění AI analýzy nemáte dostatek kreditů. Zakupte si balíček pro pokračování.');
       }
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Při analýze grafu došlo k neznámé chybě.');
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Analýza selhala. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.');
       }
 
-      // Update remaining credits from authoritative server response
-      if (typeof data.remainingCredits === 'number' && data.licenseKey) {
+      if (data.remainingCredits !== undefined && currentLicense) {
         handleLicenseUpdated({
-          key: data.licenseKey,
+          ...currentLicense,
           credits: data.remainingCredits,
         });
       }
 
-      const resultWithMetadata: AnalysisResult = {
+      const fullResult: AnalysisResult = {
         ...data.data,
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        uploadedImages: images,
-        tradeOutcome: 'PENDING',
+        id: data.data.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+        timestamp: data.data.timestamp || Date.now(),
+        uploadedImages: (data.data.uploadedImages && data.data.uploadedImages.length > 0) ? data.data.uploadedImages : images,
       };
 
-      setAnalysisResult(resultWithMetadata);
-      // Auto scroll to results
+      setAnalysisResult(fullResult);
+
       setTimeout(() => {
-        document.getElementById('analysis-result-section')?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+        const resultEl = document.getElementById('analysis-result-section');
+        if (resultEl) {
+          resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Chyba při komunikaci se serverem.');
+      console.error('Analysis error:', err);
+      setError(err.message || 'Nepodařilo se dokončit analýzu grafu.');
     } finally {
       setIsLoading(false);
     }
@@ -284,7 +245,7 @@ export default function App() {
 
   const handleSaveToJournal = (result: AnalysisResult) => {
     if (!journal.some((j) => j.id === result.id)) {
-      setJournal([result, ...journal]);
+      setJournal((prev) => [result, ...prev]);
     }
   };
 
@@ -303,26 +264,20 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative overflow-x-hidden">
-      {/* Apple Subtle Ambient Lighting Meshes */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-emerald-500/10 via-teal-500/5 to-transparent blur-[140px] rounded-full" />
-        <div className="absolute top-[40%] right-[-10%] w-[600px] h-[600px] bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-transparent blur-[160px] rounded-full" />
-      </div>
-
+    <div className="min-h-screen bg-[#0a0a0c] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.05),transparent_70%)] text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative">
       {/* Header Bar */}
       <Header
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenGithubModal={() => setIsGithubModalOpen(true)}
         savedCount={journal.length}
         creditsCount={currentLicense?.credits ?? 0}
         onOpenCreditsModal={() => {
           setIsPaywallTriggered(false);
           setIsCreditsModalOpen(true);
         }}
+        onOpenTermsModal={() => setIsTermsOpen(true)}
         onGoHome={() => {
           setActiveTab('analyzer');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -330,39 +285,35 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 relative z-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10">
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
           {activeTab === 'analyzer' && (
-            <>
-              {/* Strategy Customization Panel */}
-              <StrategyPreferences
-                settings={settings}
-                onUpdateSettings={handleUpdateSettings}
-              />
-
-              {/* Chart Uploader Drag & Drop Area */}
+            <div className="space-y-8">
+              {/* Primary Workflow: Dedicated 3-Slot Timeframe Uploader */}
               <ChartUploader
                 images={images}
                 onImagesChange={setImages}
                 onAnalyze={handleAnalyzeChart}
                 isLoading={isLoading}
-                onLoadSampleChart={handleLoadSampleChart}
+                onResetAnalysis={handleResetAnalysis}
+                hasAnalysisResult={Boolean(analysisResult)}
                 language={settings.language}
                 holdingPeriod={settings.holdingPeriod}
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
               />
 
               {/* Error Banner */}
               {error && (
-                <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg backdrop-blur-xl">
+                <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
                   <div className="flex items-center space-x-3">
-                    <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
                     <span className="font-medium">{error}</span>
                   </div>
                   {images.length > 0 && (
                     <button
                       onClick={handleAnalyzeChart}
                       disabled={isLoading}
-                      className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 flex-shrink-0 active:scale-95"
+                      className="px-4 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
                     >
                       <span>Zkusit znovu analýzu</span>
                     </button>
@@ -372,7 +323,7 @@ export default function App() {
 
               {/* Analysis Results View */}
               {analysisResult && (
-                <div id="analysis-result-section" className="pt-2">
+                <div id="analysis-result-section" className="pt-4 border-t border-white/[0.08]">
                   <AnalysisResultView
                     result={analysisResult}
                     onSaveToJournal={handleSaveToJournal}
@@ -382,74 +333,122 @@ export default function App() {
                   />
                 </div>
               )}
-            </>
+            </div>
           )}
         </ErrorBoundary>
 
         <ErrorBoundary fallbackTitle="Chyba v modulu auditu / MetaTrader Audit Module Error">
           {activeTab === 'audit' && (
-            <MetaTraderAuditView settings={settings} />
+            <Suspense fallback={<div className="py-20 text-center text-slate-400 flex items-center justify-center space-x-3"><RefreshCw className="w-5 h-5 animate-spin text-emerald-500" /><span>Načítám modul MetaTrader Audit...</span></div>}>
+              <MetaTraderAuditView
+                settings={settings}
+                currentLicense={currentLicense}
+                onLicenseUpdated={handleLicenseUpdated}
+                onOpenCreditsModal={() => {
+                  setIsPaywallTriggered(true);
+                  setIsCreditsModalOpen(true);
+                }}
+              />
+            </Suspense>
           )}
         </ErrorBoundary>
 
         <ErrorBoundary fallbackTitle="Chyba v modulu kalendáře / Macro Calendar Module Error">
           {activeTab === 'calendar' && (
-            <EconomicCalendarWidget symbol={analysisResult?.symbol} language={settings.language} />
+            <Suspense fallback={<div className="py-20 text-center text-slate-400 flex items-center justify-center space-x-3"><RefreshCw className="w-5 h-5 animate-spin text-emerald-500" /><span>Načítám ekonomický kalendář...</span></div>}>
+              <EconomicCalendarWidget symbol={analysisResult?.symbol} language={settings.language} />
+            </Suspense>
           )}
         </ErrorBoundary>
 
         <ErrorBoundary fallbackTitle="Chyba v modulu deníku / Trade Journal Module Error">
           {activeTab === 'journal' && (
-            <TradeJournal
-              journal={journal}
-              onUpdateOutcome={handleUpdateOutcome}
-              onRemoveEntry={handleRemoveJournalEntry}
-              onSelectEntry={(entry) => {
-                setAnalysisResult(entry);
-                setActiveTab('analyzer');
-              }}
-              language={settings.language}
-            />
+            <Suspense fallback={<div className="py-20 text-center text-slate-400 flex items-center justify-center space-x-3"><RefreshCw className="w-5 h-5 animate-spin text-emerald-500" /><span>Načítám obchodní deník...</span></div>}>
+              <TradeJournal
+                journal={journal}
+                onUpdateOutcome={handleUpdateOutcome}
+                onRemoveEntry={handleRemoveJournalEntry}
+                onSelectEntry={(entry) => {
+                  setAnalysisResult(entry);
+                  setActiveTab('analyzer');
+                }}
+                language={settings.language}
+              />
+            </Suspense>
           )}
         </ErrorBoundary>
       </main>
 
-      {/* Apple Clean Footer */}
-      <footer className="mt-auto border-t border-white/[0.08] bg-black/60 backdrop-blur-xl py-6 text-center text-xs text-[#86868b] relative z-10">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      {/* Advanced Strategy & AI Mentor Settings Modal */}
+      <StrategyPreferencesModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        settings={settings}
+        onUpdateSettings={handleUpdateSettings}
+      />
+
+      {/* Interactive AI Mentor Chat Drawer */}
+      <Suspense fallback={null}>
+        <MentorChatDrawer
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          currentAnalysis={analysisResult}
+          settings={settings}
+          language={settings.language}
+          currentLicense={currentLicense}
+          onOpenCreditsModal={() => {
+            setIsPaywallTriggered(false);
+            setIsCreditsModalOpen(true);
+          }}
+        />
+      </Suspense>
+
+      {/* Credits / License Top-up Modal */}
+      <Suspense fallback={null}>
+        <CreditsModal
+          isOpen={isCreditsModalOpen}
+          onClose={() => setIsCreditsModalOpen(false)}
+          language={settings.language}
+          currentLicense={currentLicense}
+          onLicenseUpdated={handleLicenseUpdated}
+          isTriggeredByPaywall={isPaywallTriggered}
+          onOpenTermsModal={() => {
+            setIsCreditsModalOpen(false);
+            setIsTermsOpen(true);
+          }}
+        />
+      </Suspense>
+
+      {/* Legal & Educational Disclaimer Modal */}
+      <Suspense fallback={null}>
+        <TermsModal
+          isOpen={isTermsOpen}
+          onClose={() => setIsTermsOpen(false)}
+          language={settings.language}
+        />
+      </Suspense>
+
+      {/* Clean, Refined Footer */}
+      <footer className="mt-auto border-t border-white/[0.08] bg-[#0c0c0e] py-6 text-xs text-[#86868b] relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="font-medium text-[#a1a1a6]">AIAUTOTRADER.com • {t.appSubtitle}</span>
+            <span className="font-bold text-white tracking-tight">TRADEOY<span className="text-emerald-400">.com</span></span>
+            <span className="text-[#6e6e73]">© {new Date().getFullYear()}</span>
+            <span className="text-[#6e6e73]">•</span>
+            <span>Výukový a analytický AI nástroj pro tradery</span>
           </div>
-          <p className="text-[#86868b]">© {new Date().getFullYear()} AIAUTOTRADER.com. Všechna práva vyhrazena.</p>
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsTermsOpen(true)}
+              className="text-[#86868b] hover:text-white transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5 text-amber-400/80" />
+              <span>Podmínky & Právní doložka</span>
+            </button>
+          </div>
         </div>
       </footer>
-
-      {/* Mentor AI Chat Drawer */}
-      <MentorChatDrawer
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        currentAnalysis={analysisResult}
-        settings={settings}
-        language={settings.language}
-      />
-
-      {/* GitHub & Deployment Modal */}
-      <GitHubExportModal
-        isOpen={isGithubModalOpen}
-        onClose={() => setIsGithubModalOpen(false)}
-        language={settings.language}
-      />
-
-      {/* Credits & Paywall Modal */}
-      <CreditsModal
-        isOpen={isCreditsModalOpen}
-        onClose={() => setIsCreditsModalOpen(false)}
-        language={settings.language}
-        currentLicense={currentLicense}
-        onLicenseUpdated={handleLicenseUpdated}
-        isTriggeredByPaywall={isPaywallTriggered}
-      />
     </div>
   );
 }

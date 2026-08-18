@@ -1,19 +1,19 @@
 [
   {
     "key": "AIAUTO-DEMO-TEST-2026",
-    "credits": 999999,
-    "tier": "vip_unlimited",
+    "credits": 1000,
+    "tier": "vip_tester",
     "email": "majklpohanka@gmail.com",
-    "totalPurchased": 999999,
+    "totalPurchased": 1000,
     "totalUsed": 0,
     "createdAt": 1786700137552
   },
   {
     "key": "TRADEOY-VIP-1000",
-    "credits": 999999,
-    "tier": "vip_unlimited",
+    "credits": 1000,
+    "tier": "vip",
     "email": "majklpohanka@gmail.com",
-    "totalPurchased": 999999,
+    "totalPurchased": 1000,
     "totalUsed": 0,
     "createdAt": 1786700137553
   },
@@ -271,16 +271,6 @@
     "totalPurchased": 2,
     "totalUsed": 0,
     "createdAt": 1786799274268,
-    "stripeSessionIds": []
-  },
-  {
-    "key": "TRADEOY-VGL4-4BTP-8J75",
-    "credits": 2,
-    "tier": "starter_trial",
-    "email": "user2@example.com",
-    "totalPurchased": 2,
-    "totalUsed": 0,
-    "createdAt": 1786799274269,
     "stripeSessionIds": []
   }
 ]

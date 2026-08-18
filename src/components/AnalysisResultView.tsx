@@ -163,10 +163,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* 1. TOP SIGNAL HEADER & CONFIDENCE */}
-      <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.37)] relative overflow-hidden transition-all">
+      <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-6 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.37)] relative overflow-hidden transition-all">
         {/* Ambient Glow */}
         <div
-          className={`absolute -top-24 -left-24 w-80 h-80 rounded-full blur-[110px] pointer-events-none ${
+          className={`absolute -top-24 -left-24 w-80 h-80 rounded-full blur-[80px] pointer-events-none ${
             result.signal === 'LONG'
               ? 'bg-emerald-500/15'
               : result.signal === 'SHORT'
@@ -186,7 +186,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             </div>
 
             <div className="flex items-center space-x-3.5">
-              <div className={`p-3.5 rounded-2xl border ${signalInfo.bg} shadow-lg backdrop-blur-md`}>
+              <div className={`p-3.5 rounded-2xl border ${signalInfo.bg} shadow-lg`}>
                 {signalInfo.icon}
               </div>
               <div>
@@ -201,7 +201,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           </div>
 
           {/* Confidence Score & R:R Summary - Apple Pill Card */}
-          <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end gap-3.5 bg-black/50 p-4 sm:p-5 rounded-2xl border border-white/[0.08] backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end gap-3.5 bg-black/60 p-4 sm:p-5 rounded-2xl border border-white/[0.08]">
             <div>
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="text-[#86868b] font-medium">{t.confidenceScore}:</span>
@@ -240,7 +240,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
             <button
               onClick={onOpenChat}
-              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.08] text-xs font-semibold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95 backdrop-blur-md"
+              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.08] text-xs font-semibold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95"
             >
               <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t.askMentor}</span>
@@ -248,7 +248,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
             <button
               onClick={() => setIsShareModalOpen(true)}
-              className="px-4 py-2 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95 backdrop-blur-md shadow-xs"
+              className="px-4 py-2 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95 shadow-xs"
             >
               <Share2 className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t.shareAnalysis}</span>
@@ -264,13 +264,13 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
       {/* ECONOMIC CALENDAR WARNING BANNER */}
       {result.economicCalendarWarning && (
-        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3">
+        <div className="bg-[#121216] border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs">
               <ShieldAlert className="w-4 h-4 text-amber-400" />
               <span>{t.calendarTitle}</span>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30 backdrop-blur-md">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30">
               HIGH VOLATILITY RISK
             </span>
           </div>
@@ -297,7 +297,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
       {/* MULTI-STRATEGY METHODOLOGY CONFLUENCES BREAKDOWN */}
       {result.methodologyConfluences && result.methodologyConfluences.length > 0 && (
-        <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
           <h3 className="text-sm font-bold text-white flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-cyan-400" />
             <span>{t.methodologyConfluences} ({result.methodologyConfluences.length})</span>
@@ -330,7 +330,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
       {/* 2. KEY EXECUTION LEVELS & OVERLAY MAP */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Exact Price Levels */}
-        <div className="lg:col-span-1 bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-1 bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center justify-between mb-4 pb-3 border-b border-white/[0.08]">
               <span className="flex items-center gap-2">
@@ -344,7 +344,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
             <div className="space-y-3.5">
               {/* Entry Level */}
-              <div className="p-3.5 bg-black/50 border border-blue-500/30 rounded-2xl relative overflow-hidden backdrop-blur-md">
+              <div className="p-3.5 bg-black/50 border border-blue-500/30 rounded-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 bottom-0 w-1 bg-blue-400" />
                 <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{t.entryZone}</div>
                 <div className="text-lg font-black text-white mt-0.5">
@@ -356,7 +356,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               </div>
 
               {/* Stop Loss Level */}
-              <div className="p-3.5 bg-black/50 border border-red-500/30 rounded-2xl relative overflow-hidden backdrop-blur-md">
+              <div className="p-3.5 bg-black/50 border border-red-500/30 rounded-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-400" />
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">{t.stopLoss}</span>
@@ -376,7 +376,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 {(result.takeProfitTargets || []).map((tp) => (
                   <div
                     key={tp.target}
-                    className="p-3 bg-black/50 border border-emerald-500/20 rounded-2xl flex items-center justify-between backdrop-blur-md"
+                    className="p-3 bg-black/50 border border-emerald-500/20 rounded-2xl flex items-center justify-between"
                   >
                     <div>
                       <div className="flex items-center space-x-2">
@@ -411,7 +411,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
         </div>
 
         {/* Right Col: Visual Chart Screenshot with Overlay Lines */}
-        <div className="lg:col-span-2 bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-5 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-[#121216] border border-white/[0.08] rounded-3xl p-5 shadow-xl flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3.5 pb-3 border-b border-white/[0.08]">
             <div className="flex items-center space-x-2">
               <Layers className="w-4 h-4 text-cyan-400" />
@@ -527,9 +527,9 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           </div>
 
           {/* Multi-image Selector if available */}
-          {result.uploadedImages.length > 1 && (
+          {uploadedImages.length > 1 && (
             <div className="flex space-x-2 mt-3.5 overflow-x-auto pb-1">
-              {result.uploadedImages.map((img, i) => (
+              {uploadedImages.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedImageIdx(i)}
@@ -546,7 +546,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
       </div>
 
       {/* 3. TABBED DETAILED ANALYSIS & MENTOR DISSECTION */}
-      <div className="bg-[#121216]/75 backdrop-blur-2xl border border-white/[0.08] rounded-3xl overflow-hidden shadow-xl">
+      <div className="bg-[#121216] border border-white/[0.08] rounded-3xl overflow-hidden shadow-xl">
         {/* Navigation Tabs Header - Apple Segmented Top Bar */}
         <div className="flex border-b border-white/[0.08] overflow-x-auto bg-black/40 p-1.5 gap-1">
           <button
@@ -685,7 +685,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           {/* TAB 3: Mentor Advice */}
           {activeTab === 'mentor' && (
             <div className="space-y-4">
-              <div className="flex items-center space-x-3 p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs backdrop-blur-md">
+              <div className="flex items-center space-x-3 p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs">
                 <BookOpen className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <span>
                   <strong>Top Mentor Advice:</strong> Combining market psychology, institutional flows, and risk management.

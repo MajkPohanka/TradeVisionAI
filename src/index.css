@@ -1,18 +1,68 @@
 @import "tailwindcss";
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", "Inter", system-ui, sans-serif;
-  letter-spacing: -0.012em;
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
   color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background-color: #0a0a0c;
+  color: #f5f5f7;
+  height: 100%;
+  overflow-x: clip;
 }
 
 body {
-  background-color: #000000;
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  background-color: #0a0a0c;
   color: #f5f5f7;
-  overflow-x: hidden;
+  min-height: 100%;
+  overflow-x: clip;
+  overscroll-behavior-y: auto;
+}
+
+/* Typography System Definition for Manrope */
+
+/* Hlavní nadpisy */
+h1, .heading-xl, .heading-1 {
+  font-family: "Manrope", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Podnadpisy a sekční nadpisy */
+h2, h3, h4, .heading-2, .heading-3, .heading-section {
+  font-family: "Manrope", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* Běžný text a popisy */
+p, span, div, li, td, th, label, input, textarea, select {
+  font-family: "Manrope", sans-serif;
+}
+
+/* UI Labely, tlačítka a navigace */
+button, .btn, .nav-item, .ui-label {
+  font-family: "Manrope", sans-serif;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+/* Důležité metriky, procenta, ceny, R:R a číselné hodnoty */
+.tabular-nums, .stat-value, .metric-value, .price-value, .rr-value, [data-numeric="true"] {
+  font-family: "Manrope", sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 @layer utilities {
@@ -26,21 +76,39 @@ body {
     scrollbar-width: none;  /* Firefox */
   }
 
-  /* Apple Glassmorphism Surfaces */
+  /* Apple Glassmorphism Surfaces with GPU-accelerated backdrop blur */
   .apple-glass {
-    background: rgba(18, 18, 22, 0.72);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background: rgba(18, 18, 22, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.35);
+    transform: translateZ(0);
+    will-change: transform;
   }
 
   .apple-glass-subtle {
-    background: rgba(24, 24, 28, 0.55);
-    backdrop-filter: blur(16px) saturate(160%);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    background: rgba(24, 24, 28, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    transform: translateZ(0);
+  }
+
+  /* Mobile Performance: on mobile/iOS screens, disable backdrop-filter to prevent 60fps frame drops and scroll lagging */
+  @media (max-width: 768px) {
+    .apple-glass,
+    .apple-glass-subtle,
+    .backdrop-blur-3xl,
+    .backdrop-blur-2xl,
+    .backdrop-blur-xl,
+    .backdrop-blur-lg,
+    .backdrop-blur-md,
+    .backdrop-blur {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      background-color: rgba(18, 18, 22, 0.98) !important;
+    }
   }
 
   .apple-card-hover {
@@ -122,4 +190,3 @@ body {
     background: transparent !important;
   }
 }
-

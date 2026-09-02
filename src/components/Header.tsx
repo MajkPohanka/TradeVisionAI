@@ -160,23 +160,23 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
                   : 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25 animate-pulse'
               }`}
-              title="Kredity & Licenční Správa / Credits & License"
+              title={t.creditsTooltip || t.creditsTitle}
             >
               <Zap className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${creditsCount > 0 ? 'text-emerald-400 fill-emerald-400/20' : 'text-amber-400 fill-amber-400/20'}`} />
               <span className="tabular-nums">
                 {creditsCount >= 9999 ? (
                   <>
-                    <span className="sm:hidden">VIP ∞</span>
-                    <span className="hidden sm:inline">VIP Neomezeně ∞</span>
+                    <span className="sm:hidden">{t.vipBadgeShort || 'VIP ∞'}</span>
+                    <span className="hidden sm:inline">{t.vipUnlimitedBadge || t.vipUnlimitedAccount || 'VIP Unlimited ∞'}</span>
                   </>
                 ) : creditsCount > 0 ? (
                   <>
-                    <span className="sm:hidden">{creditsCount} Kr.</span>
+                    <span className="sm:hidden">{creditsCount} {t.creditsShort || 'Cr.'}</span>
                     <span className="hidden sm:inline">{creditsCount} {t.creditsBadge}</span>
                   </>
                 ) : (
                   <>
-                    <span className="sm:hidden">+ Kredity</span>
+                    <span className="sm:hidden">{t.addCreditsShort || '+ Credits'}</span>
                     <span className="hidden sm:inline">{t.buyCreditsBtn}</span>
                   </>
                 )}
@@ -187,7 +187,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={cycleLanguage}
               className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border border-white/[0.08] bg-[#16161a] text-[#f5f5f7] hover:bg-white/[0.06] text-[11px] sm:text-xs font-bold flex items-center space-x-1 sm:space-x-1.5 transition cursor-pointer active:scale-95 shrink-0"
-              title="Přepnout jazyk / Switch Language"
+              title={t.switchLanguageTooltip || t.switchLanguage}
             >
               <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400" />
               <span className="uppercase">{settings.language}</span>

@@ -566,7 +566,7 @@ export default function App() {
             <span className="font-bold text-white tracking-tight">TRADEOY<span className="text-emerald-400">.com</span></span>
             <span className="text-[#6e6e73]">© {new Date().getFullYear()}</span>
             <span className="text-[#6e6e73]">•</span>
-            <span>Výukový a analytický AI nástroj pro tradery</span>
+            <span>{t.footerToolDesc}</span>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -575,7 +575,7 @@ export default function App() {
               className="text-[#86868b] hover:text-white transition cursor-pointer flex items-center gap-1.5"
             >
               <Scale className="w-3.5 h-3.5 text-amber-400/80" />
-              <span>Podmínky & Právní doložka</span>
+              <span>{t.footerTermsLink}</span>
             </button>
           </div>
         </div>

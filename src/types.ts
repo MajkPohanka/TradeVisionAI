@@ -68,6 +68,12 @@ export interface AnalysisResult {
   signal: TradeSignal;
   confidenceScore: number; // 0-100
   biasReasoning: string;
+  drawOnLiquidity?: {
+    targetZone: string; // e.g. "4 420 - 4 450 (Equal Highs / BSL Pool)"
+    direction: 'UPSIDE_BSL' | 'DOWNSIDE_SSL' | 'NEUTRAL_RANGE';
+    reason: string;
+    prohibitedOpposingTrade: string; // e.g. "Striktní zákaz Shortování proti nevybranému BSL magnetu"
+  };
   methodologyConfluences?: {
     methodology: string;
     bias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';

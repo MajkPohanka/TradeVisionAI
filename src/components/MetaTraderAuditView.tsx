@@ -249,7 +249,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
                   setUploadedFileSize(null);
                 }
               }}
-              placeholder="Vložte sem celý výpis z MetaTraderu (HTML, CSV nebo prostý text). Podporuje stovky až tisíce obchodů..."
+              placeholder={t.pasteMT4StatementPlaceholder}
               className="w-full bg-black/40 border border-white/[0.08] rounded-2xl p-4 text-xs text-[#f5f5f7] placeholder-[#86868b]/60 focus:outline-none focus:border-white/30 font-mono transition"
             />
           </div>
@@ -259,7 +259,7 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-[#86868b] flex items-center gap-1.5">
                 <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Nahrát soubor výpisu (HTML, CSV) nebo Screenshot</span>
+                <span>{t.uploadStatementFileLabel}</span>
               </label>
               <span className="text-[10px] text-emerald-400/80 font-medium">HTM, HTML, CSV, PNG, JPG</span>
             </div>
@@ -273,8 +273,8 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
               <Upload className="w-6 h-6 text-[#86868b] group-hover:text-purple-400 transition" />
-              <div className="text-xs font-semibold text-white">Přetáhněte soubor výpisu nebo screenshot sem</div>
-              <div className="text-[10px] text-[#86868b]">HTML Statement, CSV report, TXT log, nebo snímek okna (max 10 MB)</div>
+              <div className="text-xs font-semibold text-white">{t.dragStatementFileHere}</div>
+              <div className="text-[10px] text-[#86868b]">{t.statementFormatsHint}</div>
             </div>
 
             {images.length > 0 && (

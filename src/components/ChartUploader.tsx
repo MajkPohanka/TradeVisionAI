@@ -68,29 +68,31 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
     }
   }, []);
 
-  // Timeframe Slot Definitions based on Holding Period
-  const slotDefinitions: Record<
-    HoldingPeriod,
-    {
-      periodTitle: string;
-      icon: any;
-      accent: string;
-      slots: {
-        step: string;
-        tf: string;
-        role: string;
-        desc: string;
-      }[];
-    }
-  > = {
+  // Timeframe Slot Definitions based on Holding Period and Language
+  const getSlotDefinitions = (lang: LanguageOption) => ({
     scalp: {
       periodTitle: t.scalpStyleTitle,
       icon: Zap,
       accent: 'amber',
       slots: [
-        { step: '01', tf: '1H', role: 'Higher Timeframe', desc: 'HTF Trend & Hlavní S/R úrovně' },
-        { step: '02', tf: '15m', role: 'Market Structure', desc: 'MTF Struktura & FVG zóny' },
-        { step: '03', tf: '5m / 1m', role: 'Entry & Trigger', desc: 'LTF Vstupní trigger & CHoCH' },
+        {
+          step: '01',
+          tf: '1H',
+          role: lang === 'cs' ? 'Vyšší Timeframe' : lang === 'es' ? 'Temporalidad Mayor' : 'Higher Timeframe',
+          desc: lang === 'cs' ? 'HTF Trend & Hlavní S/R úrovně' : lang === 'es' ? 'Tendencia HTF y Niveles S/R Clave' : 'HTF Trend & Key S/R Levels',
+        },
+        {
+          step: '02',
+          tf: '15m',
+          role: lang === 'cs' ? 'Tržní Struktura' : lang === 'es' ? 'Estructura de Mercado' : 'Market Structure',
+          desc: lang === 'cs' ? 'MTF Struktura & FVG zóny' : lang === 'es' ? 'Estructura MTF y Zonas FVG' : 'MTF Structure & FVG Zones',
+        },
+        {
+          step: '03',
+          tf: '5m / 1m',
+          role: lang === 'cs' ? 'Vstup & Trigger' : lang === 'es' ? 'Entrada y Disparador' : 'Entry & Trigger',
+          desc: lang === 'cs' ? 'LTF Vstupní trigger & CHoCH' : lang === 'es' ? 'Disparador LTF y CHoCH' : 'LTF Entry Trigger & CHoCH',
+        },
       ],
     },
     intraday: {
@@ -98,9 +100,24 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       icon: TrendingUp,
       accent: 'emerald',
       slots: [
-        { step: '01', tf: '4H', role: 'Higher Timeframe', desc: 'HTF Kontext & Hlavní likvidita' },
-        { step: '02', tf: '15m', role: 'Market Structure', desc: 'MTF Struktura trhu & BOS zóny' },
-        { step: '03', tf: '5m', role: 'Entry & Trigger', desc: 'LTF Exekuce & Přesný vstup' },
+        {
+          step: '01',
+          tf: '4H',
+          role: lang === 'cs' ? 'Vyšší Timeframe' : lang === 'es' ? 'Temporalidad Mayor' : 'Higher Timeframe',
+          desc: lang === 'cs' ? 'HTF Kontext & Hlavní likvidita' : lang === 'es' ? 'Contexto HTF y Liquidez Principal' : 'HTF Context & Key Liquidity',
+        },
+        {
+          step: '02',
+          tf: '15m',
+          role: lang === 'cs' ? 'Tržní Struktura' : lang === 'es' ? 'Estructura de Mercado' : 'Market Structure',
+          desc: lang === 'cs' ? 'MTF Struktura trhu & BOS zóny' : lang === 'es' ? 'Estructura MTF y Zonas BOS' : 'MTF Market Structure & BOS Zones',
+        },
+        {
+          step: '03',
+          tf: '5m',
+          role: lang === 'cs' ? 'Vstup & Trigger' : lang === 'es' ? 'Entrada y Disparador' : 'Entry & Trigger',
+          desc: lang === 'cs' ? 'LTF Exekuce & Přesný vstup' : lang === 'es' ? 'Ejecución LTF y Entrada Precisa' : 'LTF Execution & Precise Entry',
+        },
       ],
     },
     swing: {
@@ -108,9 +125,24 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       icon: Waves,
       accent: 'purple',
       slots: [
-        { step: '01', tf: 'Daily (1D)', role: 'Macro Context', desc: 'Makro trend & Denní likvidita' },
-        { step: '02', tf: '4H', role: 'Market Structure', desc: 'Struktura trhu & S&D zóny' },
-        { step: '03', tf: '1H / 15m', role: 'Entry & Trigger', desc: 'Lokální reakce & Potvrzení' },
+        {
+          step: '01',
+          tf: 'Daily (1D)',
+          role: lang === 'cs' ? 'Makro Kontext' : lang === 'es' ? 'Contexto Macro' : 'Macro Context',
+          desc: lang === 'cs' ? 'Makro trend & Denní likvidita' : lang === 'es' ? 'Tendencia Macro y Liquidez Diaria' : 'Macro Trend & Daily Liquidity',
+        },
+        {
+          step: '02',
+          tf: '4H',
+          role: lang === 'cs' ? 'Tržní Struktura' : lang === 'es' ? 'Estructura de Mercado' : 'Market Structure',
+          desc: lang === 'cs' ? 'Struktura trhu & S&D zóny' : lang === 'es' ? 'Estructura de Mercado y Zonas S&D' : 'Market Structure & S&D Zones',
+        },
+        {
+          step: '03',
+          tf: '1H / 15m',
+          role: lang === 'cs' ? 'Vstup & Trigger' : lang === 'es' ? 'Entrada y Disparador' : 'Entry & Trigger',
+          desc: lang === 'cs' ? 'Lokální reakce & Potvrzení' : lang === 'es' ? 'Reacción Local y Confirmación' : 'Local Reaction & Confirmation',
+        },
       ],
     },
     position: {
@@ -118,13 +150,29 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       icon: Globe,
       accent: 'cyan',
       slots: [
-        { step: '01', tf: 'Weekly (1W)', role: 'Macro Cycle', desc: 'Týdenní cykly & Makro POI' },
-        { step: '02', tf: 'Daily (1D)', role: 'Market Phase', desc: 'Fáze trhu & Akumulace/Distribuce' },
-        { step: '03', tf: '4H', role: 'Position Entry', desc: 'Vstupní timing & Risk control' },
+        {
+          step: '01',
+          tf: 'Weekly (1W)',
+          role: lang === 'cs' ? 'Makro Cyklus' : lang === 'es' ? 'Ciclo Macro' : 'Macro Cycle',
+          desc: lang === 'cs' ? 'Týdenní cykly & Makro POI' : lang === 'es' ? 'Ciclos Semanales y POI Macro' : 'Weekly Cycles & Macro POI',
+        },
+        {
+          step: '02',
+          tf: 'Daily (1D)',
+          role: lang === 'cs' ? 'Fáze Trhu' : lang === 'es' ? 'Fase de Mercado' : 'Market Phase',
+          desc: lang === 'cs' ? 'Fáze trhu & Akumulace/Distribuce' : lang === 'es' ? 'Fase de Mercado y Acumulación/Distribución' : 'Market Phase & Accumulation/Distribution',
+        },
+        {
+          step: '03',
+          tf: '4H',
+          role: lang === 'cs' ? 'Vstup do Pozice' : lang === 'es' ? 'Entrada en Posición' : 'Position Entry',
+          desc: lang === 'cs' ? 'Vstupní timing & Risk control' : lang === 'es' ? 'Timing de Posición y Control de Riesgo' : 'Position Timing & Risk Control',
+        },
       ],
     },
-  };
+  });
 
+  const slotDefinitions = getSlotDefinitions(language);
   const currentConfig = slotDefinitions[holdingPeriod] || slotDefinitions.intraday;
   const HoldingIcon = currentConfig.icon;
   const MAX_IMAGES = 3;
@@ -301,7 +349,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
     // Provide visual feedback for the destination slot
     const targetTfName = currentConfig.slots[destinationSlotIndex]?.tf || `Slot ${destinationSlotIndex + 1}`;
-    showToast(`✓ Graf vložen do ${targetTfName}`, 'success');
+    showToast(
+      language === 'cs'
+        ? `✓ Graf vložen do ${targetTfName}`
+        : language === 'es'
+        ? `✓ Gráfico insertado en ${targetTfName}`
+        : `✓ Chart inserted into ${targetTfName}`,
+      'success'
+    );
 
     // Auto-advance recommended focus to the next empty slot if any
     const nextEmptyIndex = updatedSlots.findIndex((slot) => !slot);
@@ -343,6 +398,29 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       if (imageFiles.length > 0) {
         e.preventDefault();
         processAndAddFiles(imageFiles, activeSlotIndex !== null ? activeSlotIndex : undefined);
+        return;
+      }
+
+      // Also support TradingView clipboard links (e.g., https://www.tradingview.com/x/XXXXX/ or direct image URLs)
+      const pastedText = e.clipboardData?.getData('text/plain')?.trim();
+      if (pastedText && (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/'))) {
+        if (pastedText.match(/\.(jpeg|jpg|png|webp|gif)/i) || pastedText.includes('tradingview.com/x/') || pastedText.startsWith('data:image/')) {
+          e.preventDefault();
+          showToast('Stahuji obrázek z odkazu...', 'info');
+          compressImage(pastedText)
+            .then((compressed) => {
+              const updatedSlots = [...currentSlots];
+              const destIndex = activeSlotIndex !== null ? activeSlotIndex : currentSlots.findIndex((s) => !s);
+              const finalDest = destIndex !== -1 ? destIndex : 0;
+              updatedSlots[finalDest] = compressed;
+              const cleaned = updatedSlots.filter(Boolean) as string[];
+              onImagesChange(cleaned);
+              showToast('✓ Graf načten z odkazu!', 'success');
+            })
+            .catch(() => {
+              showToast('Nepodařilo se načíst obrázek z odkazu. Použijte prosím screenshot (Ctrl+V).', 'warning');
+            });
+        }
       }
     };
 
@@ -442,10 +520,10 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       />
 
       {/* 1. Page Header & Workflow Context */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2">
+        <div className="flex-1">
           <div className="flex items-center space-x-2.5 text-xs text-[#86868b] font-medium mb-1.5 flex-wrap gap-y-1">
-            <span className="uppercase tracking-wider">Trading Workflow</span>
+            <span className="uppercase tracking-wider">{t.tradingWorkflow}</span>
             <span>•</span>
             <span className="text-emerald-400 font-semibold flex items-center gap-1">
               <HoldingIcon className="w-3.5 h-3.5" />
@@ -455,7 +533,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             {/* Decent, high-visibility keyboard shortcut badge */}
             <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-mono font-bold">
               <span>{isMac ? '⌘ + V' : 'Ctrl + V'}</span>
-              <span className="font-sans font-normal text-[10px] text-emerald-400/80 hidden sm:inline">pro vložení screenshotu</span>
+              <span className="font-sans font-normal text-[10px] text-emerald-400/80 hidden sm:inline">{t.pasteScreenshotHint}</span>
             </span>
           </div>
 
@@ -467,42 +545,42 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </p>
         </div>
 
-        {/* Secondary & Advanced Action Toolbar */}
-        <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+        {/* Secondary & Advanced Action Toolbar - Perfectly aligned single-line row */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           {onOpenSettings && (
             <button
               type="button"
               onClick={onOpenSettings}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#18181c] hover:bg-[#222226] text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
-              title="Nastavení AI Mentora & Strategie"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#18181c] hover:bg-[#222226] text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap"
+              title={t.analysisSettingsTooltip}
             >
-              <Sliders className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Nastavení analýzy</span>
+              <Sliders className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>{t.analysisSettingsBtn}</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={() => setShowGuide(!showGuide)}
-            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 ${
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 whitespace-nowrap ${
               showGuide
                 ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
                 : 'bg-[#18181c] text-[#a1a1a6] border-white/10 hover:text-white hover:bg-[#222226]'
             }`}
           >
-            <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Návod pro Timeframy</span>
-            {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span>{t.timeframeGuideBtn}</span>
+            {showGuide ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
           </button>
 
           {(images.length > 0 || hasAnalysisResult) && (
             <button
               type="button"
               onClick={() => setShowConfirmResetModal(true)}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/25 text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/25 text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap"
               title={t.clearAndNewAnalysis}
             >
-              <RotateCcw className="w-3.5 h-3.5 text-red-400" />
+              <RotateCcw className="w-3.5 h-3.5 text-red-400 shrink-0" />
               <span>{t.clearAndNewAnalysis}</span>
             </button>
           )}
@@ -599,15 +677,15 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                   {hasImage ? (
                     <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                       <CheckCircle2 className="w-3 h-3" />
-                      Připraveno
+                      {t.slotStatusReady}
                     </span>
                   ) : isSelected ? (
                     <span className="text-[10px] font-semibold text-emerald-300 flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40 animate-pulse">
-                      Aktivní cíl (Ctrl+V)
+                      {t.slotStatusActiveTarget} ({isMac ? '⌘+V' : 'Ctrl+V'})
                     </span>
                   ) : isRecommendedNext ? (
                     <span className="text-[10px] font-medium text-emerald-400/80 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
-                      Další na řadě
+                      {t.slotStatusNext}
                     </span>
                   ) : null}
                 </div>
@@ -631,7 +709,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                         }}
                         className="px-3 py-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white text-xs font-medium transition cursor-pointer"
                       >
-                        Změnit
+                        {t.changeSlotImage}
                       </button>
                       <button
                         type="button"
@@ -640,7 +718,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                           removeSlotImage(idx);
                         }}
                         className="p-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"
-                        title="Odstranit snímek"
+                        title={t.removeSlotImage}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -668,14 +746,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                     <div className={`text-xs font-bold transition ${
                       isSelected ? 'text-emerald-300' : 'text-white group-hover:text-emerald-300'
                     }`}>
-                      Nahrát {slot.tf} graf
+                      {t.uploadSlotChart.replace('{tf}', slot.tf)}
                     </div>
                     <div className="text-[11px] text-[#86868b] mt-1 text-center max-w-[200px] leading-snug">
                       {slot.desc}
                     </div>
 
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06] opacity-80 group-hover:opacity-100">
-                      <span className="text-[10px] text-emerald-400 font-semibold hover:underline">Vybrat soubor</span>
+                      <span className="text-[10px] text-emerald-400 font-semibold hover:underline">{t.browseFiles}</span>
                       <span className="text-[#86868b] text-[10px]">•</span>
                       <button
                         type="button"
@@ -686,7 +764,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                         className="text-[10px] text-cyan-400 font-medium hover:underline flex items-center gap-1"
                       >
                         <Camera className="w-3 h-3" />
-                        Kamera
+                        {t.camera}
                       </button>
                     </div>
                   </div>
@@ -697,7 +775,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <div className={`px-4 py-2.5 border-t text-[11px] flex items-center justify-between transition-colors ${
                 isSelected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-black/20 border-white/[0.04] text-[#86868b]'
               }`}>
-                <span>{isSelected ? `Stiskněte ${isMac ? '⌘+V' : 'Ctrl+V'} pro vložení sem` : `Účel: ${slot.role}`}</span>
+                <span>{isSelected ? t.pressPasteHere.replace('{key}', isMac ? '⌘+V' : 'Ctrl+V') : t.slotRolePurpose.replace('{role}', slot.role)}</span>
                 <span className="font-mono text-[10px] font-bold">{slot.tf}</span>
               </div>
             </div>
@@ -713,14 +791,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </div>
           <div>
             <div className="text-white font-bold text-xs sm:text-sm">
-              Stav podkladů: {images.length} / {MAX_IMAGES} grafy
+              {t.uploadStatusCount.replace('{count}', String(images.length)).replace('{max}', String(MAX_IMAGES))}
             </div>
             <div className="text-[11px] text-[#86868b]">
               {images.length === 0
-                ? `Nahrajte nebo vložte přes ${isMac ? '⌘+V' : 'Ctrl+V'} alespoň 1 snímek grafu pro spuštění analýzy.`
+                ? t.uploadHintEmpty.replace('{key}', isMac ? '⌘+V' : 'Ctrl+V')
                 : images.length < 3
-                ? 'Tip: 3 timeframy (HTF + MTF + LTF) poskytují nejvyšší přesnost konfluence.'
-                : 'Všechny 3 timeframy jsou připraveny pro multi-timeframe syntézu.'}
+                ? t.uploadHintPartial
+                : t.uploadHintComplete}
             </div>
           </div>
         </div>

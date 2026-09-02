@@ -19,6 +19,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { MetaTraderAuditResult, LanguageOption } from '../types';
 import { getTranslation } from '../utils/translations';
 
@@ -40,6 +41,7 @@ export const ShareAuditModal: React.FC<ShareAuditModalProps> = ({
   const [copiedText, setCopiedText] = useState(false);
   const [copiedImage, setCopiedImage] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -192,8 +194,47 @@ ${(auditResult.actionableRecommendations || [])
   };
 
   // 7. Print / PDF Export
-  const handlePrintPdf = () => {
-    window.print();
+  const handleExportPdf = async () => {
+    if (!cardRef.current) {
+      window.print();
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    setShareError(null);
+
+    try {
+      const canvas = await html2canvas(cardRef.current, getCanvasOptions());
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      const posX = 10;
+      const posY = Math.max(10, (pageHeight - imgHeight) / 2);
+
+      pdf.setFillColor(2, 6, 23);
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+      pdf.addImage(imgData, 'PNG', posX, posY, imgWidth, Math.min(imgHeight, pageHeight - 20));
+
+      const fileName = `TRADEOY_MetaTrader_Audit_${new Date().toISOString().slice(0, 10)}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.warn('Direct PDF export failed, falling back to window.print():', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -309,11 +350,16 @@ ${(auditResult.actionableRecommendations || [])
             </button>
 
             <button
-              onClick={handlePrintPdf}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-purple-950/50 hover:border-purple-500/50 text-purple-300 border border-slate-700 rounded-lg flex items-center space-x-2 transition cursor-pointer active:scale-95 font-semibold"
+              onClick={handleExportPdf}
+              disabled={isGeneratingPdf || isGeneratingImage}
+              className="px-3.5 py-2 bg-slate-900 hover:bg-purple-950/50 hover:border-purple-500/50 text-purple-300 border border-slate-700 rounded-lg flex items-center space-x-2 transition cursor-pointer active:scale-95 font-semibold disabled:opacity-50"
             >
-              <Printer className="w-4 h-4 text-purple-400" />
-              <span>{t.printPdfAuditBtn}</span>
+              {isGeneratingPdf ? (
+                <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Printer className="w-4 h-4 text-purple-400" />
+              )}
+              <span>{isGeneratingPdf ? 'Generuji PDF...' : t.printPdfAuditBtn}</span>
             </button>
           </div>
 

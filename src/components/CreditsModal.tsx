@@ -206,7 +206,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
                 {t.creditsTitle}
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
-                  $1 / Analýza
+                  {t.creditPricePerAnalysis}
                 </span>
               </h2>
               <p className="text-xs text-[#86868b] mt-0.5">
@@ -245,16 +245,12 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                 <div className="text-xs text-[#86868b] font-medium">{t.remainingCredits}</div>
                 <div className="text-xl font-extrabold text-white flex items-center gap-2">
                   <span className={remaining > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {remaining >= 9999 ? '∞ Neomezeně' : remaining}
+                    {remaining >= 9999 ? t.vipUnlimitedAccount : remaining}
                   </span>
                   <span className="text-xs text-[#86868b] font-normal">
                     {remaining >= 9999
-                      ? '(VIP Trader Účet)'
-                      : language === 'en'
-                      ? 'analyses available'
-                      : language === 'es'
-                      ? 'análisis disponibles'
-                      : 'analýz k dispozici'}
+                      ? t.vipTraderAccountBadge
+                      : t.analysesAvailable}
                   </span>
                 </div>
               </div>
@@ -294,7 +290,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
           {/* Package Selection Cards */}
           <div>
             <div className="text-xs font-semibold text-[#86868b] uppercase tracking-wider mb-3">
-              {language === 'en' ? 'Select Credit Package' : language === 'es' ? 'Seleccionar Paquete de Créditos' : 'Vyberte balíček kreditů'}
+              {t.selectCreditPackage}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               {packages.map((pkg) => {
@@ -361,7 +357,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
             {isProcessing ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin text-black" />
-                <span>Zpracovávám platbu...</span>
+                <span>{t.processingPayment}</span>
               </>
             ) : (
               <>
@@ -379,7 +375,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                 className="text-xs text-[#86868b] hover:text-white transition flex items-center space-x-1.5 mx-auto cursor-pointer"
               >
                 <Key className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{t.enterKeyBtn} (nebo obnovit ze zadaného e-mailu)</span>
+                <span>{t.enterKeyBtn} {t.orRestoreViaEmail}</span>
               </button>
             ) : (
               <form onSubmit={handleVerifyKey} className="space-y-3">
@@ -393,7 +389,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                     onClick={() => setShowKeyInput(false)}
                     className="text-[11px] text-[#86868b] hover:text-white cursor-pointer"
                   >
-                    Skrýt
+                    {t.hide}
                   </button>
                 </div>
                 <div className="flex gap-2">
@@ -409,7 +405,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                     disabled={isVerifying || !inputKey.trim()}
                     className="px-5 py-2.5 bg-white/[0.08] hover:bg-white/[0.15] text-white border border-white/[0.08] rounded-full text-xs font-semibold transition cursor-pointer disabled:opacity-50 active:scale-95"
                   >
-                    {isVerifying ? 'Ověřuji...' : t.verifyKeyBtn}
+                    {isVerifying ? t.verifying : t.verifyKeyBtn}
                   </button>
                 </div>
               </form>
@@ -429,7 +425,7 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                   onClick={onOpenTermsModal}
                   className="text-[11px] text-[#86868b] hover:text-white underline transition cursor-pointer"
                 >
-                  {language === 'cs' ? 'Podmínky nákupu, Zřeknutí se odpovědnosti & Reklamace' : language === 'es' ? 'Condiciones de compra y Aviso legal' : 'Purchase terms, Disclaimer & Refund policy'}
+                  {t.termsAndDisclaimerTitle}
                 </button>
               </div>
             )}

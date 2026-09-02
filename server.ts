@@ -317,21 +317,45 @@ function condenseMetaTraderStatement(text: string): string {
   return clean.trim();
 }
 
-// Helper function to execute Gemini requests with retry logic & model fallbacks against transient 503 / 429 / quota errors
+// Model cooldown tracker: if a model hits 429 quota (e.g. daily/minute free tier cap of 20 reqs),
+// avoid querying it for the cooldown period so requests go straight to available fallback models without latency or 429 logs!
+const modelCooldownMap = new Map<string, number>();
+
+function isModelInCooldown(modelName: string): boolean {
+  const expiry = modelCooldownMap.get(modelName);
+  if (!expiry) return false;
+  if (Date.now() > expiry) {
+    modelCooldownMap.delete(modelName);
+    return false;
+  }
+  return true;
+}
+
+function setModelCooldown(modelName: string, durationMs: number = 60000) {
+  modelCooldownMap.set(modelName, Date.now() + durationMs);
+}
+
+// Helper function to execute Gemini requests with aggressive retry & multi-model fallback against transient 503 / 429 / quota errors
 async function callGeminiWithRetry(
   aiClient: ReturnType<typeof getGeminiClient>,
   requestParams: any,
   maxRetries = 1
 ) {
   const primaryModel = requestParams.model || 'gemini-2.5-flash';
-  // Fallback chain across distinct model pools and quota buckets
-  const modelsToTry = Array.from(new Set([
+  // Comprehensive fallback chain with verified, high-availability multi-modal models across multiple quotas
+  const allCandidateModels = Array.from(new Set([
     primaryModel,
     'gemini-2.5-flash',
     'gemini-3.1-flash-lite',
-    'gemini-flash-latest',
     'gemini-3.7-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-flash-latest',
   ]));
+
+  // Prioritize models that are NOT currently in 429 / 503 cooldown
+  const availableModels = allCandidateModels.filter((m) => !isModelInCooldown(m));
+  const modelsToTry = availableModels.length > 0 ? availableModels : allCandidateModels;
 
   let lastError: any = null;
 
@@ -339,7 +363,7 @@ async function callGeminiWithRetry(
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Časový limit vypršel (30s).')), 30000)
+          setTimeout(() => reject(new Error('Časový limit vypršel (45s).')), 45000)
         );
 
         const response: any = await Promise.race([
@@ -350,50 +374,38 @@ async function callGeminiWithRetry(
           timeoutPromise,
         ]);
 
-        return response;
+        if (response && (response.text || response.candidates?.length)) {
+          return response;
+        }
       } catch (err: any) {
         lastError = err;
-        const errMsg = err?.message || String(err) || JSON.stringify(err);
-        const isNotFound =
-          errMsg.includes('404') ||
-          errMsg.includes('NOT_FOUND') ||
-          errMsg.includes('not found') ||
-          errMsg.includes('no longer available');
+        const errMsg = err?.message || String(err);
+        
+        const isNotFound = errMsg.includes('404') || errMsg.includes('NOT_FOUND') || errMsg.includes('no longer available');
+        const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || err?.status === 503;
+        const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded') || errMsg.includes('exceeded your current quota');
 
-        const isTransient =
-          errMsg.includes('503') ||
-          errMsg.includes('UNAVAILABLE') ||
-          errMsg.includes('high demand') ||
-          errMsg.includes('Deadline expired') ||
-          errMsg.includes('timeout') ||
-          errMsg.includes('Časový limit') ||
-          err?.status === 503 ||
-          err?.code === 503;
-
-        const isRateLimit =
-          errMsg.includes('429') ||
-          errMsg.includes('RESOURCE_EXHAUSTED') ||
-          errMsg.includes('quota') ||
-          errMsg.includes('Quota exceeded') ||
-          errMsg.includes('exceeded your current quota') ||
-          err?.status === 429 ||
-          err?.code === 429 ||
-          err?.error?.code === 429 ||
-          err?.error?.status === 'RESOURCE_EXHAUSTED';
-
-        // If rate limit (429/quota), high demand (503), or model not found (404),
-        // immediately fall back to the next model in modelsToTry!
-        if (isNotFound || isRateLimit || isTransient) {
+        // If the model hits a 429 Quota Exceeded or 503 Unavailable, set circuit-breaker cooldown
+        if (isRateLimit) {
+          console.info(`[Model Quota Shift] Model ${modelName} reached quota limit. Switching seamlessly to next model.`);
+          setModelCooldown(modelName, 60000); // 60s cooldown
           break;
         }
 
+        if (isHighDemand || isNotFound) {
+          console.info(`[Model Availability Shift] Model ${modelName} is temporarily busy (503). Switching seamlessly.`);
+          setModelCooldown(modelName, 30000);
+          break;
+        }
+
+        console.warn(`[Gemini Attempt Failed] model=${modelName}, attempt=${attempt}, error=${errMsg}`);
+
+        // If not the last attempt for this model, wait briefly and retry
         if (attempt < maxRetries) {
-          const delay = 400 + Math.floor(Math.random() * 200);
+          const delay = 300 + Math.floor(Math.random() * 200);
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
-
-        break;
       }
     }
   }
@@ -533,6 +545,8 @@ app.post('/api/credits/claim-trial', (req, res) => {
     res.json({
       success: true,
       license: result.license,
+      licenseKey: result.license?.key,
+      credits: result.license?.credits,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: 'Nepodařilo se vygenerovat kredity.' });
@@ -679,29 +693,29 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
 You analyze charts with absolute institutional rigor, combining the most up-to-date (2025/2026) market microstructure, price action, and order flow frameworks:
 
 1. SMART MONEY CONCEPTS (SMC) & ICT (Inner Circle Trader) 2025/2026 Core Mechanics:
-- Liquidity Engineering: Buy-Side Liquidity (BSL / Equal Highs EQH / Trendline Liquidity) and Sell-Side Liquidity (SSL / Equal Lows EQL). Distinguish between Internal Range Liquidity (IRL: FVGs, Order Blocks) and External Range Liquidity (ERL: Major Swing Highs/Lows).
-- Liquidity Runs & Sweeps: Identify fake breakouts where price sweeps liquidity (Turtle Soup / Liquidity Grab) and violently reverses with energetic displacement.
-- Displacement & Imbalance: Vigorous single-directional multi-candle expansion leaving Fair Value Gaps (FVG), Inversion FVGs (IFVG - where failed support FVG flips into resistance or vice versa), Balanced Price Ranges (BPR), and Volume Imbalances.
+- Liquidity Engineering & Directional Magnet (Draw on Liquidity): Always determine the primary 'Draw on Liquidity'. When price creates Equal Highs (EQH) or a trendline of untouched swing highs (BSL), that zone acts as a high-probability target/magnet. NEVER short directly into unmitigated BSL pools if a Sell-Side Liquidity (SSL) sweep has already occurred at the bottom!
+- Liquidity Runs & Sweeps: Identify fake breakouts where price sweeps liquidity (Turtle Soup / Liquidity Grab). When price sweeps prior swing lows and immediately reacts with high volume/absorption, the bias shifts aggressively BULLISH towards the opposing liquidity pool.
+- Displacement & Imbalance: Vigorous single-directional multi-candle expansion leaving Fair Value Gaps (FVG), Inversion FVGs (IFVG - where failed support FVG flips into resistance or vice versa), Balanced Price Ranges (BPR), and Volume Imbalances. A large bullish FVG created after an SSL sweep confirms a massive institutional markup.
 - Order Blocks (OB) & Breakers: Valid high-probability institutional OBs (must have taken liquidity before causing a Market Structure Shift with displacement). Identify Breaker Blocks (BB) when an OB fails and becomes a high-probability mitigation support/resistance zone.
-- Inducement (IDM): The first internal structural pullback trapping impatient retail breakout traders prior to tapping the genuine institutional Point of Interest (POI).
+- Inducement (IDM) & Trap Detection: The first internal structural pullback trapping impatient retail breakout traders (e.g. retail selling at 4370 into support FVG) prior to tapping the genuine institutional Point of Interest (POI).
 - Dealing Range, Premium vs Discount & OTE: Equilibrium (0.50), Premium (above 0.50, sell zone), Discount (below 0.50, buy zone), Optimal Trade Entry (OTE: 0.618 - 0.705 - 0.786 Fibonacci retracement sweet spot).
-- Power of 3 (AMD - Accumulation, Manipulation, Distribution): Asian session accumulation, London open manipulation/Judas Swing, New York session expansion/distribution.
+- Power of 3 (AMD - Accumulation, Manipulation, Distribution): Asian session accumulation, London open manipulation/Judas Swing (sweeping lows), New York session expansion/distribution (running the highs).
 
 2. WYCKOFF 2.0 & AUCTION MARKET THEORY (AMT):
-- Accumulation & Distribution Schematics: Phase A (Climax SC/BC, Automatic Rally AR, Secondary Test ST), Phase B (Liquidity testing & absorption), Phase C (Spring / Upthrust UTAD shaking out weak hands), Phase D (Sign of Strength SOS / Sign of Weakness SOW with Last Point of Support LPS / LPSY), Phase E (Mark up / Mark down trend).
-- Auction Market Dynamics: Value Area High (VAH), Value Area Low (VAL), Point of Control (POC), Single Print buying/selling tails, 80% Rule (acceptance inside prior Value Area), Poor Highs/Poor Lows (unfinished auctions).
+- Accumulation & Distribution Schematics: Phase A (Climax SC/BC, Automatic Rally AR, Secondary Test ST), Phase B (Liquidity testing & absorption), Phase C (Spring / Upthrust UTAD shaking out weak hands — e.g. sweeping 4320 low with 26k+ volume absorption), Phase D (Sign of Strength SOS / Sign of Weakness SOW with Last Point of Support LPS / LPSY breaking out of range), Phase E (Mark up / Mark down trend delivering price to major liquidity).
+- Auction Market Dynamics: Value Area High (VAH), Value Area Low (VAL), Point of Control (POC), Single Print buying/selling tails, 80% Rule (acceptance inside prior Value Area), Poor Highs/Poor Lows (unfinished auctions acting as magnets).
 
 3. ADVANCED PRICE ACTION & MULTI-TIMEFRAME FRACTAL STRUCTURE:
 - Market Structure Shift (MSS) / Change of Character (CHoCH) requiring full candle body closes beyond structural swing points (wicks = liquidity sweeps, body closes = real structural shifts).
 - Break of Structure (BOS) for pro-trend continuation.
-- Protected (Strong) Highs/Lows vs Targeted (Weak) Highs/Lows.
+- Protected (Strong) Highs/Lows vs Targeted (Weak) Highs/Lows. Equal highs are WEAK (targeted). A low that swept prior liquidity with massive volume is STRONG (protected).
 - Candlestick anatomy: Exhaustion wicks, absorption bars, engulfing volume surges, pin bars at institutional levels.
 
 4. UNCOMPROMISING RISK MANAGEMENT & PROP-FIRM DISCIPLINE:
 - Mathematical Risk-to-Reward (R:R): Target minimum 1:2.0 to 1:5.0+; never endorse negative or sub-1:1.5 setups.
 - Invalidation Point: Precise structural price level where the trade idea is strictly invalidated (e.g. candle close beyond the FVG or origin of the sweep swing).
 - Multi-tier Profit Targets: TP1 (50% scale out at first opposing liquidity pool / internal high to move SL to Breakeven), TP2 (30% at key structural target), TP3 (20% runner targeting higher timeframe liquidity).
-- Macro Calendar Awareness: Flag high-impact news (CPI, NFP, FOMC, PPI, Interest Rate Decisions) where slippage or spread spikes pose liquidation risk.
+- Macro Calendar Awareness: Flag high-impact news (CPI, NFP, FOMC, PPI, Interest Rate Decisions) where slippage or spread spikes pose liquidation risk. NEVER trade blindly right before high-impact news spikes.
 
 User Preferences & Execution Constraints:
 - Holding Period: ${settings?.holdingPeriod || 'intraday'}
@@ -713,19 +727,25 @@ User Preferences & Execution Constraints:
 ${langPrompt}`;
 
     const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
-CRITICAL ASSET & PRICE OCR INSTRUCTION:
-- Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image. Do NOT default or invent EUR/USD unless EUR/USD is clearly written on the chart!
-- Price Scale: Look at the exact vertical right-hand price scale and horizontal price levels (e.g., if XAUUSD is at 2850.50, all numbers in entryZone, stopLoss, and takeProfit MUST match this exact 2800-2900 numerical range).
-- Timeframe: Read the exact visible timeframe interval (e.g. 4H, 1H, 15m, 5m, 1m). If multiple charts were uploaded, list them top-down (e.g. '4H + 15M + 5M').
+CRITICAL ASSET, TIMEFRAME & PRICE OCR INSTRUCTION:
+- Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image.
+- Timeframe Detection: Check EACH uploaded chart image individually for its specific timeframe label in the top bar and background watermark (e.g., 4H / 1H / 15m / 5m / 1m / Daily). If 3 charts were uploaded (e.g., HTF 4H, MTF 15M, LTF 5M), list the exact sequence corresponding to each image: e.g. "4H + 15M + 5M". NEVER output identical repetitive timeframes (like "1H + 1H + 1H") unless all 3 images actually display 1H!
+- Price Scale: Look at the exact vertical right-hand price scale and horizontal price levels (e.g. 4480.00). All numbers in entryZone, stopLoss, and takeProfit MUST match this exact numerical range.
 
 Return STRICTLY a JSON object conforming to this exact schema (no markdown outside JSON):
 
 {
   "symbol": "Exact detected asset symbol from chart (e.g. XAU/USD, BTC/USDT, EUR/USD, US100, NVDA)",
-  "timeframe": "Detected chart timeframe. If multiple chart images were uploaded, list all detected timeframes in top-down order (e.g. '4H + 15M + 5M' or 'H1 + M15 + M5')",
+  "timeframe": "Exact sequence of detected timeframes across all uploaded charts in order e.g. '4H + 15M + 5M' or 'Daily + 4H + 15M'",
   "signal": "LONG" | "SHORT" | "NEUTRAL_WAIT",
   "confidenceScore": number between 35 and 96 calculated strictly from confluence count (HTF alignment, liquidity sweep, displacement, POI mitigation, R:R strength),
   "biasReasoning": "Concise, sharp, institutional summary of current market structure, order flow bias, and macro context in requested language",
+  "drawOnLiquidity": {
+    "targetZone": "Exact price target zone where liquidity is resting e.g. 4 420 - 4 450 (Equal Highs / BSL Pool)",
+    "direction": "UPSIDE_BSL" | "DOWNSIDE_SSL" | "NEUTRAL_RANGE",
+    "reason": "Clear explanation of the liquidity magnet (e.g. untouched swing highs trapping short seller stop losses after 4324 SSL sweep)",
+    "prohibitedOpposingTrade": "Explicit rule forbidding counter-trend trap entries (e.g. Striktní zákaz Shortování na lokální rezistenci, dokud není vybrána horní likvidita 4450)"
+  },
   "methodologyConfluences": [
     {
       "methodology": "e.g. Smart Money Concepts (SMC/ICT)",
@@ -857,7 +877,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.7-flash',
         contents: [...imageParts, { text: promptText }],
         config: {
           systemInstruction: systemInstruction,
@@ -1045,7 +1065,7 @@ Return strictly a JSON object conforming to this schema:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.7-flash',
         contents: contentParts,
         config: {
           systemInstruction: systemPrompt,
@@ -1170,7 +1190,7 @@ Rules for mentor response:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.7-flash',
         contents: promptContent,
         config: {
           systemInstruction: systemPrompt,

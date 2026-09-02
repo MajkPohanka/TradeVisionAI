@@ -43,11 +43,11 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
   ];
 
   const strategies: { id: TradingStrategy; label: string; desc: string }[] = [
-    { id: 'price_action', label: 'Price Action & Svíčky', desc: 'Svíčkové formace, supporty/rezistence, trendlines' },
-    { id: 'smc_ict', label: 'Smart Money Concepts (SMC/ICT)', desc: 'Order blocks, FVG, CHoCH, Liquidity sweeps' },
-    { id: 'wyckoff', label: 'Wyckoff Metodika', desc: 'Fáze akumulace/distribuce, Spring, UTAD, Markup' },
-    { id: 'trend_breakout', label: 'Trend & Breakout System', desc: 'Momentum, průrazy struktur, EMA konfluence' },
-    { id: 'supply_demand', label: 'Supply & Demand Zóny', desc: 'Zóny nabídky a poptávky, Imbalance, institutional footprint' },
+    { id: 'price_action', label: t.strategyPriceActionLabel, desc: t.strategyPriceActionDesc },
+    { id: 'smc_ict', label: t.strategySmcLabel, desc: t.strategySmcDesc },
+    { id: 'wyckoff', label: t.strategyWyckoffLabel, desc: t.strategyWyckoffDesc },
+    { id: 'trend_breakout', label: t.strategyTrendBreakoutLabel, desc: t.strategyTrendBreakoutDesc },
+    { id: 'supply_demand', label: t.strategySupplyDemandLabel, desc: t.strategySupplyDemandDesc },
     { id: 'custom', label: t.customRulesLabel, desc: t.customRulesPlaceholder.substring(0, 45) + '...' },
   ];
 
@@ -97,7 +97,7 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
                 </span>
               </h2>
               <p className="text-xs text-[#86868b]">
-                Přizpůsobte metodiky, risk profil a systémové chování AI analytika.
+                {t.strategyModalSubtitle}
               </p>
             </div>
           </div>
@@ -269,7 +269,7 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
             onClick={onClose}
             className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition cursor-pointer"
           >
-            Hotovo / Uložit nastavení
+            {t.saveSettingsDone}
           </button>
         </div>
       </div>

@@ -1,19 +1,19 @@
 [
   {
     "key": "AIAUTO-DEMO-TEST-2026",
-    "credits": 1000,
-    "tier": "vip_tester",
+    "credits": 999999,
+    "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
-    "totalPurchased": 1000,
+    "totalPurchased": 999999,
     "totalUsed": 0,
     "createdAt": 1786700137552
   },
   {
     "key": "TRADEOY-VIP-1000",
-    "credits": 1000,
-    "tier": "vip",
+    "credits": 999999,
+    "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
-    "totalPurchased": 1000,
+    "totalPurchased": 999999,
     "totalUsed": 0,
     "createdAt": 1786700137553
   },
@@ -51,13 +51,14 @@
   },
   {
     "key": "AIAUTO-BWZ8-B8T3-FTMB",
-    "credits": 1000,
-    "tier": "trial",
+    "credits": 999999,
+    "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
     "totalPurchased": 1000,
-    "totalUsed": 0,
+    "totalUsed": 2,
     "createdAt": 1786700170807,
-    "stripeSessionIds": []
+    "stripeSessionIds": [],
+    "lastUsedAt": 1787153550665
   },
   {
     "key": "AIAUTO-E6DV-GPHB-L5UV",
@@ -272,5 +273,56 @@
     "totalUsed": 0,
     "createdAt": 1786799274268,
     "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-VGL4-4BTP-8J75",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "user2@example.com",
+    "totalPurchased": 2,
+    "totalUsed": 0,
+    "createdAt": 1786799274269,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-FW2M-Y9PD-KSNH",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "test@tradeoy.com",
+    "totalPurchased": 2,
+    "totalUsed": 0,
+    "createdAt": 1787154746517,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-EYB2-XNPJ-ERP2",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "trial@tradeoy.com",
+    "totalPurchased": 2,
+    "totalUsed": 0,
+    "createdAt": 1787254963778,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-H8YZ-H64K-49NU",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "test-1787254991008@example.com",
+    "totalPurchased": 2,
+    "totalUsed": 0,
+    "createdAt": 1787254991137,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-PGAW-VNAL-HCTP",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "test-runner-1787255069994@tradeoy-test.com",
+    "totalPurchased": 3,
+    "totalUsed": 1,
+    "createdAt": 1787255070024,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1787255074430
   }
 ]

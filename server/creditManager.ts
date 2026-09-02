@@ -304,30 +304,34 @@ export const CreditManager = {
     return record;
   },
 
-  // Claim Starter Trial License with IP rate-limiting (max 2 trials per IP per 24 hours)
+  // Claim Starter Trial License with IP rate-limiting (max 5 trials per external IP per 24 hours)
   claimTrialLicense(email?: string, clientIp = 'unknown'): { success: boolean; license?: LicenseRecord; error?: string } {
     ensureLoaded();
     const now = Date.now();
     const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    const ipData = trialClaimsByIp.get(clientIp);
-    if (ipData) {
-      if (now - ipData.firstClaim < ONE_DAY) {
-        if (ipData.count >= 2) {
-          return {
-            success: false,
-            error: 'Byl vyčerpán limit pro bezplatné zkušební kredity pro vaše připojení (max 2 účty / 24h).',
-          };
+    const isLocalOrTest = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1' || clientIp === 'localhost' || clientIp === 'unknown';
+
+    if (!isLocalOrTest) {
+      const ipData = trialClaimsByIp.get(clientIp);
+      if (ipData) {
+        if (now - ipData.firstClaim < ONE_DAY) {
+          if (ipData.count >= 5) {
+            return {
+              success: false,
+              error: 'Byl vyčerpán limit pro bezplatné zkušební kredity pro vaše připojení (max 5 účtů / 24h).',
+            };
+          }
+          ipData.count++;
+        } else {
+          trialClaimsByIp.set(clientIp, { count: 1, firstClaim: now });
         }
-        ipData.count++;
       } else {
         trialClaimsByIp.set(clientIp, { count: 1, firstClaim: now });
       }
-    } else {
-      trialClaimsByIp.set(clientIp, { count: 1, firstClaim: now });
     }
 
-    const license = this.createLicense(2, 'starter_trial', email || 'trial@tradeoy.com');
+    const license = this.createLicense(3, 'starter_trial', email || 'trial@tradeoy.com');
     return { success: true, license };
   },
 

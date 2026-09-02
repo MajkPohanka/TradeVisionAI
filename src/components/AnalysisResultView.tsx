@@ -17,6 +17,10 @@ import {
   BookOpen,
   Eye,
   EyeOff,
+  Magnet,
+  Compass,
+  AlertOctagon,
+  Printer,
 } from 'lucide-react';
 import { AnalysisResult, LanguageOption } from '../types';
 import { ShareAnalysisModal } from './ShareAnalysisModal';
@@ -253,6 +257,15 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               <Share2 className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t.shareAnalysis}</span>
             </button>
+
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.08] text-xs font-semibold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95"
+              title={t.printPdfExport}
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{t.printPdfExport}</span>
+            </button>
           </div>
 
           <div className="text-[11px] text-[#86868b] flex items-center space-x-1 font-medium">
@@ -262,72 +275,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
         </div>
       </div>
 
-      {/* ECONOMIC CALENDAR WARNING BANNER */}
-      {result.economicCalendarWarning && (
-        <div className="bg-[#121216] border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-              <span>{t.calendarTitle}</span>
-            </div>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-              HIGH VOLATILITY RISK
-            </span>
-          </div>
-
-          <p className="text-xs text-[#a1a1a6] leading-relaxed">
-            {result.economicCalendarWarning.riskAdvice}
-          </p>
-
-          {result.economicCalendarWarning.upcomingNewsEvents && result.economicCalendarWarning.upcomingNewsEvents.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-white/[0.08]">
-              {result.economicCalendarWarning.upcomingNewsEvents.map((ev, i) => (
-                <div key={i} className="p-3 rounded-2xl bg-black/50 border border-white/[0.06] text-xs space-y-1">
-                  <div className="flex items-center justify-between font-bold text-white">
-                    <span>{ev.title} ({ev.currency})</span>
-                    <span className="text-[10px] text-amber-400 font-mono">{ev.date}</span>
-                  </div>
-                  <p className="text-[11px] text-[#86868b]">{ev.warningText}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* MULTI-STRATEGY METHODOLOGY CONFLUENCES BREAKDOWN */}
-      {result.methodologyConfluences && result.methodologyConfluences.length > 0 && (
-        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>{t.methodologyConfluences} ({result.methodologyConfluences.length})</span>
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {result.methodologyConfluences.map((conf, idx) => (
-              <div key={idx} className="p-4 rounded-2xl bg-black/40 border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white">{conf.methodology}</span>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      conf.bias === 'BULLISH'
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                        : conf.bias === 'BEARISH'
-                        ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                        : 'bg-white/10 text-white border border-white/20'
-                    }`}
-                  >
-                    {conf.bias}
-                  </span>
-                </div>
-                <p className="text-xs text-[#a1a1a6] leading-relaxed">{conf.keyObservation}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 2. KEY EXECUTION LEVELS & OVERLAY MAP */}
+      {/* 2. KEY EXECUTION LEVELS & OVERLAY MAP (TOP OPERATIONAL PRIORITY) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Exact Price Levels */}
         <div className="lg:col-span-1 bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
@@ -480,7 +428,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                           <span>STOP LOSS: {overlay.sl.priceStr}</span>
                         </div>
-                        <span className="bg-black/90 border border-red-500/80 text-red-300 text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
+                        <span className="bg-black/90 border border-red-500/80 text-red-300 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
                           SL
                         </span>
                       </div>
@@ -494,7 +442,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                           <span>ENTRY: {overlay.entry.priceStr}</span>
                         </div>
-                        <span className="bg-black/90 border border-cyan-400 text-cyan-200 text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
+                        <span className="bg-black/90 border border-cyan-400 text-cyan-200 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
                           ENTRY
                         </span>
                       </div>
@@ -512,7 +460,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                               TP{tp.target}: {tp.rawPrice} {tp.closePercent ? `(${tp.closePercent}%)` : ''}
                             </span>
                           </div>
-                          <span className="bg-black/90 border border-emerald-500/80 text-emerald-300 text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
+                          <span className="bg-black/90 border border-emerald-500/80 text-emerald-300 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
                             TP{tp.target}
                           </span>
                         </div>
@@ -544,6 +492,118 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* 3. DRAW ON LIQUIDITY (MAGNET LIKVIDITY & ANTI-TRAP RULE) */}
+      {result.drawOnLiquidity && (
+        <div className="bg-[#121216] border border-cyan-500/30 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3 relative overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center space-x-2 text-cyan-400 font-bold text-xs">
+              <Magnet className="w-4 h-4 text-cyan-400 animate-pulse" />
+              <span>{t.drawOnLiquidityTitle}</span>
+            </div>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                result.drawOnLiquidity.direction === 'UPSIDE_BSL'
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : result.drawOnLiquidity.direction === 'DOWNSIDE_SSL'
+                  ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                  : 'bg-white/10 text-white border-white/20'
+              }`}
+            >
+              {result.drawOnLiquidity.direction === 'UPSIDE_BSL'
+                ? t.magnetUpside
+                : result.drawOnLiquidity.direction === 'DOWNSIDE_SSL'
+                ? t.magnetDownside
+                : t.rangeWait}
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
+            <div className="flex items-center space-x-2 text-xs font-bold text-white">
+              <Compass className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{t.targetLiquidityZone} <span className="text-cyan-300 font-mono">{result.drawOnLiquidity.targetZone}</span></span>
+            </div>
+            <p className="text-xs text-[#a1a1a6] leading-relaxed">
+              {result.drawOnLiquidity.reason}
+            </p>
+          </div>
+
+          {result.drawOnLiquidity.prohibitedOpposingTrade && (
+            <div className="flex items-start space-x-2.5 p-3 rounded-2xl bg-red-500/10 border border-red-500/25 text-xs text-red-300">
+              <AlertOctagon className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-red-300 block">{t.antiTrapRuleLabel}</span>
+                <span className="text-red-200/90 text-[11px] leading-relaxed">{result.drawOnLiquidity.prohibitedOpposingTrade}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. ECONOMIC CALENDAR WARNING BANNER */}
+      {result.economicCalendarWarning && (
+        <div className="bg-[#121216] border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs">
+              <ShieldAlert className="w-4 h-4 text-amber-400" />
+              <span>{t.calendarTitle}</span>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              HIGH VOLATILITY RISK
+            </span>
+          </div>
+
+          <p className="text-xs text-[#a1a1a6] leading-relaxed">
+            {result.economicCalendarWarning.riskAdvice}
+          </p>
+
+          {result.economicCalendarWarning.upcomingNewsEvents && result.economicCalendarWarning.upcomingNewsEvents.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-white/[0.08]">
+              {result.economicCalendarWarning.upcomingNewsEvents.map((ev, i) => (
+                <div key={i} className="p-3 rounded-2xl bg-black/50 border border-white/[0.06] text-xs space-y-1">
+                  <div className="flex items-center justify-between font-bold text-white">
+                    <span>{ev.title} ({ev.currency})</span>
+                    <span className="text-[10px] text-amber-400 font-mono">{ev.date}</span>
+                  </div>
+                  <p className="text-[11px] text-[#86868b]">{ev.warningText}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. MULTI-STRATEGY METHODOLOGY CONFLUENCES BREAKDOWN */}
+      {result.methodologyConfluences && result.methodologyConfluences.length > 0 && (
+        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+          <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span>{t.methodologyConfluences} ({result.methodologyConfluences.length})</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {result.methodologyConfluences.map((conf, idx) => (
+              <div key={idx} className="p-4 rounded-2xl bg-black/40 border border-white/[0.06] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white">{conf.methodology}</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      conf.bias === 'BULLISH'
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : conf.bias === 'BEARISH'
+                        ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                        : 'bg-white/10 text-white border border-white/20'
+                    }`}
+                  >
+                    {conf.bias}
+                  </span>
+                </div>
+                <p className="text-xs text-[#a1a1a6] leading-relaxed">{conf.keyObservation}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 3. TABBED DETAILED ANALYSIS & MENTOR DISSECTION */}
       <div className="bg-[#121216] border border-white/[0.08] rounded-3xl overflow-hidden shadow-xl">

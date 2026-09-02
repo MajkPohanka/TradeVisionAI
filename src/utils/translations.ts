@@ -358,6 +358,9 @@ export const translations = {
     tabCalendarSub: 'Makroekonomický kalendář',
     tabJournalSub: 'Uložené obchody a statistiky',
     legalTermsTitle: 'Podmínky používání & Právní doložka',
+    legalTermsBtn: 'Podmínky & Právní doložka',
+    legalTermsBtnShort: 'Podmínky',
+    viewFullTerms: 'Zobrazit kompletní právní podmínky a doložku',
     topDisclaimerTitle: 'DŮLEŽITÉ UPOZORNĚNÍ & VYLOUČENÍ ODPOVĚDNOSTI (EDUKAČNÍ & ANALYTICKÝ NÁSTROJ)',
     topDisclaimerText: 'Platforma TRADEOY.com slouží výhradně pro výukové, studijní a analytické účely. Veškeré vygenerované analýzy, grafické výstupy a statistiky jsou výsledkem algoritmického zpracování a nepředstavují investiční doporučení ani finanční poradenství. Obchodování na finančních trzích nese vysoké riziko finanční ztráty. Provozovatel nenese žádnou odpovědnost za vaše obchodní rozhodnutí ani případné ztráty.',
 
@@ -724,6 +727,9 @@ export const translations = {
     tabCalendarSub: 'Macroeconomic calendar',
     tabJournalSub: 'Saved trades & statistics',
     legalTermsTitle: 'Terms of Service & Disclaimer',
+    legalTermsBtn: 'Terms & Disclaimer',
+    legalTermsBtnShort: 'Terms',
+    viewFullTerms: 'View complete Terms of Service & Legal Disclaimer',
     topDisclaimerTitle: 'IMPORTANT NOTICE & DISCLAIMER OF LIABILITY (EDUCATIONAL & ANALYTICAL TOOL)',
     topDisclaimerText: 'The TRADEOY.com platform is intended strictly for educational, study, and analytical purposes. All generated analyses, chart overlays, and statistics are the result of algorithmic processing and do not constitute investment advice or financial recommendations. Trading in financial markets involves a high risk of capital loss. The operator assumes no liability or responsibility for your trading decisions or potential losses.',
 
@@ -1090,6 +1096,9 @@ export const translations = {
     tabCalendarSub: 'Calendario macroeconómico',
     tabJournalSub: 'Operaciones guardadas y estadísticas',
     legalTermsTitle: 'Términos de Uso y Aviso Legal',
+    legalTermsBtn: 'Términos y Aviso Legal',
+    legalTermsBtnShort: 'Términos',
+    viewFullTerms: 'Ver Términos de Uso y Aviso Legal completos',
     topDisclaimerTitle: 'AVISO IMPORTANTE Y EXENCIÓN DE RESPONSABILIDAD (HERRAMIENTA EDUCATIVA Y ANALÍTICA)',
     topDisclaimerText: 'La plataforma TRADEOY.com está destinada exclusivamente a fines educativos, de estudio y analíticos. Todos los análisis, gráficos y estadísticas generados son el resultado de un procesamiento algorítmico y no constituyen asesoramiento financiero ni recomendaciones de inversión. Operar en los mercados financieros conlleva un alto riesgo de pérdida de capital. El operador no asume ninguna responsabilidad por sus decisiones de trading ni por posibles pérdidas.',
 

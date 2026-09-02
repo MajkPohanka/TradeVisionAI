@@ -7,7 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
 import { getTranslation } from './utils/translations';
-import { AlertTriangle, Scale, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert } from 'lucide-react';
 
 // Code-split heavy secondary components to ensure lightning-fast initial mobile render
 const MetaTraderAuditView = lazy(() => import('./components/MetaTraderAuditView').then(m => ({ default: m.MetaTraderAuditView })));
@@ -421,16 +421,29 @@ export default function App() {
               />
 
               {/* Prominent Legal & Educational Disclaimer Banner - Placed below Chart Uploader */}
-              <div className="bg-[#121216]/90 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex items-start space-x-3.5 shadow-lg shadow-black/40">
-                <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
-                    {t.topDisclaimerTitle}
-                  </span>
-                  <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
-                    {t.topDisclaimerText}
-                  </p>
+              <div className="bg-[#121216]/95 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-lg shadow-black/40">
+                <div className="flex items-start space-x-3.5 flex-1">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0 mt-0.5">
+                    <Scale className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
+                      {t.topDisclaimerTitle}
+                    </span>
+                    <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
+                      {t.topDisclaimerText}
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTermsOpen(true)}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-1.5 transition cursor-pointer shrink-0 active:scale-95 whitespace-nowrap shadow-sm"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{t.viewFullTerms || 'Zobrazit kompletní podmínky'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Error Banner */}
@@ -571,10 +584,11 @@ export default function App() {
 
           <div className="flex items-center space-x-4">
             <button
+              id="footer-terms-btn"
               onClick={() => setIsTermsOpen(true)}
-              className="text-[#86868b] hover:text-white transition cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 font-medium shadow-xs"
             >
-              <Scale className="w-3.5 h-3.5 text-amber-400/80" />
+              <Scale className="w-3.5 h-3.5 text-amber-400" />
               <span>{t.footerTermsLink}</span>
             </button>
           </div>

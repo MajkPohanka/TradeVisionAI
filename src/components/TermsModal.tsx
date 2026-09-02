@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, X, Scale, FileText, CheckCircle2, Lock, AlertTriangle, CreditCard, ChevronRight } from 'lucide-react';
+import { ShieldAlert, X, Scale, FileText, CheckCircle2, Lock, AlertTriangle, CreditCard, ChevronRight, UserCheck, Gavel, Cpu } from 'lucide-react';
 import { LanguageOption } from '../types';
 
 interface TermsModalProps {
@@ -9,7 +9,7 @@ interface TermsModalProps {
 }
 
 export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, language }) => {
-  const [activeSection, setActiveSection] = useState<'disclaimer' | 'terms' | 'payments' | 'privacy'>('disclaimer');
+  const [activeSection, setActiveSection] = useState<'disclaimer' | 'terms' | 'payments' | 'privacy' | 'jurisdiction'>('disclaimer');
 
   if (!isOpen) return null;
 
@@ -17,7 +17,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
   const isEs = language === 'es';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-black/80 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
         className="relative w-full max-w-3xl bg-[#161618] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto"
         onClick={(e) => e.stopPropagation()}
@@ -36,7 +36,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 </span>
               </h2>
               <p className="text-xs text-[#86868b]">
-                {isCs ? 'Právní ochrana, výukový charakter a platební podmínky' : isEs ? 'Protección legal, carácter educativo y condiciones de pago' : 'Legal protection, educational scope, and payment terms'}
+                {isCs ? 'Právní ochrana, výukový charakter, limitace odpovědnosti a platební podmínky' : isEs ? 'Protección legal, carácter educativo, limitación de responsabilidad y condiciones' : 'Legal protection, educational scope, limitation of liability, and payment terms'}
               </p>
             </div>
           </div>
@@ -98,10 +98,23 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
             <Lock className="w-3.5 h-3.5 text-purple-400" />
             <span>{isCs ? '4. Ochrana soukromí' : isEs ? '4. Privacidad' : '4. Privacy'}</span>
           </button>
+
+          <button
+            onClick={() => setActiveSection('jurisdiction')}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'jurisdiction'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold'
+                : 'text-[#86868b] hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Gavel className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isCs ? '5. Jurisdikce & Limitace' : isEs ? '5. Jurisdicción y Límites' : '5. Jurisdiction & Liability'}</span>
+          </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-sm text-[#c7c7cc] leading-relaxed">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-sm text-[#c7c7cc] leading-relaxed custom-scrollbar">
+          
           {/* SECTION 1: DISCLAIMER */}
           {activeSection === 'disclaimer' && (
             <div className="space-y-4 animate-in fade-in duration-150">
@@ -113,10 +126,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                   </p>
                   <p className="text-amber-200/90">
                     {isCs 
-                      ? 'Obchodování s finančními instrumenty (Forex, kryptoměny, indexy, komodity, CFD, akcie) zahrnuje vysokou míru rizika a může vést ke ztrátě veškerého vašeho investovaného kapitálu.'
+                      ? 'Obchodování s finančními instrumenty (Forex, kryptoměny, indexy, komodity, CFD, akcie), zejména s využitím finanční páky, zahrnuje extrémní míru rizika a většinou vede ke ztrátě části nebo veškerého investovaného kapitálu (obvykle 70-85 % retailových obchodníků prodělává).'
                       : isEs
-                      ? 'El trading de instrumentos financieros (Forex, criptomonedas, índices, materias primas, CFD) conlleva un alto nivel de riesgo y puede provocar la pérdida total de su capital.'
-                      : 'Trading financial instruments (Forex, Crypto, Indices, Commodities, CFDs) involves substantial risk of capital loss and is not suitable for everyone.'}
+                      ? 'El trading de instrumentos financieros (Forex, criptomonedas, índices, materias primas, CFD) con apalancamiento conlleva un alto nivel de riesgo donde entre el 70% y el 85% de los inversores minoristas pierden dinero.'
+                      : 'Trading financial instruments (Forex, Crypto, Indices, Commodities, CFDs) with leverage carries substantial risk of total capital loss. Between 70-85% of retail investor accounts lose money.'}
                   </p>
                 </div>
               </div>
@@ -128,34 +141,34 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 <p>
                   {isCs ? (
                     <>
-                      Platforma <strong>TRADEOY.com</strong>, její provozovatelé, vývojáři, partneři ani spolupracující subjekty <strong>nenesou žádnou právní, finanční ani morální odpovědnost</strong> za jakékoliv přímé, nepřímé, náhodné či následné finanční ztráty, ušlý zisk nebo škody vzniklé na základě použití této aplikace, AI analýz, predikcí, kalkulací Stop Loss/Take Profit či komentářů AI Mentora.
+                      Platforma <strong>TRADEOY.com</strong>, její provozovatelé, vývojáři, partneři ani spolupracující subjekty <strong>nenesou žádnou právní, finanční ani morální odpovědnost</strong> za jakékoliv přímé, nepřímé, náhodné či následné finanční ztráty, ušlý zisk, margin cally ani neúspěch v prop-tradingových výzvách (evaluacích), vzniklé na základě použití této aplikace, AI analýz, predikcí, kalkulací Stop Loss/Take Profit či komentářů AI Mentora.
                     </>
                   ) : isEs ? (
                     <>
-                      La plataforma <strong>TRADEOY.com</strong> y sus operadores <strong>no asumen ninguna responsabilidad legal o financiera</strong> por pérdidas directas, indirectas o consecuentes derivadas del uso de los análisis, señales o mentoría de la IA.
+                      La plataforma <strong>TRADEOY.com</strong> y sus operadores <strong>no asumen ninguna responsabilidad legal o financiera</strong> por pérdidas directas, indirectas o consecuentes, lucro cesante o fallos en evaluaciones de prop trading derivados del uso de los análisis, señales o mentoría de la IA.
                     </>
                   ) : (
                     <>
-                      The platform <strong>TRADEOY.com</strong> and its developers/operators <strong>accept zero legal or financial liability</strong> for any capital loss, damages, or missed opportunities resulting from the use of the AI analyses, chart projections, Stop Loss / Take Profit metrics, or Mentor outputs.
+                      The platform <strong>TRADEOY.com</strong> and its developers/operators <strong>accept zero legal or financial liability</strong> for any capital loss, damages, liquidation, prop-firm evaluation failures, or missed opportunities resulting from the use of the AI analyses, chart projections, Stop Loss / Take Profit metrics, or Mentor outputs.
                     </>
                   )}
                 </p>
 
                 <h3 className="text-base font-semibold text-white pt-2">
-                  {isCs ? 'Nejsme investiční poradce ani broker' : isEs ? 'No somos asesores financieros ni intermediarios' : 'Not Financial Advice / Not a Broker'}
+                  {isCs ? 'Nejsme investiční poradce ani broker (MiFID II / ZPKT)' : isEs ? 'No somos asesores financieros ni intermediarios (MiFID II)' : 'Not Financial Advice / Not a Broker (MiFID II)'}
                 </h3>
                 <p>
                   {isCs ? (
                     <>
-                      TRADEOY.com <strong>není licencovaným investičním poradcem, makléřem, brokerem ani správcem aktiv</strong> ve smyslu zákona o podnikání na kapitálovém trhu (ČNB, SEC, ESMA, FCA). Veškeré vygenerované signály (BUY / SELL / WAIT) jsou výhradně matematicko-statistickými modely pro studijní a výukové porovnání grafických formací. Každé investiční a obchodní rozhodnutí činí uživatel zcela samostatně a na vlastní riziko.
+                      TRADEOY.com <strong>není licencovaným investičním poradcem, makléřem, brokerem ani správcem aktiv</strong> ve smyslu zákona o podnikání na kapitálovém trhu č. 256/2004 Sb. (ČNB), evropské směrnice MiFID II (2014/65/EU) ani předpisů americké SEC a CFTC. Veškeré vygenerované signály (BUY / SELL / WAIT) jsou výhradně matematicko-statistickými modely pro studijní a výukové porovnání grafických formací. Každé investiční a obchodní rozhodnutí činí uživatel zcela samostatně a na vlastní riziko.
                     </>
                   ) : isEs ? (
                     <>
-                      TRADEOY.com <strong>no es un asesor financiero ni corredor de bolsa regulado</strong>. Todas las señales generadas son modelos matemáticos para estudio y comparación formativa.
+                      TRADEOY.com <strong>no es un asesor financiero ni corredor de bolsa regulado</strong> bajo la directiva europea MiFID II (2014/65/UE). Todas las señales generadas son modelos matemáticos para estudio y comparación formativa. Cada decisión es responsabilidad exclusiva del usuario.
                     </>
                   ) : (
                     <>
-                      TRADEOY.com <strong>is not a licensed financial advisor, broker, or asset manager</strong>. All generated signals (BUY/SELL/WAIT) represent automated mathematical pattern recognitions strictly for study and training purposes.
+                      TRADEOY.com <strong>is not a licensed financial advisor, broker-dealer, or asset manager</strong> under EU MiFID II (2014/65/EU), Czech Capital Markets Act, or US SEC/CFTC rules. All generated signals (BUY/SELL/WAIT) represent automated mathematical pattern recognitions strictly for study and training purposes.
                     </>
                   )}
                 </p>
@@ -163,7 +176,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
             </div>
           )}
 
-          {/* SECTION 2: EDUCATIONAL PURPOSE */}
+          {/* SECTION 2: EDUCATIONAL PURPOSE & USER RESPONSIBILITY */}
           {activeSection === 'terms' && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <h3 className="text-base font-semibold text-white">
@@ -187,15 +200,29 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
 
               <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
                 <div className="flex items-center space-x-2 text-white font-medium text-xs sm:text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{isCs ? 'Odpovědnost uživatele' : isEs ? 'Responsabilidad del usuario' : 'User Responsibility'}</span>
+                  <UserCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span>{isCs ? 'Nulová exekuce & Samostatný úsudek uživatele' : isEs ? 'Cero ejecución y juicio independiente' : 'Zero Execution & User Independence'}</span>
                 </div>
                 <p className="text-xs text-[#a1a1a6]">
                   {isCs 
-                    ? 'Uživatel bere na vědomí, že minulá výkonnost trhu ani předchozí simulované analýzy nezaručují budoucí výsledky. Nikdy neobchodujte s penězi, jejichž případnou ztrátu si nemůžete dovolit.'
+                    ? 'Platforma nemá žádný přístup k vašim brokerským účtům ani možnost otevírat či uzavírat obchody. Všechny obchodní pokyny zadává uživatel výhradně osobně u svého brokera na základě vlastního nezávislého rozhodnutí.'
                     : isEs
-                    ? 'El usuario reconoce que los rendimientos pasados no garantizan resultados futuros. Nunca opere con dinero que no pueda permitirse perder.'
-                    : 'Past chart performance and backtested simulations do not guarantee future market outcomes. Never trade with funds you cannot afford to lose.'}
+                    ? 'La plataforma no tiene acceso a sus cuentas de corretaje ni capacidad para ejecutar órdenes. Todas las operaciones son introducidas directamente por el usuario bajo su exclusivo criterio.'
+                    : 'The platform has zero access to your brokerage accounts and cannot execute trades. All trading actions are executed manually and independently by the user at their chosen broker.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
+                <div className="flex items-center space-x-2 text-white font-medium text-xs sm:text-sm">
+                  <Cpu className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span>{isCs ? 'AI technologie a algoritmické limity (Halucinace)' : isEs ? 'Limitaciones de IA y alucinaciones' : 'AI Limitations & Model Hallucinations'}</span>
+                </div>
+                <p className="text-xs text-[#a1a1a6]">
+                  {isCs 
+                    ? 'Analýzy jsou zpracovávány pokročilými neuronovými sítěmi (LLM). Uživatel bere na vědomí, že AI modely mohou generovat nepřesné, opožděné nebo chybné výstupy (halucinace). Výstupy AI nesmí být považovány za nezvratná fakta a musí být vždy kriticky ověřeny.'
+                    : isEs
+                    ? 'Los análisis son procesados por redes neuronales y modelos de lenguaje (LLM). La IA puede generar datos inexactos o alucinaciones. Las salidas de la IA no deben considerarse hechos absolutos.'
+                    : 'Analyses are powered by deep learning LLMs which generate probabilistic models and may contain errors or hallucinations. AI outputs should never be treated as definitive financial truths.'}
                 </p>
               </div>
 
@@ -265,7 +292,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
               </div>
 
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300">
-                💡 {isCs ? 'Kredity nemají expirační lhůtu a zůstávají na vašem účtu/licenčním klíči až do jejich využití.' : isEs ? 'Los créditos no caducan y permanecen disponibles en su licencia.' : 'Credits have no expiration date and remain tied to your license key until redeemed.'}
+                💡 {isCs ? 'Kredity nemají expirační lhůtu a zůstávají na vašem účtu/licenčním klíči až do jejich využití. Provozovatel negarantuje žádný finanční zisk ani návratnost investic.' : isEs ? 'Los créditos no caducan. El operador no garantiza rentabilidad financiera alguna.' : 'Credits do not expire. The operator provides zero guarantees of monetary gain or ROI.'}
               </div>
             </div>
           )}
@@ -274,20 +301,20 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
           {activeSection === 'privacy' && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <h3 className="text-base font-semibold text-white">
-                {isCs ? 'Zásady ochrany osobních údajů a screenshotů' : isEs ? 'Política de Privacidad y Capturas' : 'Privacy & Data Security Policy'}
+                {isCs ? 'Zásady ochrany osobních údajů a screenshotů (GDPR)' : isEs ? 'Política de Privacidad y Capturas (RGPD)' : 'Privacy & Data Security Policy (GDPR)'}
               </h3>
               <p>
                 {isCs ? (
                   <>
-                    Respektujeme vaše soukromí. Nahrané screenshoty grafů jsou zpracovávány výhradně za účelem vygenerování technické analýzy a nejsou poskytovány třetím stranám k marketingovým účelům.
+                    Respektujeme vaše soukromí v plném souladu s nařízením GDPR. Nahrané screenshoty grafů a anonymizované výpisy jsou zpracovávány výhradně v reálném čase za účelem vygenerování technické analýzy a nejsou poskytovány třetím stranám k marketingovým účelům.
                   </>
                 ) : isEs ? (
                   <>
-                    Respetamos su privacidad. Los gráficos subidos se procesan únicamente para la generación de análisis técnico.
+                    Respetamos su privacidad según el RGPD. Los gráficos subidos se procesan en tiempo real únicamente para la generación de análisis técnico.
                   </>
                 ) : (
                   <>
-                    We respect your privacy. Uploaded chart images are processed strictly for technical pattern extraction and are never sold to advertisers.
+                    We respect your privacy in compliance with GDPR. Uploaded chart images are processed in real time strictly for technical analysis and are never sold to advertisers.
                   </>
                 )}
               </p>
@@ -302,6 +329,53 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
               </div>
             </div>
           )}
+
+          {/* SECTION 5: JURISDICTION & LIMITATION OF LIABILITY */}
+          {activeSection === 'jurisdiction' && (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <Scale className="w-4 h-4 text-amber-400" />
+                {isCs ? 'Rozhodné právo, soudní příslušnost & limitace náhrady škody' : isEs ? 'Ley aplicable, jurisdicción y límite de indemnización' : 'Governing Law, Exclusive Jurisdiction & Limitation of Liability'}
+              </h3>
+
+              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
+                <div className="text-xs font-semibold text-white flex items-center gap-2">
+                  <Gavel className="w-4 h-4 text-amber-400" />
+                  <span>{isCs ? 'Výlučná jurisdikce České republiky' : isEs ? 'Jurisdicción exclusiva de la República Checa' : 'Exclusive Jurisdiction of the Czech Republic'}</span>
+                </div>
+                <p className="text-xs text-[#a1a1a6] leading-relaxed">
+                  {isCs 
+                    ? 'Veškeré právní vztahy, smlouvy, spory a nároky vzniklé z používání platformy TRADEOY.com se řídí výlučně právním řádem České republiky (člen Evropské unie), s vyloučením kolizních norem a Úmluvy OSN o mezinárodní koupi zboží (CISG). K řešení jakýchkoliv sporů je věcně a místně příslušný výhradně obecný soud v České republice podle sídla provozovatele.'
+                    : isEs
+                    ? 'Todas las relaciones jurídicas y disputas derivadas del uso de TRADEOY.com se regirán exclusivamente por la legislación de la República Checa (Unión Europea). Cualquier litigio será resuelto exclusivamente por los tribunales competentes de la República Checa según el domicilio social del operador.'
+                    : 'All legal relationships, claims, and disputes arising from the use of TRADEOY.com shall be governed exclusively by the laws of the Czech Republic (European Union), excluding conflict of law principles and the CISG. The courts of the Czech Republic at the operator’s registered seat have exclusive jurisdiction.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-2">
+                <div className="text-xs font-semibold text-amber-300 flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-400" />
+                  <span>{isCs ? 'Smluvní zastropování výše odpovědnosti (Limitation of Liability)' : isEs ? 'Límite máximo de indemnización' : 'Contractual Limitation of Liability'}</span>
+                </div>
+                <p className="text-xs text-amber-100/90 leading-relaxed">
+                  {isCs 
+                    ? 'Pokud by i přes veškerá vyloučení odpovědnosti byla soudem pravomocně shledána jakákoliv odpovědnost provozovatele, strany výslovně sjednávají, že celková maximální souhrnná výše jakékoliv náhrady škody je striktně omezena částkou, kterou uživatel prokazatelně uhradil provozovateli za přístup ke službě za bezprostředně předcházejících 30 kalendářních dnů, a v případě bezplatného užívání je limitována částkou 0 Kč (nula EUR).'
+                    : isEs
+                    ? 'Si un tribunal declarase alguna responsabilidad del operador, la indemnización total máxima estará contractualmente limitada a la cantidad abonada por el usuario en los 30 días previos, o 0 EUR en caso de uso gratuito.'
+                    : 'If liability is established by a competent court, the aggregate liability of the operator shall be strictly capped at the amount paid by the user in the preceding 30 days, or 0 EUR/USD in the case of free usage.'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-[#86868b]">
+                {isCs 
+                  ? 'Používáním platformy TRADEOY.com vyjadřuje uživatel bezvýhradný a informovaný souhlas s těmito podmínkami v plném rozsahu.'
+                  : isEs
+                  ? 'El uso de la plataforma implica la aceptación plena e incondicional de estos términos y condiciones.'
+                  : 'Use of TRADEOY.com constitutes unconditional, informed acceptance of these terms in their entirety.'}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Footer actions */}

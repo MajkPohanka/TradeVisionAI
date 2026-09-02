@@ -193,6 +193,20 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="uppercase">{settings.language}</span>
             </button>
 
+            {/* Legal Terms & Disclaimer Header Link */}
+            {onOpenTermsModal && (
+              <button
+                id="header-terms-btn"
+                onClick={onOpenTermsModal}
+                className="hidden md:flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 text-[11px] sm:text-xs font-medium transition cursor-pointer active:scale-95 shrink-0"
+                title={t.legalTermsTitle}
+              >
+                <Scale className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden lg:inline">{t.legalTermsBtn || 'Podmínky & Právní doložka'}</span>
+                <span className="lg:hidden">{t.legalTermsBtnShort || 'Podmínky'}</span>
+              </button>
+            )}
+
             {/* Mobile Menu Toggle Button */}
             <button
               id="mobile-menu-toggle-btn"

@@ -341,15 +341,13 @@ async function callGeminiWithRetry(
   requestParams: any,
   maxRetries = 1
 ) {
-  const primaryModel = requestParams.model || 'gemini-2.5-flash';
-  // Comprehensive fallback chain with verified, high-availability multi-modal models across multiple quotas
+  const primaryModel = requestParams.model || 'gemini-3.8-flash';
+  // Comprehensive fallback chain with verified, high-availability multi-modal models
   const allCandidateModels = Array.from(new Set([
     primaryModel,
-    'gemini-2.5-flash',
+    'gemini-3.8-flash',
+    'gemini-3.6-flash',
     'gemini-3.1-flash-lite',
-    'gemini-3.7-flash',
-    'gemini-3.5-flash',
-    'gemini-3.5-flash-lite',
     'gemini-flash-latest',
   ]));
 
@@ -877,7 +875,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.8-flash',
         contents: [...imageParts, { text: promptText }],
         config: {
           systemInstruction: systemInstruction,
@@ -906,11 +904,14 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     }
     console.error('Error analyzing chart:', error);
     const errMsg = error?.message || String(error);
+    const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isTimeout = errMsg.includes('503') || errMsg.includes('Deadline expired') || errMsg.includes('UNAVAILABLE') || errMsg.includes('Časový limit');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
 
     let userFriendlyError = 'Nastala chyba při analýze grafu. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.';
-    if (isRateLimit) {
+    if (isPrepaymentDepleted) {
+      userFriendlyError = 'Google Gemini API kredit pro tento projekt je vyčerpán (429: Prepayment credits depleted). Pro obnovení analýz doplňte kredit na https://ai.studio/projects v sekci Billing.';
+    } else if (isRateLimit) {
       userFriendlyError = 'API limit byl dočasně překročen (429). Počkejte prosím ~1 minutu a zkuste to znovu.';
     } else if (isTimeout) {
       userFriendlyError = 'Služba analýzy je dočasně vytížena (503 / Timeout). Klikněte prosím na tlačítko Zkusit znovu.';

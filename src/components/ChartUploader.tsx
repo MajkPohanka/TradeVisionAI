@@ -418,7 +418,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               showToast('✓ Graf načten z odkazu!', 'success');
             })
             .catch(() => {
-              showToast('Nepodařilo se načíst obrázek z odkazu. Použijte prosím screenshot (Ctrl+V).', 'warning');
+              showToast('Nepodařilo se načíst obrázek z odkazu. Použijte prosím screenshot (Ctrl+V / ⌘+V).', 'warning');
             });
         }
       }
@@ -532,7 +532,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             <span>•</span>
             {/* Decent, high-visibility keyboard shortcut badge */}
             <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-mono font-bold">
-              <span>{isMac ? '⌘ + V' : 'Ctrl + V'}</span>
+              <span>Ctrl+V / ⌘+V</span>
               <span className="font-sans font-normal text-[10px] text-emerald-400/80 hidden sm:inline">{t.pasteScreenshotHint}</span>
             </span>
           </div>
@@ -681,7 +681,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                     </span>
                   ) : isSelected ? (
                     <span className="text-[10px] font-semibold text-emerald-300 flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40 animate-pulse">
-                      {t.slotStatusActiveTarget} ({isMac ? '⌘+V' : 'Ctrl+V'})
+                      {t.slotStatusActiveTarget} (Ctrl+V / ⌘+V)
                     </span>
                   ) : isRecommendedNext ? (
                     <span className="text-[10px] font-medium text-emerald-400/80 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
@@ -775,7 +775,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <div className={`px-4 py-2.5 border-t text-[11px] flex items-center justify-between transition-colors ${
                 isSelected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-black/20 border-white/[0.04] text-[#86868b]'
               }`}>
-                <span>{isSelected ? t.pressPasteHere.replace('{key}', isMac ? '⌘+V' : 'Ctrl+V') : t.slotRolePurpose.replace('{role}', slot.role)}</span>
+                <span>{isSelected ? t.pressPasteHere.replace('{key}', 'Ctrl+V / ⌘+V') : t.slotRolePurpose.replace('{role}', slot.role)}</span>
                 <span className="font-mono text-[10px] font-bold">{slot.tf}</span>
               </div>
             </div>
@@ -795,7 +795,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             </div>
             <div className="text-[11px] text-[#86868b]">
               {images.length === 0
-                ? t.uploadHintEmpty.replace('{key}', isMac ? '⌘+V' : 'Ctrl+V')
+                ? t.uploadHintEmpty.replace('{key}', 'Ctrl+V / ⌘+V')
                 : images.length < 3
                 ? t.uploadHintPartial
                 : t.uploadHintComplete}

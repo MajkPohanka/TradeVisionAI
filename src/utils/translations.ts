@@ -44,7 +44,7 @@ export const translations = {
 
     // Chart Uploader
     uploaderTitle: 'Nahrání grafu pro AI analýzu',
-    uploaderSubtitle: 'Přetáhněte snímek grafu (Ctrl+V) nebo zvolte soubory. Podporuje více-timeframe analýzu.',
+    uploaderSubtitle: 'Přetáhněte snímek grafu (Ctrl+V / ⌘+V) nebo zvolte soubory. Podporuje více-timeframe analýzu.',
     clickToBrowse: 'Klikněte pro výběr obrázku nebo přetáhněte snímek sem',
     supportedFormats: 'Podporuje PNG, JPG, WebP z TradingView',
     loadSampleChart: 'Načíst vzorový BTC/USDT graf',
@@ -410,7 +410,7 @@ export const translations = {
 
     // Chart Uploader
     uploaderTitle: 'Upload Chart for AI Analysis',
-    uploaderSubtitle: 'Drag & drop your chart screenshot (Ctrl+V) or browse files. Supports multi-timeframe analysis.',
+    uploaderSubtitle: 'Drag & drop your chart screenshot (Ctrl+V / ⌘+V) or browse files. Supports multi-timeframe analysis.',
     clickToBrowse: 'Click to select image or drop screenshot here',
     supportedFormats: 'Supports PNG, JPG, WebP from TradingView',
     loadSampleChart: 'Load sample BTC/USDT chart',
@@ -776,7 +776,7 @@ export const translations = {
 
     // Chart Uploader
     uploaderTitle: 'Carga de gráfico para análisis IA',
-    uploaderSubtitle: 'Arrastra y suelta tu captura de pantalla (Ctrl+V) o selecciona archivos. Admite análisis en múltiples temporalidades.',
+    uploaderSubtitle: 'Arrastra y suelta tu captura de pantalla (Ctrl+V / ⌘+V) o selecciona archivos. Admite análisis en múltiples temporalidades.',
     clickToBrowse: 'Haz clic para seleccionar o arrastra la captura aquí',
     supportedFormats: 'Soporta PNG, JPG, WebP de TradingView',
     loadSampleChart: 'Cargar gráfico de ejemplo BTC/USDT',

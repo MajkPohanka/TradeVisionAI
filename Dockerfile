@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Zkopírujeme package soubory a nainstalujeme závislosti
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Zkopírujeme zdrojový kód aplikace
 COPY . ./
@@ -23,7 +23,7 @@ ENV PORT=3000
 
 # Zkopírujeme package soubory a nainstalujeme pouze produkční závislosti
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Zkopírujeme sestavenou složku dist
 COPY --from=builder /app/dist ./dist

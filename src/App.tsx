@@ -4,6 +4,7 @@ import { ChartUploader } from './components/ChartUploader';
 import { StrategyPreferencesModal } from './components/StrategyPreferencesModal';
 import { AnalysisResultView } from './components/AnalysisResultView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
 import { getTranslation } from './utils/translations';
 import { AlertTriangle, Scale, RefreshCw } from 'lucide-react';
@@ -17,6 +18,17 @@ const CreditsModal = lazy(() => import('./components/CreditsModal').then(m => ({
 const TermsModal = lazy(() => import('./components/TermsModal').then(m => ({ default: m.TermsModal })));
 
 export default function App() {
+  // Password Protection Gate (Password: Trebic)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const sessionAuth = sessionStorage.getItem('tradeoy_auth_gate');
+      const localAuth = localStorage.getItem('tradeoy_auth_gate');
+      return sessionAuth === 'granted' || localAuth === 'granted';
+    } catch {
+      return false;
+    }
+  });
+
   const [images, setImages] = useState<string[]>([]);
   const [settings, setSettings] = useState<StrategySettings>(() => {
     try {
@@ -359,6 +371,16 @@ export default function App() {
     analysisResult && journal.some((j) => j.id === analysisResult.id)
   );
 
+  // If locked, render the password gate
+  if (!isAuthenticated) {
+    return (
+      <PasswordGate
+        language={settings.language}
+        onAuthenticated={() => setIsAuthenticated(true)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0c] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.05),transparent_70%)] text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative">
       {/* Header Bar */}
@@ -387,10 +409,10 @@ export default function App() {
           <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
-              DŮLEŽITÉ UPOZORNĚNÍ & VYLOUČENÍ ODPOVĚDNOSTI (EDUKAČNÍ & ANALYTICKÝ NÁSTROJ)
+              {t.topDisclaimerTitle}
             </span>
             <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
-              Platforma TRADEOY.com slouží výhradně pro výukové, studijní a analytické účely. Veškeré vygenerované analýzy, grafické výstupy a statistiky jsou výsledkem algoritmického zpracování a nepředstavují investiční doporučení ani finanční poradenství. Obchodování na finančních trzích nese vysoké riziko finanční ztráty. Provozovatel nenese žádnou odpovědnost za vaše obchodní rozhodnutí ani případné ztráty.
+              {t.topDisclaimerText}
             </p>
           </div>
         </div>

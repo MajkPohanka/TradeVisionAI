@@ -84,10 +84,35 @@ export const CREDIT_PACKAGES: Record<string, CreditPackage> = {
   },
 };
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const LICENSES_FILE = path.join(DATA_DIR, 'licenses.json');
-const LICENSES_BACKUP_FILE = path.join(DATA_DIR, 'licenses.backup.json');
-const LICENSES_TEMP_FILE = path.join(DATA_DIR, 'licenses.json.tmp');
+let DATA_DIR = path.join(process.cwd(), 'data');
+let LICENSES_FILE = path.join(DATA_DIR, 'licenses.json');
+let LICENSES_BACKUP_FILE = path.join(DATA_DIR, 'licenses.backup.json');
+let LICENSES_TEMP_FILE = path.join(DATA_DIR, 'licenses.json.tmp');
+
+function resolveSafeDataDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    // Test write permission
+    const testFile = path.join(DATA_DIR, '.perm_test');
+    fs.writeFileSync(testFile, 'ok', 'utf-8');
+    fs.unlinkSync(testFile);
+  } catch (err) {
+    console.warn('[CreditManager] Primary DATA_DIR not writable, falling back to /tmp/tradeoy_data:', err);
+    DATA_DIR = path.join('/tmp', 'tradeoy_data');
+    LICENSES_FILE = path.join(DATA_DIR, 'licenses.json');
+    LICENSES_BACKUP_FILE = path.join(DATA_DIR, 'licenses.backup.json');
+    LICENSES_TEMP_FILE = path.join(DATA_DIR, 'licenses.json.tmp');
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+    } catch {
+      // Ignored fallback
+    }
+  }
+}
 
 // In-memory cache backed by disk storage
 let licensesCache: Map<string, LicenseRecord> = new Map();
@@ -100,9 +125,7 @@ function ensureLoaded(force = false) {
   isInitialized = true;
 
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
+    resolveSafeDataDir();
 
     let loadedSuccessfully = false;
 

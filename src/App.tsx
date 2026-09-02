@@ -404,19 +404,6 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
-        {/* Prominent Legal & Educational Disclaimer Banner */}
-        <div className="bg-[#121216]/90 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex items-start space-x-3.5 shadow-lg shadow-black/40">
-          <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
-              {t.topDisclaimerTitle}
-            </span>
-            <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
-              {t.topDisclaimerText}
-            </p>
-          </div>
-        </div>
-
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
           {activeTab === 'analyzer' && (
             <div className="space-y-8">
@@ -432,6 +419,19 @@ export default function App() {
                 holdingPeriod={settings.holdingPeriod}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
               />
+
+              {/* Prominent Legal & Educational Disclaimer Banner - Placed below Chart Uploader */}
+              <div className="bg-[#121216]/90 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex items-start space-x-3.5 shadow-lg shadow-black/40">
+                <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
+                    {t.topDisclaimerTitle}
+                  </span>
+                  <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
+                    {t.topDisclaimerText}
+                  </p>
+                </div>
+              </div>
 
               {/* Error Banner */}
               {error && (

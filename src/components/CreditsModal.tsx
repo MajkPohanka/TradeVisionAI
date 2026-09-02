@@ -268,6 +268,28 @@ export const CreditsModal: React.FC<CreditsModalProps> = ({
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('tradeoy_license_key');
+                    localStorage.removeItem('tradeoy_credits');
+                    localStorage.removeItem('aiautotrader_license_key');
+                    localStorage.removeItem('aiautotrader_credits');
+                    onLicenseUpdated({
+                      key: '',
+                      credits: 0,
+                      tier: 'standard',
+                    });
+                    setVerifySuccess(
+                      language === 'cs'
+                        ? 'Klíč odhlášen. Zůstatek nastaven na 0 kreditů.'
+                        : 'License removed. Balance reset to 0 credits.'
+                    );
+                  }}
+                  className="px-2 py-0.5 ml-1 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-semibold border border-red-500/20 transition cursor-pointer"
+                  title="Odhlásit / Odstranit klíč"
+                >
+                  {language === 'cs' ? 'Odhlásit' : 'Disconnect'}
+                </button>
               </div>
             )}
           </div>

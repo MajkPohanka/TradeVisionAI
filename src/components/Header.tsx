@@ -147,23 +147,6 @@ export const Header: React.FC<HeaderProps> = ({
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
               <span>{t.tabCalendar}</span>
             </button>
-
-            <button
-              onClick={() => handleTabSelect('journal')}
-              className={`flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'journal'
-                  ? 'bg-white/10 text-white shadow-xs'
-                  : 'text-[#a1a1a6] hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <History className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{t.tabJournal}</span>
-              {savedCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold bg-emerald-500 text-black rounded-full">
-                  {savedCount}
-                </span>
-              )}
-            </button>
           </nav>
 
           {/* Right Utilities (Credits, Language, Mobile Menu Toggle) */}
@@ -283,30 +266,6 @@ export const Header: React.FC<HeaderProps> = ({
               <div>
                 <div className="text-xs font-bold text-white">{t.tabCalendar}</div>
                 <div className="text-[10px] text-[#86868b]">{t.tabCalendarSub}</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleTabSelect('journal')}
-              className={`flex items-center space-x-3 w-full p-3 rounded-xl text-left transition cursor-pointer ${
-                activeTab === 'journal'
-                  ? 'bg-emerald-500/15 text-white border border-emerald-500/30'
-                  : 'bg-[#16161a] text-[#a1a1a6] hover:text-white border border-white/[0.06]'
-              }`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                <History className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <span>{t.tabJournal}</span>
-                  {savedCount > 0 && (
-                    <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-500 text-black rounded-full">
-                      {savedCount}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[10px] text-[#86868b]">{t.tabJournalSub}</div>
               </div>
             </button>
           </div>

@@ -27,7 +27,15 @@ export interface CreditPackage {
 }
 
 export const VIP_UNLIMITED_EMAILS = ['majklpohanka@gmail.com'];
-export const VIP_UNLIMITED_KEYS = ['AIAUTO-DEMO-TEST-2026', 'TRADEOY-VIP-1000'];
+export const VIP_UNLIMITED_KEYS = [
+  'TRADEOY-VIP-UNLIMITED-ALPHA',
+  'TRADEOY-VIP-FRIENDS-2026',
+  'TRADEOY-VIP-ELITE-MASTER',
+  'TRADEOY-VIP-FOUNDER-PASS',
+  'TRADEOY-VIP-PRO-TRADER',
+  'TRADEOY-VIP-1000',
+  'AIAUTO-DEMO-TEST-2026',
+];
 
 export function isUnlimitedUser(record?: LicenseRecord | null, email?: string): boolean {
   if (email && VIP_UNLIMITED_EMAILS.includes(email.trim().toLowerCase())) {

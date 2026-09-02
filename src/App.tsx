@@ -71,25 +71,34 @@ export default function App() {
   // License & Credits State - Synchronized with server authoritative state
   const [currentLicense, setCurrentLicense] = useState<LicenseStatus | null>(() => {
     try {
-      const savedKey = localStorage.getItem('tradeoy_license_key') || localStorage.getItem('aiautotrader_license_key');
-      const savedCredits = localStorage.getItem('tradeoy_credits') || localStorage.getItem('aiautotrader_credits');
+      // Clear legacy hardcoded demo/test keys if they remained in localStorage
+      const legacyKey = localStorage.getItem('tradeoy_license_key') || localStorage.getItem('aiautotrader_license_key');
+      if (legacyKey && (legacyKey === 'TRADEOY-VIP-1000' || legacyKey === 'AIAUTO-DEMO-TEST-2026')) {
+        localStorage.removeItem('tradeoy_license_key');
+        localStorage.removeItem('tradeoy_credits');
+        localStorage.removeItem('aiautotrader_license_key');
+        localStorage.removeItem('aiautotrader_credits');
+      }
+
+      const savedKey = localStorage.getItem('tradeoy_license_key');
+      const savedCredits = localStorage.getItem('tradeoy_credits');
       if (savedKey) {
+        const isVip = ['TRADEOY-VIP-UNLIMITED-ALPHA', 'TRADEOY-VIP-FRIENDS-2026', 'TRADEOY-VIP-ELITE-MASTER', 'TRADEOY-VIP-FOUNDER-PASS', 'TRADEOY-VIP-PRO-TRADER'].includes(savedKey.trim().toUpperCase());
         return {
           key: savedKey,
-          credits: savedCredits !== null ? parseInt(savedCredits, 10) : 999999,
-          tier: 'vip_unlimited',
-          email: 'majklpohanka@gmail.com',
+          credits: isVip ? 999999 : (savedCredits !== null ? parseInt(savedCredits, 10) : 0),
+          tier: isVip ? 'vip_unlimited' : 'standard',
+          email: '',
         };
       }
     } catch (e) {
       console.error('Failed to load license from localStorage', e);
     }
-    // Default fallback to permanent VIP key
+    // Default: 0 credits for new users until purchased or activated
     return {
-      key: 'TRADEOY-VIP-1000',
-      credits: 999999,
-      tier: 'vip_unlimited',
-      email: 'majklpohanka@gmail.com',
+      key: '',
+      credits: 0,
+      tier: 'standard',
     };
   });
   const [isCreditsModalOpen, setIsCreditsModalOpen] = useState<boolean>(false);
@@ -372,7 +381,20 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
+        {/* Prominent Legal & Educational Disclaimer Banner */}
+        <div className="bg-[#121216]/90 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex items-start space-x-3.5 shadow-lg shadow-black/40">
+          <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
+              DŮLEŽITÉ UPOZORNĚNÍ & VYLOUČENÍ ODPOVĚDNOSTI (EDUKAČNÍ & ANALYTICKÝ NÁSTROJ)
+            </span>
+            <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
+              Platforma TRADEOY.com slouží výhradně pro výukové, studijní a analytické účely. Veškeré vygenerované analýzy, grafické výstupy a statistiky jsou výsledkem algoritmického zpracování a nepředstavují investiční doporučení ani finanční poradenství. Obchodování na finančních trzích nese vysoké riziko finanční ztráty. Provozovatel nenese žádnou odpovědnost za vaše obchodní rozhodnutí ani případné ztráty.
+            </p>
+          </div>
+        </div>
+
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
           {activeTab === 'analyzer' && (
             <div className="space-y-8">

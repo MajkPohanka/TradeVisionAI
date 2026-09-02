@@ -147,31 +147,23 @@ function ensureLoaded(force = false) {
       }
     }
 
-    // 3. Seed default VIP/tester licenses if completely empty
-    if (!loadedSuccessfully || licensesCache.size === 0) {
-      const demoKey = 'AIAUTO-DEMO-TEST-2026';
-      const vipKey = 'TRADEOY-VIP-1000';
-      
-      const demoRecord: LicenseRecord = {
-        key: demoKey,
-        credits: 1000,
-        tier: 'vip_tester',
-        email: 'majklpohanka@gmail.com',
-        totalPurchased: 1000,
-        totalUsed: 0,
-        createdAt: Date.now(),
-      };
-      const vipRecord: LicenseRecord = {
-        key: vipKey,
-        credits: 1000,
-        tier: 'vip',
-        email: 'majklpohanka@gmail.com',
-        totalPurchased: 1000,
-        totalUsed: 0,
-        createdAt: Date.now(),
-      };
-      licensesCache.set(demoKey, demoRecord);
-      licensesCache.set(vipKey, vipRecord);
+    // 3. Ensure all default VIP / Unlimited keys are ALWAYS present in cache & storage
+    let seededAny = false;
+    for (const vKey of VIP_UNLIMITED_KEYS) {
+      if (!licensesCache.has(vKey)) {
+        licensesCache.set(vKey, {
+          key: vKey,
+          credits: 999999,
+          tier: 'vip_unlimited',
+          email: 'majklpohanka@gmail.com',
+          totalPurchased: 999999,
+          totalUsed: 0,
+          createdAt: Date.now(),
+        });
+        seededAny = true;
+      }
+    }
+    if (seededAny || !loadedSuccessfully) {
       saveToDisk();
     }
   } catch (err) {
@@ -286,6 +278,22 @@ export const CreditManager = {
       ensureLoaded(true);
       record = licensesCache.get(cleanKey);
     }
+
+    // If key is a valid VIP Unlimited key pattern, auto-generate & persist immediately
+    if (!record && (VIP_UNLIMITED_KEYS.includes(cleanKey) || cleanKey.startsWith('TRADEOY-VIP-'))) {
+      record = {
+        key: cleanKey,
+        credits: 999999,
+        tier: 'vip_unlimited',
+        email: 'majklpohanka@gmail.com',
+        totalPurchased: 999999,
+        totalUsed: 0,
+        createdAt: Date.now(),
+      };
+      licensesCache.set(cleanKey, record);
+      saveToDisk();
+    }
+
     if (record && isUnlimitedUser(record)) {
       record.credits = 999999;
       record.tier = 'vip_unlimited';

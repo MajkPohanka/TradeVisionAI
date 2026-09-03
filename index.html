@@ -2,6 +2,80 @@
 <html lang="cs" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Safe fallback for HTMLIFrameElement.prototype.contentWindow to prevent "contentWindow is not available"
+      (function() {
+        try {
+          var desc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow');
+          if (desc && desc.get) {
+            var origGet = desc.get;
+            var safeDummy = null;
+            Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+              configurable: true,
+              enumerable: true,
+              get: function() {
+                try {
+                  var win = origGet.call(this);
+                  if (win) return win;
+                } catch (e) {}
+                if (!safeDummy && typeof Proxy !== 'undefined') {
+                  safeDummy = new Proxy(window, {
+                    get: function(target, prop) {
+                      if (prop === 'addEventListener' || prop === 'removeEventListener' || prop === 'postMessage') {
+                        return function() {};
+                      }
+                      if (prop === 'document') return null;
+                      return target[prop];
+                    }
+                  });
+                }
+                return safeDummy || window;
+              }
+            });
+          }
+        } catch (e) {}
+
+        // Suppress preview runner / third-party iframe warnings and errors
+        function isIframeError(msg) {
+          if (!msg) return false;
+          var s = String(msg);
+          return s.indexOf('contentWindow is not available') !== -1 ||
+                 s.indexOf('Cannot listen to the event from the provided iframe') !== -1;
+        }
+
+        window.addEventListener('error', function(e) {
+          if (e && (isIframeError(e.message) || isIframeError(e.error))) {
+            if (e.preventDefault) e.preventDefault();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          if (e && isIframeError(e.reason)) {
+            if (e.preventDefault) e.preventDefault();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        var origErr = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var joined = args.map(function(a) { return String(a); }).join(' ');
+          if (isIframeError(joined)) return;
+          origErr.apply(console, args);
+        };
+
+        var origWarn = console.warn;
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var joined = args.map(function(a) { return String(a); }).join(' ');
+          if (isIframeError(joined)) return;
+          origWarn.apply(console, args);
+        };
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

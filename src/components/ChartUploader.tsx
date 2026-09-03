@@ -22,14 +22,21 @@ import {
   Check,
   RotateCcw,
   X,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
 } from 'lucide-react';
 import { LanguageOption, HoldingPeriod } from '../types';
 import { getTranslation } from '../utils/translations';
 import { convertSvgToPng } from '../utils/sampleChart';
 
 interface ChartUploaderProps {
-  images: string[];
-  onImagesChange: (images: string[]) => void;
+  images: (string | null)[];
+  onImagesChange: (images: (string | null)[]) => void;
   onAnalyze: () => void;
   isLoading: boolean;
   onResetAnalysis?: () => void;
@@ -54,6 +61,8 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   const [showGuide, setShowGuide] = useState(false);
   const [showConfirmResetModal, setShowConfirmResetModal] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
+  const [previewSlotIndex, setPreviewSlotIndex] = useState<number | null>(null);
+  const [isZoomScaleToggled, setIsZoomScaleToggled] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
   const [isMac, setIsMac] = useState(false);
 
@@ -180,6 +189,39 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   // Normalized 3-slot array representations
   const currentSlots = [images[0] || null, images[1] || null, images[2] || null];
 
+  // Handle keyboard navigation & escape for the enlarged image preview modal
+  useEffect(() => {
+    if (previewSlotIndex === null) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewSlotIndex(null);
+        setIsZoomScaleToggled(false);
+      } else if (e.key === 'ArrowLeft') {
+        for (let offset = 1; offset < 3; offset++) {
+          const candidate = (previewSlotIndex - offset + 3) % 3;
+          if (currentSlots[candidate]) {
+            setPreviewSlotIndex(candidate);
+            setIsZoomScaleToggled(false);
+            break;
+          }
+        }
+      } else if (e.key === 'ArrowRight') {
+        for (let offset = 1; offset < 3; offset++) {
+          const candidate = (previewSlotIndex + offset) % 3;
+          if (currentSlots[candidate]) {
+            setPreviewSlotIndex(candidate);
+            setIsZoomScaleToggled(false);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewSlotIndex, currentSlots]);
+
   // Helper for displaying auto-dismissing toast notifications
   const showToast = useCallback((text: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setToastMessage({ text, type });
@@ -293,8 +335,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       updatedSlots[startIndex] = processedUrls[0];
       updatedSlots[startIndex + 1 < MAX_IMAGES ? startIndex + 1 : 0] = processedUrls[1];
 
-      const cleanedImages = [updatedSlots[0], updatedSlots[1], updatedSlots[2]].filter(Boolean) as string[];
-      onImagesChange(cleanedImages);
+      onImagesChange(updatedSlots);
 
       const nextEmpty = updatedSlots.findIndex((s) => !s);
       setActiveSlotIndex(nextEmpty !== -1 ? nextEmpty : null);
@@ -333,19 +374,11 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       }
     }
 
-    // Build new normalized 3-slot array
+    // Build new normalized 3-slot array preserving exact slots
     const updatedSlots = [...currentSlots];
     updatedSlots[destinationSlotIndex] = processedUrls[0];
 
-    // Filter out trailing empty slots but maintain filled slots order
-    const cleanedImages: string[] = [];
-    for (let i = 0; i < MAX_IMAGES; i++) {
-      if (updatedSlots[i]) {
-        cleanedImages.push(updatedSlots[i] as string);
-      }
-    }
-
-    onImagesChange(cleanedImages);
+    onImagesChange(updatedSlots);
 
     // Provide visual feedback for the destination slot
     const targetTfName = currentConfig.slots[destinationSlotIndex]?.tf || `Slot ${destinationSlotIndex + 1}`;
@@ -413,8 +446,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               const destIndex = activeSlotIndex !== null ? activeSlotIndex : currentSlots.findIndex((s) => !s);
               const finalDest = destIndex !== -1 ? destIndex : 0;
               updatedSlots[finalDest] = compressed;
-              const cleaned = updatedSlots.filter(Boolean) as string[];
-              onImagesChange(cleaned);
+              onImagesChange(updatedSlots);
               showToast('✓ Graf načten z odkazu!', 'success');
             })
             .catch(() => {
@@ -451,8 +483,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   const removeSlotImage = (index: number) => {
     const updatedSlots = [...currentSlots];
     updatedSlots[index] = null;
-    const cleaned = updatedSlots.filter(Boolean) as string[];
-    onImagesChange(cleaned);
+    onImagesChange(updatedSlots);
     setActiveSlotIndex(index); // Focus the newly empty slot
     const slotTf = currentConfig.slots[index]?.tf || `Slot ${index + 1}`;
     showToast(
@@ -478,7 +509,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   const nextEmptySlotIndex = currentSlots.findIndex((slot) => !slot);
 
   return (
-    <section className="space-y-6 relative">
+    <section id="chart-uploader-section" className="space-y-6 relative">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-20 right-4 sm:right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -547,6 +578,19 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
         {/* Secondary & Advanced Action Toolbar - Perfectly aligned single-line row */}
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('live-tradingview-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap"
+            title={language === 'cs' ? 'Přejít na živý TradingView graf' : language === 'es' ? 'Ir al gráfico en vivo' : 'Jump to live chart'}
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>{language === 'cs' ? 'Živý TradingView' : language === 'es' ? 'TradingView en Vivo' : 'Live TradingView'}</span>
+          </button>
+
           {onOpenSettings && (
             <button
               type="button"
@@ -694,20 +738,47 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               {/* Slot Content: Image Preview OR Upload Target */}
               <div className="p-4 flex-1 flex flex-col justify-center">
                 {hasImage ? (
-                  <div className="relative rounded-xl overflow-hidden aspect-video bg-black group border border-white/10">
+                  <div
+                    onClick={() => {
+                      setPreviewSlotIndex(idx);
+                      setIsZoomScaleToggled(false);
+                    }}
+                    className="relative rounded-xl overflow-hidden aspect-video bg-black group border border-white/10 hover:border-emerald-500/50 transition-all duration-200 cursor-pointer shadow-sm"
+                    title={t.zoomSlotPreviewTooltip || 'Kliknutím zvětšíte náhled snímku grafu'}
+                  >
                     <img
                       src={currentImg || ''}
                       alt={`Timeframe slot ${slot.tf}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+
+                    {/* Subtle Zoom Badge in top-left corner */}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-white/15 text-white/90 text-[10px] font-semibold flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition-opacity shadow-sm">
+                      <ZoomIn className="w-3 h-3 text-emerald-400" />
+                      <span>{t.zoomSlotPreview || 'Zvětšit náhled'}</span>
+                    </div>
+
+                    {/* Hover Action Controls Overlay */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewSlotIndex(idx);
+                          setIsZoomScaleToggled(false);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 shadow-lg active:scale-95"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                        <span>{t.zoomSlotPreview || 'Zvětšit'}</span>
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           triggerUploadForSlot(idx, false);
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white text-xs font-medium transition cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition cursor-pointer"
                       >
                         {t.changeSlotImage}
                       </button>
@@ -855,7 +926,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onImagesChange([]);
+                  onImagesChange([null, null, null]);
                   setActiveSlotIndex(0);
                   if (onResetAnalysis) {
                     onResetAnalysis();
@@ -876,6 +947,236 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 <span>{t.confirmResetBtn}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. ENLARGED IMAGE PREVIEW LIGHTBOX / ZOOM MODAL */}
+      {previewSlotIndex !== null && currentSlots[previewSlotIndex] && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-3 sm:p-5 animate-in fade-in duration-200"
+          onClick={() => {
+            setPreviewSlotIndex(null);
+            setIsZoomScaleToggled(false);
+          }}
+        >
+          {/* Top Bar */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 bg-[#131318]/95 border border-white/[0.08] rounded-2xl px-4 py-3 shadow-2xl shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Slot Info */}
+            <div className="flex items-center space-x-3">
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500 text-black shadow-sm">
+                SLOT {currentConfig.slots[previewSlotIndex]?.step || `0${previewSlotIndex + 1}`}
+              </span>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm font-bold text-white">
+                    {currentConfig.slots[previewSlotIndex]?.tf || `Slot ${previewSlotIndex + 1}`}
+                  </h3>
+                  <span className="text-xs text-emerald-400 font-medium">
+                    • {currentConfig.slots[previewSlotIndex]?.role}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#86868b] hidden sm:block">
+                  {currentConfig.slots[previewSlotIndex]?.desc}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Switch Slot Tabs */}
+            <div className="flex items-center space-x-1.5">
+              {currentConfig.slots.map((s, sIdx) => {
+                const isSlotAvailable = Boolean(currentSlots[sIdx]);
+                const isActive = previewSlotIndex === sIdx;
+                if (!isSlotAvailable) return null;
+                return (
+                  <button
+                    key={sIdx}
+                    type="button"
+                    onClick={() => {
+                      setPreviewSlotIndex(sIdx);
+                      setIsZoomScaleToggled(false);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 border ${
+                      isActive
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/30'
+                        : 'bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border-white/[0.06]'
+                    }`}
+                  >
+                    <span>Slot {sIdx + 1}</span>
+                    <span className="text-[10px] opacity-75">({s.tf})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              {/* Zoom 100% / 150% Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsZoomScaleToggled((prev) => !prev)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 border active:scale-95 ${
+                  isZoomScaleToggled
+                    ? 'bg-emerald-500 text-black border-emerald-400 shadow-md shadow-emerald-500/20'
+                    : 'bg-white/[0.06] hover:bg-white/10 text-white border-white/10'
+                }`}
+                title={isZoomScaleToggled ? t.zoomFit : t.zoom150}
+              >
+                {isZoomScaleToggled ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                <span className="hidden md:inline">
+                  {isZoomScaleToggled ? t.zoomFit || 'Přizpůsobit oknu' : t.zoom150 || 'Přiblížit 150%'}
+                </span>
+              </button>
+
+              {/* Change Image */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = previewSlotIndex;
+                  setPreviewSlotIndex(null);
+                  triggerUploadForSlot(target, false);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white text-xs font-medium transition cursor-pointer border border-white/10"
+              >
+                {t.changeSlotImage || 'Změnit'}
+              </button>
+
+              {/* Remove Image */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = previewSlotIndex;
+                  removeSlotImage(target);
+                  const remaining = currentSlots.map((s, i) => (i === target ? null : s));
+                  const nextFilled = remaining.findIndex(Boolean);
+                  if (nextFilled !== -1) {
+                    setPreviewSlotIndex(nextFilled);
+                  } else {
+                    setPreviewSlotIndex(null);
+                  }
+                }}
+                className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs transition cursor-pointer"
+                title={t.removeSlotImage || 'Odstranit snímek'}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewSlotIndex(null);
+                  setIsZoomScaleToggled(false);
+                }}
+                className="p-2 rounded-xl bg-white/[0.08] hover:bg-white/20 text-white transition cursor-pointer ml-1"
+                title={t.closePreviewBtn || 'Zavřít náhled'}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Main Enlarged Image Viewport */}
+          <div
+            className="flex-1 my-3 sm:my-4 w-full flex items-center justify-center overflow-auto rounded-2xl bg-[#09090c] border border-white/[0.06] relative p-2 select-none shadow-inner"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setPreviewSlotIndex(null);
+                setIsZoomScaleToggled(false);
+              }
+            }}
+          >
+            {/* Arrow Nav Left (if multiple slots) */}
+            {currentSlots.filter(Boolean).length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  for (let offset = 1; offset < 3; offset++) {
+                    const candidate = (previewSlotIndex - offset + 3) % 3;
+                    if (currentSlots[candidate]) {
+                      setPreviewSlotIndex(candidate);
+                      setIsZoomScaleToggled(false);
+                      break;
+                    }
+                  }
+                }}
+                className="absolute left-3 sm:left-6 z-20 p-3 rounded-full bg-black/70 hover:bg-black text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition cursor-pointer shadow-2xl active:scale-95"
+                title={t.prevSlotBtn || 'Předchozí slot'}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* The Enlarged Image */}
+            <div
+              className={`transition-all duration-300 flex items-center justify-center ${
+                isZoomScaleToggled ? 'w-full overflow-auto' : 'max-h-full max-w-full'
+              }`}
+            >
+              <img
+                src={currentSlots[previewSlotIndex] || ''}
+                alt={`Detail náhledu slot ${previewSlotIndex + 1}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsZoomScaleToggled((prev) => !prev);
+                }}
+                className={`rounded-xl shadow-2xl transition-all duration-300 ${
+                  isZoomScaleToggled
+                    ? 'min-w-[135%] sm:min-w-[150%] max-w-none cursor-zoom-out'
+                    : 'max-h-[70vh] sm:max-h-[76vh] w-auto max-w-full object-contain cursor-zoom-in hover:brightness-105'
+                }`}
+                title={isZoomScaleToggled ? 'Kliknutím zmenšíte náhled' : 'Kliknutím přiblížíte na 150%'}
+              />
+            </div>
+
+            {/* Arrow Nav Right (if multiple slots) */}
+            {currentSlots.filter(Boolean).length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  for (let offset = 1; offset < 3; offset++) {
+                    const candidate = (previewSlotIndex + offset) % 3;
+                    if (currentSlots[candidate]) {
+                      setPreviewSlotIndex(candidate);
+                      setIsZoomScaleToggled(false);
+                      break;
+                    }
+                  }
+                }}
+                className="absolute right-3 sm:right-6 z-20 p-3 rounded-full bg-black/70 hover:bg-black text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition cursor-pointer shadow-2xl active:scale-95"
+                title={t.nextSlotBtn || 'Další slot'}
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Bar: Instructions & Quick Close */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-[#131318]/95 border border-white/[0.08] rounded-xl text-xs text-[#86868b] shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{t.previewModalHint || 'Kliknutím na obrázek přepnete přiblížení 150% • Šipkami ◄ ► můžete přepínat sloty • ESC pro zavření'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewSlotIndex(null);
+                setIsZoomScaleToggled(false);
+              }}
+              className="px-3.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/15 text-white font-medium transition cursor-pointer ml-auto"
+            >
+              {t.closePreviewBtn || 'Zavřít náhled'}
+            </button>
           </div>
         </div>
       )}

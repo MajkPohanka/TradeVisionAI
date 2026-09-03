@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { ChartUploader } from './components/ChartUploader';
 import { StrategyPreferencesModal } from './components/StrategyPreferencesModal';
 import { AnalysisResultView } from './components/AnalysisResultView';
+import { TradingViewLiveChart } from './components/TradingViewLiveChart';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
@@ -29,7 +30,7 @@ export default function App() {
     }
   });
 
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<(string | null)[]>([null, null, null]);
   const [settings, setSettings] = useState<StrategySettings>(() => {
     try {
       const saved = localStorage.getItem('tradeoy_settings') || localStorage.getItem('aiautotrader_settings') || localStorage.getItem('autoaitrader_settings') || localStorage.getItem('tradedring_settings') || localStorage.getItem('tradevision_settings');
@@ -185,10 +186,20 @@ export default function App() {
   };
 
   const handleResetAnalysis = () => {
-    setImages([]);
+    setImages([null, null, null]);
     setAnalysisResult(null);
     setError(null);
   };
+
+  const handleInsertImageToSlot = useCallback((imageDataUrl: string, targetSlotIndex: number) => {
+    setImages((prev) => {
+      const nextSlots: (string | null)[] = [prev[0] || null, prev[1] || null, prev[2] || null];
+      if (targetSlotIndex >= 0 && targetSlotIndex < 3) {
+        nextSlots[targetSlotIndex] = imageDataUrl;
+      }
+      return nextSlots;
+    });
+  }, []);
 
   // Helper to ensure all images uploaded to server maintain ultra-sharp resolution (1920px, high quality)
   // while keeping individual payload under ~500KB to ensure fast network transit
@@ -236,7 +247,8 @@ export default function App() {
   };
 
   const handleAnalyzeChart = async () => {
-    if (images.length === 0) {
+    const activeImages = images.filter((img): img is string => Boolean(img));
+    if (activeImages.length === 0) {
       setError(
         settings.language === 'cs'
           ? 'Nahrajte prosím alespoň jeden snímek grafu.'
@@ -253,7 +265,7 @@ export default function App() {
     try {
       // 1. Pre-compress images on client to keep total payload strictly under ~1 MB
       const optimizedImages = await Promise.all(
-        images.map((img) => compressImageForAnalysis(img))
+        activeImages.map((img) => compressImageForAnalysis(img))
       );
 
       const activeLicenseKey = currentLicense?.key || 'TRADEOY-VIP-1000';
@@ -420,6 +432,14 @@ export default function App() {
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
               />
 
+              {/* Real-Time Live TradingView Chart & Snapshot Station */}
+              <TradingViewLiveChart
+                language={settings.language}
+                holdingPeriod={settings.holdingPeriod}
+                onInsertImageToSlot={handleInsertImageToSlot}
+                slots={images}
+              />
+
               {/* Prominent Legal & Educational Disclaimer Banner - Placed below Chart Uploader */}
               <div className="bg-[#121216]/95 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-lg shadow-black/40">
                 <div className="flex items-start space-x-3.5 flex-1">
@@ -453,7 +473,7 @@ export default function App() {
                     <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
                     <span className="font-medium">{error}</span>
                   </div>
-                  {images.length > 0 && (
+                  {images.some(Boolean) && (
                     <button
                       onClick={handleAnalyzeChart}
                       disabled={isLoading}

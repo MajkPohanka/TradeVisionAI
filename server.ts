@@ -13,6 +13,7 @@ import {
   ConfirmSessionSchema,
   formatZodError,
 } from './server/schemas';
+import { fetchLiveMarketOverview } from './server/marketOverview';
 
 dotenv.config();
 
@@ -619,6 +620,152 @@ app.post('/api/credits/confirm-session', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Nepodařilo se ověřit platbu.',
+    });
+  }
+});
+
+// Endpoint to fetch external chart images / TradingView snapshot links safely for users
+app.post('/api/fetch-chart-image', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ success: false, error: 'Chybí URL adresa obrázku.' });
+    }
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+      return res.status(400).json({ success: false, error: 'URL musí začínat na http:// nebo https://' });
+    }
+
+    // SSRF protection
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmedUrl);
+    } catch {
+      return res.status(400).json({ success: false, error: 'Neplatný formát URL.' });
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('172.16.') ||
+      hostname.startsWith('172.17.') ||
+      hostname.startsWith('172.18.') ||
+      hostname.startsWith('172.19.') ||
+      hostname.startsWith('172.2') ||
+      hostname.startsWith('172.30.') ||
+      hostname.startsWith('172.31.') ||
+      hostname.startsWith('169.254.')
+    ) {
+      return res.status(403).json({ success: false, error: 'Přístup k privátním IP adresám je zakázán.' });
+    }
+
+    let targetUrl = trimmedUrl;
+
+    // Check if it's a TradingView snapshot link like https://www.tradingview.com/x/XN2K6kH3/
+    const tvMatch = trimmedUrl.match(/tradingview\.com\/x\/([a-zA-Z0-9_-]+)/i);
+    if (tvMatch) {
+      const code = tvMatch[1];
+      const firstChar = code.charAt(0).toLowerCase();
+      targetUrl = `https://s3.tradingview.com/snapshots/${firstChar}/${code}.png`;
+    }
+
+    // Fetch the image
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    let response = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      },
+    });
+
+    clearTimeout(timeout);
+
+    // If S3 direct link failed for TV and original was a webpage, try fetching page and extracting og:image
+    if (!response.ok && tvMatch) {
+      const pageController = new AbortController();
+      const pageTimeout = setTimeout(() => pageController.abort(), 8000);
+      try {
+        const pageRes = await fetch(trimmedUrl, {
+          signal: pageController.signal,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        clearTimeout(pageTimeout);
+        if (pageRes.ok) {
+          const html = await pageRes.text();
+          const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+          if (ogImageMatch && ogImageMatch[1]) {
+            targetUrl = ogImageMatch[1];
+            response = await fetch(targetUrl, {
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+            });
+          }
+        }
+      } catch {}
+    }
+
+    if (!response.ok) {
+      return res.status(400).json({
+        success: false,
+        error: `Obrázek se nepodařilo stáhnout (HTTP kód: ${response.status}). Zkontrolujte prosím platnost odkazu.`,
+      });
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (buffer.length > 20 * 1024 * 1024) {
+      return res.status(400).json({ success: false, error: 'Obrázek je příliš velký (maximum je 20 MB).' });
+    }
+
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${contentType};base64,${base64}`;
+
+    return res.json({
+      success: true,
+      dataUrl,
+      contentType,
+      sizeBytes: buffer.length,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/fetch-chart-image:', error?.message || error);
+    return res.status(500).json({
+      success: false,
+      error: 'Chyba při stahování snímku z odkazu: ' + (error?.message || 'Neznámá chyba'),
+    });
+  }
+});
+
+// Interactive Market Overview Bar & Live Quotes Endpoint (Indices, Gold/Commodities, Crypto, Forex)
+app.get('/api/market-overview', async (req, res) => {
+  try {
+    const data = await fetchLiveMarketOverview();
+    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+    return res.json({
+      success: true,
+      timestamp: Date.now(),
+      data,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/market-overview:', error?.message || error);
+    return res.status(500).json({
+      success: false,
+      error: 'Nepodařilo se načíst tržní data: ' + (error?.message || 'Neznámá chyba'),
     });
   }
 });

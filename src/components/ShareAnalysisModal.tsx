@@ -72,7 +72,7 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
 ⚖️ *${t.riskRewardRatioLabel}:* ${result.overallRiskRewardRatio || '1:2.5'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 *1. EXEKUCE & HLADINY:*
+📍 *1. EXEKUCE & HLADINY (MODELOVÉ POI):*
 • *${t.recommendedEntry}:* ${result.entryZone?.recommended || (result.entryZone?.min && result.entryZone?.max ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')}
 • *${t.stopLossLabel}:* ${result.stopLoss?.price ?? 'N/A'} (-${result.stopLoss?.distancePercent ?? 0}%) ${result.stopLoss?.reason ? `[${result.stopLoss.reason}]` : ''}
 ${(result.takeProfitTargets || [])
@@ -84,14 +84,14 @@ ${result.drawOnLiquidity ? `━━━━━━━━━━━━━━━━━�
 • *Směr:* ${result.drawOnLiquidity.direction === 'UPSIDE_BSL' ? 'MAGNET NAHOŘE (Buy-Side Liquidity)' : result.drawOnLiquidity.direction === 'DOWNSIDE_SSL' ? 'MAGNET DOLE (Sell-Side Liquidity)' : 'RANGE / VYČKÁVÁNÍ'}
 • *Cílová zóna:* ${result.drawOnLiquidity.targetZone}
 • *Důvod:* ${result.drawOnLiquidity.reason}
-${result.drawOnLiquidity.prohibitedOpposingTrade ? `⚠️ *Anti-Trap Pravidlo:* ${result.drawOnLiquidity.prohibitedOpposingTrade}` : ''}` : ''}
+${result.drawOnLiquidity.prohibitedOpposingTrade ? `⚠️ *Rizikový faktor (Anti-Trap):* ${result.drawOnLiquidity.prohibitedOpposingTrade}` : ''}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🛡️ *3. ŘÍZENÍ RIZIKA & INVALIDACE:*
-• *Doporučený risk:* ${result.riskManagement?.suggestedPositionSizePercent ?? 1}% kapitálu
+🛡️ *3. MODELOVÉ ŘÍZENÍ RIZIKA & INVALIDACE:*
+• *Modelové riziko:* ${result.riskManagement?.suggestedPositionSizePercent ?? 1}% kapitálu (edukační kalkulace)
 • *Podmínka invalidace:* ${result.riskManagement?.invalidationCondition ?? 'N/A'}
 ${result.riskManagement?.trailingStopStrategy ? `• *Trailing SL:* ${result.riskManagement.trailingStopStrategy}` : ''}
-${result.riskManagement?.maxLeverage ? `• *Doporučená páka:* ${result.riskManagement.maxLeverage}` : ''}
+${result.riskManagement?.maxLeverage ? `• *Referenční páka:* ${result.riskManagement.maxLeverage}` : ''}
 
 ${result.methodologyConfluences && result.methodologyConfluences.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✨ *4. METODICKÉ KONFLUENCE:*

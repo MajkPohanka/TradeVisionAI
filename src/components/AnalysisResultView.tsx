@@ -270,7 +270,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
           <div className="text-[11px] text-[#86868b] flex items-center space-x-1 font-medium">
             <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span>Institutional Grade Analysis</span>
+            <span>Modelová Edukační Analýza</span>
           </div>
         </div>
       </div>
@@ -440,10 +440,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                       >
                         <div className="bg-black/90 border border-cyan-400 text-cyan-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-lg flex items-center space-x-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                          <span>ENTRY: {overlay.entry.priceStr}</span>
+                          <span>POI / VSTUP: {overlay.entry.priceStr}</span>
                         </div>
                         <span className="bg-black/90 border border-cyan-400 text-cyan-200 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
-                          ENTRY
+                          POI
                         </span>
                       </div>
 
@@ -748,7 +748,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               <div className="flex items-center space-x-3 p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs">
                 <BookOpen className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <span>
-                  <strong>Top Mentor Advice:</strong> Combining market psychology, institutional flows, and risk management.
+                  <strong>{t.mentorAdviceTitle}:</strong> Edukační rozbor tržní psychologie, institucionálního toku objednávek a modelového řízení rizika.
                 </span>
               </div>
 

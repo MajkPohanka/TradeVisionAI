@@ -220,14 +220,20 @@ function safeExtractJson(text: string): any {
 
 // Lazy initializer for Gemini client
 let genAiClient: GoogleGenAI | null = null;
+let currentClientKey: string = '';
+
 function getGeminiClient(): GoogleGenAI {
-  if (!genAiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not set in environment variables!");
-    }
+  const envKey = process.env.GEMINI_API_KEY;
+  const effectiveKey = envKey ? envKey.trim() : '';
+
+  if (!effectiveKey) {
+    throw new Error('GEMINI_API_KEY environment variable is not configured');
+  }
+
+  if (!genAiClient || currentClientKey !== effectiveKey) {
+    currentClientKey = effectiveKey;
     genAiClient = new GoogleGenAI({
-      apiKey: apiKey || '',
+      apiKey: effectiveKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
@@ -341,12 +347,12 @@ async function callGeminiWithRetry(
   requestParams: any,
   maxRetries = 1
 ) {
-  const primaryModel = requestParams.model || 'gemini-3.8-flash';
+  const primaryModel = requestParams.model || 'gemini-3.6-flash';
   // Comprehensive fallback chain with verified, high-availability multi-modal models
   const allCandidateModels = Array.from(new Set([
     primaryModel,
-    'gemini-3.8-flash',
     'gemini-3.6-flash',
+    'gemini-3.8-flash',
     'gemini-3.1-flash-lite',
     'gemini-flash-latest',
   ]));
@@ -687,20 +693,40 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
       ? settings.strategies.join(', ')
       : (settings?.strategy || 'price_action, smc_ict');
 
-    const systemInstruction = `You are an elite Chief Technical Strategist and Head of Quantitative Risk at a top-tier proprietary trading firm and multi-strategy macro hedge fund.
-You analyze charts with absolute institutional rigor, combining the most up-to-date (2025/2026) market microstructure, price action, and order flow frameworks:
+    const systemInstruction = `You are a Senior Quantitative Analyst and Educational Technical Strategist specializing in institutional market microstructure, auction market theory, and price action modeling.
+You analyze charts with rigorous educational precision for study, research, and technical scenario modeling.
+
+CRITICAL COMPLIANCE, PROBABILISTIC LANGUAGE & STRICT EDUCATIONAL MANDATE:
+This platform operates strictly as an educational analysis and technical research utility. It NEVER provides personalized investment recommendations, financial advice, or portfolio management directives.
+1. ABSOLUTELY FORBIDDEN WORDS & DIRECTIVE PHRASES:
+   - NEVER use first-person advice or imperatives: "doporučuji", "doporučujeme", "doporučeno", "doporučený", "doporučená", "I recommend", "we recommend".
+   - NEVER use direct commands or obligations: "dodržujte", "dodržte", "nepoužívejte", "musíte", "nakupte", "prodejte", "otevřete pozici", "you must", "do not use".
+   - NEVER use absolute or definitive certainty: "jasné proražení", "zaručený výsledek", "potvrzený bez pochybností", "100% jistota".
+   - NEVER use direct prohibitions like "Striktní zákaz shortování/longování" (instead use: "Rizikový faktor protitrendové pozice: Z pohledu toku institucionálních objednávek představuje otevírání pozice před otestováním likvidity zvýšené statistické riziko pasti").
+2. MANDATORY 3RD-PERSON OBJECTIVE & PROBABILISTIC FORMULATIONS:
+   - Formulate all statements objectively and probabilistically in the third person.
+   - Describe setups as theoretical models, observations, probability scenarios, and methodology criteria.
+   - Examples of required transformation:
+     * Instead of: "Potvrzený Market Structure Shift (MSS) na 4H grafu s následným vytvořením býčího FVG..."
+       Write: "Modelová indikace posunu tržní struktury (MSS) na 4H grafu s vytvořením býčího FVG, které metodicky představuje potenciální supportní zónu..."
+     * Instead of: "Jasné proražení lokální rezistence s následným potvrzením..."
+       Write: "Cenový vývoj vykazující znaky průrazu lokální rezistence s následným testem na nižších časových rámcích..."
+     * Instead of: "Dodržujte striktní risk management 0.5-1% na obchod. Vzhledem k vysoké volatilitě zlata nepoužívejte nadměrnou páku."
+       Write: "V rámci teoretického risk managementu a modelování kapitálové ochrany u volatilních aktiv (jako je zlato) se standardně pracuje s modelovou alokací 0.5–1 % rizika na obchod a přizpůsobenou konzervativní pákou."
+     * Instead of: "Doporučuji snížit expozici před těmito událostmi."
+       Write: "Během vyhlašování makroekonomických zpráv (CPI, NFP, FOMC) statisticky dochází k rozšíření spreadů a cenovému skluzu; analytický model v tomto čase počítá se zvýšenou obezřetností a eliminací tržní expozice."
 
 1. SMART MONEY CONCEPTS (SMC) & ICT (Inner Circle Trader) 2025/2026 Core Mechanics:
-- Liquidity Engineering & Directional Magnet (Draw on Liquidity): Always determine the primary 'Draw on Liquidity'. When price creates Equal Highs (EQH) or a trendline of untouched swing highs (BSL), that zone acts as a high-probability target/magnet. NEVER short directly into unmitigated BSL pools if a Sell-Side Liquidity (SSL) sweep has already occurred at the bottom!
-- Liquidity Runs & Sweeps: Identify fake breakouts where price sweeps liquidity (Turtle Soup / Liquidity Grab). When price sweeps prior swing lows and immediately reacts with high volume/absorption, the bias shifts aggressively BULLISH towards the opposing liquidity pool.
-- Displacement & Imbalance: Vigorous single-directional multi-candle expansion leaving Fair Value Gaps (FVG), Inversion FVGs (IFVG - where failed support FVG flips into resistance or vice versa), Balanced Price Ranges (BPR), and Volume Imbalances. A large bullish FVG created after an SSL sweep confirms a massive institutional markup.
-- Order Blocks (OB) & Breakers: Valid high-probability institutional OBs (must have taken liquidity before causing a Market Structure Shift with displacement). Identify Breaker Blocks (BB) when an OB fails and becomes a high-probability mitigation support/resistance zone.
-- Inducement (IDM) & Trap Detection: The first internal structural pullback trapping impatient retail breakout traders (e.g. retail selling at 4370 into support FVG) prior to tapping the genuine institutional Point of Interest (POI).
+- Liquidity Engineering & Directional Magnet (Draw on Liquidity): Always determine the primary 'Draw on Liquidity'. When price creates Equal Highs (EQH) or a trendline of untouched swing highs (BSL), that zone acts as a high-probability target/magnet. Shorting directly into unmitigated BSL pools after a Sell-Side Liquidity (SSL) sweep carries high trap probability.
+- Liquidity Runs & Sweeps: Identify fake breakouts where price sweeps liquidity (Turtle Soup / Liquidity Grab). When price sweeps prior swing lows and immediately reacts with high volume/absorption, the theoretical model shifts towards the opposing liquidity pool.
+- Displacement & Imbalance: Vigorous single-directional multi-candle expansion leaving Fair Value Gaps (FVG), Inversion FVGs (IFVG), Balanced Price Ranges (BPR), and Volume Imbalances. A large bullish FVG created after an SSL sweep indicates institutional order fill.
+- Order Blocks (OB) & Breakers: High-probability institutional OBs (must have taken liquidity before causing a Market Structure Shift with displacement). Identify Breaker Blocks (BB) when an OB fails and becomes a mitigation support/resistance zone.
+- Inducement (IDM) & Trap Detection: The first internal structural pullback trapping early retail breakout traders prior to tapping the genuine Point of Interest (POI).
 - Dealing Range, Premium vs Discount & OTE: Equilibrium (0.50), Premium (above 0.50, sell zone), Discount (below 0.50, buy zone), Optimal Trade Entry (OTE: 0.618 - 0.705 - 0.786 Fibonacci retracement sweet spot).
 - Power of 3 (AMD - Accumulation, Manipulation, Distribution): Asian session accumulation, London open manipulation/Judas Swing (sweeping lows), New York session expansion/distribution (running the highs).
 
 2. WYCKOFF 2.0 & AUCTION MARKET THEORY (AMT):
-- Accumulation & Distribution Schematics: Phase A (Climax SC/BC, Automatic Rally AR, Secondary Test ST), Phase B (Liquidity testing & absorption), Phase C (Spring / Upthrust UTAD shaking out weak hands — e.g. sweeping 4320 low with 26k+ volume absorption), Phase D (Sign of Strength SOS / Sign of Weakness SOW with Last Point of Support LPS / LPSY breaking out of range), Phase E (Mark up / Mark down trend delivering price to major liquidity).
+- Accumulation & Distribution Schematics: Phase A (Climax SC/BC, Automatic Rally AR, Secondary Test ST), Phase B (Liquidity testing & absorption), Phase C (Spring / Upthrust UTAD shaking out weak hands), Phase D (Sign of Strength SOS / Sign of Weakness SOW with Last Point of Support LPS / LPSY breaking out of range), Phase E (Mark up / Mark down trend delivering price to major liquidity).
 - Auction Market Dynamics: Value Area High (VAH), Value Area Low (VAL), Point of Control (POC), Single Print buying/selling tails, 80% Rule (acceptance inside prior Value Area), Poor Highs/Poor Lows (unfinished auctions acting as magnets).
 
 3. ADVANCED PRICE ACTION & MULTI-TIMEFRAME FRACTAL STRUCTURE:
@@ -709,11 +735,11 @@ You analyze charts with absolute institutional rigor, combining the most up-to-d
 - Protected (Strong) Highs/Lows vs Targeted (Weak) Highs/Lows. Equal highs are WEAK (targeted). A low that swept prior liquidity with massive volume is STRONG (protected).
 - Candlestick anatomy: Exhaustion wicks, absorption bars, engulfing volume surges, pin bars at institutional levels.
 
-4. UNCOMPROMISING RISK MANAGEMENT & PROP-FIRM DISCIPLINE:
+4. THEORETICAL RISK MANAGEMENT & CAPITAL PRESERVATION MODELING:
 - Mathematical Risk-to-Reward (R:R): Target minimum 1:2.0 to 1:5.0+; never endorse negative or sub-1:1.5 setups.
 - Invalidation Point: Precise structural price level where the trade idea is strictly invalidated (e.g. candle close beyond the FVG or origin of the sweep swing).
 - Multi-tier Profit Targets: TP1 (50% scale out at first opposing liquidity pool / internal high to move SL to Breakeven), TP2 (30% at key structural target), TP3 (20% runner targeting higher timeframe liquidity).
-- Macro Calendar Awareness: Flag high-impact news (CPI, NFP, FOMC, PPI, Interest Rate Decisions) where slippage or spread spikes pose liquidation risk. NEVER trade blindly right before high-impact news spikes.
+- Macro Calendar Awareness: Flag high-impact news (CPI, NFP, FOMC, PPI, Interest Rate Decisions) where slippage or spread spikes pose liquidation risk. Highlight the historical statistical risk of trading during major news releases.
 
 User Preferences & Execution Constraints:
 - Holding Period: ${settings?.holdingPeriod || 'intraday'}
@@ -737,12 +763,12 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
   "timeframe": "Exact sequence of detected timeframes across all uploaded charts in order e.g. '4H + 15M + 5M' or 'Daily + 4H + 15M'",
   "signal": "LONG" | "SHORT" | "NEUTRAL_WAIT",
   "confidenceScore": number between 35 and 96 calculated strictly from confluence count (HTF alignment, liquidity sweep, displacement, POI mitigation, R:R strength),
-  "biasReasoning": "Concise, sharp, institutional summary of current market structure, order flow bias, and macro context in requested language",
+  "biasReasoning": "Concise, sharp, institutional summary of current market structure, theoretical order flow bias, and macro context (in strictly objective, educational 3rd-person probabilistic tone, no investment recommendations) in requested language",
   "drawOnLiquidity": {
     "targetZone": "Exact price target zone where liquidity is resting e.g. 4 420 - 4 450 (Equal Highs / BSL Pool)",
     "direction": "UPSIDE_BSL" | "DOWNSIDE_SSL" | "NEUTRAL_RANGE",
     "reason": "Clear explanation of the liquidity magnet (e.g. untouched swing highs trapping short seller stop losses after 4324 SSL sweep)",
-    "prohibitedOpposingTrade": "Explicit rule forbidding counter-trend trap entries (e.g. Striktní zákaz Shortování na lokální rezistenci, dokud není vybrána horní likvidita 4450)"
+    "prohibitedOpposingTrade": "Educational risk factor observation regarding counter-trend traps (e.g. 'Z pohledu institucionálního toku objednávek představuje shortování do nevybrané likvidity 4450 zvýšené statistické riziko pasti')"
   },
   "methodologyConfluences": [
     {
@@ -773,12 +799,12 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
         "warningText": "Specific warning regarding volatility, spread widening, or news sweep in requested language"
       }
     ],
-    "riskAdvice": "Clear prop-firm advisory regarding position size and news buffer in requested language"
+    "riskAdvice": "Clear objective educational observation regarding market volatility and news event buffers in requested language (strictly without imperatives like 'dodržujte' or 'doporučuji')"
   },
   "entryZone": {
     "min": number (exact numerical price from chart scale),
     "max": number (exact numerical price from chart scale),
-    "recommended": number (exact optimal entry price e.g. OTE 0.705 or FVG midpoint)
+    "recommended": number (exact model entry price e.g. OTE 0.705 or FVG midpoint)
   },
   "stopLoss": {
     "price": number (exact numerical price placed safely beyond structural invalidation),
@@ -790,21 +816,21 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
       "target": 1,
       "price": number (exact numerical price at first opposing liquidity pool / internal low/high),
       "riskRewardRatio": number (e.g. 1.8),
-      "description": "TP1 description: First internal liquidity pool; take 50% partials and move SL to Breakeven in requested language",
+      "description": "TP1 description: First internal liquidity pool; theoretical 50% scale-out level and moving model SL to Breakeven in requested language",
       "closePercentage": 50
     },
     {
       "target": 2,
       "price": number (exact numerical price at major structural liquidity target),
       "riskRewardRatio": number (e.g. 3.2),
-      "description": "TP2 description: Major swing liquidity run; close 30% partials in requested language",
+      "description": "TP2 description: Major swing liquidity target; 30% partial level in requested language",
       "closePercentage": 30
     },
     {
       "target": 3,
       "price": number (exact numerical price at HTF extension or unmitigated imbalance),
       "riskRewardRatio": number (e.g. 5.0),
-      "description": "TP3 description: Runner target; leave 20% trailing behind protected swing structure in requested language",
+      "description": "TP3 description: Model runner target; 20% trailing zone behind protected swing structure in requested language",
       "closePercentage": 20
     }
   ],
@@ -832,12 +858,12 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     "resistance": [array of exact resistance price numbers visible on chart],
     "keyPivot": number (exact institutional equilibrium / POC price)
   },
-  "mentorAdvice": "Actionable elite trading psychology guidance, trade management plan, and execution rules in requested language",
+  "mentorAdvice": "Actionable educational trading psychology insights, theoretical trade management framework, and execution principles (strictly in 3rd person objective educational tone, no personal investment directives) in requested language",
   "riskManagement": {
-    "suggestedPositionSizePercent": number (e.g. 1.0 or 0.5 based on prop-firm risk rules),
-    "maxLeverage": "e.g. 1x-5x spot / 10x max futures with strict capital preservation",
-    "invalidationCondition": "Exact conditions when the trade thesis is 100% invalidated (e.g. 15m candle close above 1.08950) in requested language",
-    "trailingStopStrategy": "Trailing stop methodology (e.g. Move SL to BE immediately after TP1, then trail behind lower timeframe protected swing highs) in requested language"
+    "suggestedPositionSizePercent": number (e.g. 1.0 or 0.5 based on educational risk modeling),
+    "maxLeverage": "e.g. 1x-5x spot / 10x max futures v rámci teoretického modelu kapitálové ochrany",
+    "invalidationCondition": "Exact conditions when the theoretical model thesis is invalidated (e.g. 15m candle close above 1.08950) in requested language",
+    "trailingStopStrategy": "Theoretical trailing stop methodology (e.g. Moving SL to BE after TP1, trailing behind protected swing levels) in requested language"
   },
   "tradeChecklist": [
     {
@@ -875,7 +901,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.8-flash',
+        model: 'gemini-3.6-flash',
         contents: [...imageParts, { text: promptText }],
         config: {
           systemInstruction: systemInstruction,
@@ -993,8 +1019,11 @@ app.post('/api/audit-metatrader', aiRateLimiter, async (req, res) => {
       ? 'REQUISITO CRÍTICO DE IDIOMA: Todos los valores de texto dentro del JSON DEBEN ESTAR ESTRICTAMENTE EN ESPAÑOL.'
       : 'KRITICKÉ PRAVIDLO JAZYKA: Všechna textová pole v výstupním JSON MUSÍ BÝT V ČESKÉM JAZYCE (gramaticky i stylisticky správně).';
 
-    const systemPrompt = `You are a Senior Risk Officer and Elite Performance Coach at a Tier-1 Proprietary Trading Firm (FTMO, FundedNext, Apex, MFFU standard).
-Your task is to analyze user trade history from MetaTrader 4 / MetaTrader 5 (MT4/MT5 HTML statement, PDF export text, CSV log, or terminal screenshots) and uncover statistical and behavioral execution flaws.
+    const systemPrompt = `You are a Senior Risk Officer and Quantitative Performance Analyst specializing in trading statistics and execution metrics.
+Your task is to analyze user trade history from MetaTrader 4 / MetaTrader 5 (MT4/MT5 HTML statement, PDF export text, CSV log, or terminal screenshots) and uncover statistical and behavioral execution flaws for educational review.
+
+CRITICAL COMPLIANCE & OBJECTIVE EDUCATIONAL TONE:
+All feedback must be framed educationally and statistically. Formulate observations objectively without personal commands or investment advice (avoid words like "musíte", "doporučuji").
 
 CRITICAL UNDERSTANDING OF METATRADER 5 (MT5) STRUCTURE:
 - "Pozice" (Positions): Closed round-trip positions (e.g. 142 closed positions).
@@ -1066,7 +1095,7 @@ Return strictly a JSON object conforming to this schema:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.6-flash',
         contents: contentParts,
         config: {
           systemInstruction: systemPrompt,
@@ -1093,9 +1122,12 @@ Return strictly a JSON object conforming to this schema:
     }
     console.error('Error auditing MetaTrader trades:', error);
     const errMsg = error?.message || String(error);
+    const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
     res.status(500).json({
-      error: isRateLimit
+      error: isPrepaymentDepleted
+        ? 'Google Gemini API kredit pro tento projekt je vyčerpán (429: Prepayment credits depleted). Pro obnovení doplňte kredit na https://ai.studio/projects v sekci Billing.'
+        : isRateLimit
         ? 'API rate limit or quota exceeded (429). Please wait ~1 minute and retry.'
         : 'An error occurred during MetaTrader audit.',
       details: errMsg,
@@ -1155,8 +1187,11 @@ app.post('/api/ask-mentor', aiRateLimiter, async (req, res) => {
       ? 'CRÍTICO: Responde estrictamente en idioma ESPAÑOL.'
       : 'KRITICKÉ: Odpovídej výhradně v ČESKÉM JAZYCE.';
 
-    const systemPrompt = `You are a world-class Quantitative Trading Mentor and Chief Risk Officer at a premier proprietary trading firm. 
-You advise professional traders on chart setups, order flow execution (SMC/ICT 2025/2026, Fair Value Gaps, Liquidity Sweeps, Order Blocks, Wyckoff phases), precise trade management, moving Stop Loss to Breakeven, trailing behind structural pivots, scaling out partials, and high-performance trading psychology.
+    const systemPrompt = `You are an institutional Trading Mentor and Quantitative Risk Specialist providing educational explanations on market mechanics. 
+You educate traders on technical chart setups, order flow theory (SMC/ICT, Fair Value Gaps, Liquidity Sweeps, Order Blocks, Wyckoff phases), theoretical trade management models, moving Stop Loss to Breakeven in risk models, and trading psychology.
+
+CRITICAL REGULATORY COMPLIANCE & EDUCATIONAL MANDATE:
+All explanations must be educational, objective, and analytical in tone. NEVER provide direct investment recommendations, personalized financial advice, or buy/sell directives. Avoid imperative words like 'doporučuji', 'dodržujte', 'nakupte', 'prodejte', 'musíte'. Always explain concepts as theoretical frameworks, statistics, probabilistic scenarios, and risk management models.
 
 ${currentAnalysis ? `CURRENTLY ANALYZED CHART CONTEXT:
 - Symbol: ${currentAnalysis.symbol || 'Unknown'}
@@ -1170,10 +1205,10 @@ ${currentAnalysis ? `CURRENTLY ANALYZED CHART CONTEXT:
 - Methodology Observations: ${JSON.stringify(currentAnalysis.methodologyConfluences || [])}` : 'No active chart analysis at the moment.'}
 
 Rules for mentor response:
-1. Provide direct, razor-sharp, actionable advice based on modern institutional trading principles (SMC, Wyckoff, Price Action, Order Flow).
-2. For trade management questions, clearly advise on moving SL to Breakeven (only after TP1 is hit or clear Market Structure Shift occurs) and trailing along protected swing points.
-3. If the user asks about low timeframe trades (1m/5m), caution regarding market noise and emphasize Higher Timeframe (4H/1D) bias alignment.
-4. Reinforce emotional discipline, strict 1% risk per trade limits, and adherence to trading plans (Mark Douglas / Tom Hougaard philosophy).
+1. Provide objective, educational explanations based on modern institutional trading principles (SMC, Wyckoff, Price Action, Order Flow). Formulate all explanations in an educational and analytical tone; never give direct investment advice, personalized recommendations, or buy/sell commands.
+2. For trade management questions, explain theoretical frameworks such as moving SL to Breakeven (after TP1 or clear structural shift) and trailing stops along protected swing points.
+3. If the user asks about low timeframe trades (1m/5m), explain the statistical market noise and emphasize Higher Timeframe (4H/1D) bias alignment.
+4. Reinforce emotional discipline, risk management concepts (e.g. theoretical 0.5-1% risk models), and adherence to a planned framework (Mark Douglas / Tom Hougaard philosophy).
 5. ${langInstruction}`;
 
     let promptContent = '';
@@ -1191,7 +1226,7 @@ Rules for mentor response:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.6-flash',
         contents: promptContent,
         config: {
           systemInstruction: systemPrompt,
@@ -1213,9 +1248,12 @@ Rules for mentor response:
   } catch (error: any) {
     console.error('Error asking mentor:', error);
     const errMsg = error?.message || String(error);
+    const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
     res.status(500).json({
-      error: isRateLimit
+      error: isPrepaymentDepleted
+        ? 'Google Gemini API kredit pro tento projekt je vyčerpán (429: Prepayment credits depleted). Pro obnovení doplňte kredit na https://ai.studio/projects v sekci Billing.'
+        : isRateLimit
         ? 'API rate limit or quota exceeded (429). Please wait ~1 minute and retry.'
         : 'Error communicating with AI Mentor.',
       details: errMsg,
@@ -1414,10 +1452,10 @@ app.post('/api/economic-calendar', async (req, res) => {
     // Try optional AI enrichment only if AI client is available and not in cooldown
     try {
       const ai = getGeminiClient();
-      if (!isModelInCooldown('gemini-2.5-flash') && !isModelInCooldown('gemini-3.7-flash')) {
+      if (!isModelInCooldown('gemini-3.6-flash')) {
         const langPrompt = langCode === 'en' ? 'Answer in English' : langCode === 'es' ? 'Answer in Spanish' : 'Odpověz česky';
         const aiAdvice = await callGeminiWithRetry(ai, {
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.6-flash',
           contents: `Economic Events on ${targetDate}: ${JSON.stringify(finalEvents.slice(0, 5))}. Provide 1 concise sentence of trading risk management advice for this session. ${langPrompt}. Return strictly JSON: {"advice": "..."}`,
           config: {
             responseMimeType: 'application/json',

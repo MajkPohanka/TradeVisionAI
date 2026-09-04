@@ -4,6 +4,7 @@ import { ChartUploader } from './components/ChartUploader';
 import { StrategyPreferencesModal } from './components/StrategyPreferencesModal';
 import { AnalysisResultView } from './components/AnalysisResultView';
 import { TradingViewLiveChart } from './components/TradingViewLiveChart';
+import { MarketOverviewBar } from './components/MarketOverviewBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
@@ -66,6 +67,7 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTvSymbol, setSelectedTvSymbol] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'analyzer' | 'audit' | 'calendar' | 'journal'>('analyzer');
   const [journal, setJournal] = useState<AnalysisResult[]>(() => {
@@ -416,6 +418,16 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
+        {/* Interactive Top Market Overview Bar (Indices, Gold, Crypto, Forex) */}
+        <MarketOverviewBar
+          language={settings.language}
+          onSelectAsset={(tvSymbol) => {
+            setSelectedTvSymbol(tvSymbol);
+            setActiveTab('analyzer');
+          }}
+          selectedTvSymbol={selectedTvSymbol}
+        />
+
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
           {activeTab === 'analyzer' && (
             <div className="space-y-8">
@@ -438,6 +450,7 @@ export default function App() {
                 holdingPeriod={settings.holdingPeriod}
                 onInsertImageToSlot={handleInsertImageToSlot}
                 slots={images}
+                externalSymbol={selectedTvSymbol}
               />
 
               {/* Prominent Legal & Educational Disclaimer Banner - Placed below Chart Uploader */}

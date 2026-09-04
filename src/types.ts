@@ -189,3 +189,25 @@ export interface LicenseStatus {
   createdAt?: number;
 }
 
+export type MarketCategory = 'all' | 'indices' | 'commodities' | 'crypto' | 'forex';
+
+export interface MarketAssetData {
+  id: string;
+  name: string;
+  nameCs: string;
+  symbol: string;
+  category: 'indices' | 'commodities' | 'crypto' | 'forex';
+  categoryLabelCs: string;
+  categoryLabelEn: string;
+  price: number;
+  changePercent: number;
+  changeValue: number;
+  high24h: number;
+  low24h: number;
+  currency: string;
+  precision: number;
+  tvSymbol: string;
+  sparkline: number[];
+  icon: string;
+}
+

@@ -760,6 +760,7 @@ app.get('/api/market-overview', async (req, res) => {
       success: true,
       timestamp: Date.now(),
       data,
+      assets: data,
     });
   } catch (error: any) {
     console.error('Error in /api/market-overview:', error?.message || error);

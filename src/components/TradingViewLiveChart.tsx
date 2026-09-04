@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   TrendingUp,
   Camera,
@@ -34,6 +34,7 @@ interface TradingViewLiveChartProps {
   onInsertImageToSlot: (dataUrl: string, slotIndex: number) => void;
   slots?: (string | null)[];
   activeSlotIndex?: number | null;
+  externalSymbol?: string | null;
 }
 
 interface MarketPreset {
@@ -71,6 +72,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   onInsertImageToSlot,
   slots = [null, null, null],
   activeSlotIndex = 0,
+  externalSymbol = null,
 }) => {
   const t = getTranslation(language);
 
@@ -81,6 +83,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const [chartHeight, setChartHeight] = useState<'standard' | 'tall' | 'fullscreen'>('standard');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
+
+  // Sync external symbol if requested (e.g. from the top Market Overview bar)
+  useEffect(() => {
+    if (externalSymbol && externalSymbol !== symbol) {
+      setSymbol(externalSymbol);
+      setIsExpanded(true);
+    }
+  }, [externalSymbol]);
 
   // Quick Insert Modal State
   const [modalSlotIndex, setModalSlotIndex] = useState<number | null>(null);
@@ -101,36 +111,42 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
   const tvLocale = language === 'cs' ? 'cs' : language === 'es' ? 'es' : 'en';
 
-  // Timeframe labels depending on holding period
+  // Timeframe labels depending on holding period with complete translation support
   const slotLabels = useMemo(() => {
+    const trendWord = t.tvRoleTrend || 'Trend';
+    const structWord = t.tvRoleStructure || 'Struktura';
+    const entryWord = t.tvRoleEntry || 'Vstup';
+    const dailyWord = t.tvRoleDaily || 'Daily';
+    const weeklyWord = t.tvRoleWeekly || 'Weekly';
+
     switch (holdingPeriod) {
       case 'scalp':
         return [
-          { num: 1, role: 'HTF (1H Trend)', tf: '1H', short: 'Slot 1 (HTF)' },
-          { num: 2, role: 'MTF (15m Struktura)', tf: '15m', short: 'Slot 2 (MTF)' },
-          { num: 3, role: 'LTF (5m/1m Vstup)', tf: '5m', short: 'Slot 3 (LTF)' },
+          { num: 1, role: `HTF (1H ${trendWord})`, tf: '1H', short: 'Slot 1 (HTF)' },
+          { num: 2, role: `MTF (15m ${structWord})`, tf: '15m', short: 'Slot 2 (MTF)' },
+          { num: 3, role: `LTF (5m/1m ${entryWord})`, tf: '5m', short: 'Slot 3 (LTF)' },
         ];
       case 'swing':
         return [
-          { num: 1, role: 'HTF (Daily Trend)', tf: '1D', short: 'Slot 1 (HTF)' },
-          { num: 2, role: 'MTF (4H Struktura)', tf: '4H', short: 'Slot 2 (MTF)' },
-          { num: 3, role: 'LTF (1H Vstup)', tf: '1H', short: 'Slot 3 (LTF)' },
+          { num: 1, role: `HTF (${dailyWord} ${trendWord})`, tf: '1D', short: 'Slot 1 (HTF)' },
+          { num: 2, role: `MTF (4H ${structWord})`, tf: '4H', short: 'Slot 2 (MTF)' },
+          { num: 3, role: `LTF (1H ${entryWord})`, tf: '1H', short: 'Slot 3 (LTF)' },
         ];
       case 'position':
         return [
-          { num: 1, role: 'HTF (Weekly Trend)', tf: '1W', short: 'Slot 1 (HTF)' },
-          { num: 2, role: 'MTF (Daily Struktura)', tf: '1D', short: 'Slot 2 (MTF)' },
-          { num: 3, role: 'LTF (4H Vstup)', tf: '4H', short: 'Slot 3 (LTF)' },
+          { num: 1, role: `HTF (${weeklyWord} ${trendWord})`, tf: '1W', short: 'Slot 1 (HTF)' },
+          { num: 2, role: `MTF (${dailyWord} ${structWord})`, tf: '1D', short: 'Slot 2 (MTF)' },
+          { num: 3, role: `LTF (4H ${entryWord})`, tf: '4H', short: 'Slot 3 (LTF)' },
         ];
       case 'intraday':
       default:
         return [
-          { num: 1, role: 'HTF (4H Trend)', tf: '4H', short: 'Slot 1 (HTF)' },
-          { num: 2, role: 'MTF (15m Struktura)', tf: '15m', short: 'Slot 2 (MTF)' },
-          { num: 3, role: 'LTF (5m Vstup)', tf: '5m', short: 'Slot 3 (LTF)' },
+          { num: 1, role: `HTF (4H ${trendWord})`, tf: '4H', short: 'Slot 1 (HTF)' },
+          { num: 2, role: `MTF (15m ${structWord})`, tf: '15m', short: 'Slot 2 (MTF)' },
+          { num: 3, role: `LTF (5m ${entryWord})`, tf: '5m', short: 'Slot 3 (LTF)' },
         ];
     }
-  }, [holdingPeriod]);
+  }, [holdingPeriod, t]);
 
   // Construct direct TradingView Advanced Chart widget URL cleanly without external loader scripts
   const chartUrl = useMemo(() => {
@@ -537,7 +553,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <span>{language === 'cs' ? 'Vložit snímek grafu do:' : 'Insert chart snapshot into:'}</span>
+                    <span>{t.tvModalInsertTitle || 'Vložit snímek grafu do:'}</span>
                     <span className="text-emerald-400 font-mono">
                       {slotLabels[modalSlotIndex]?.short || `Slot ${modalSlotIndex + 1}`}
                     </span>
@@ -568,9 +584,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               >
                 <Upload className="w-4 h-4" />
                 <span>
-                  {language === 'cs'
-                    ? '📁 Vybrat soubor snímku z počítače'
-                    : '📁 Choose screenshot file from computer'}
+                  {t.tvModalChooseFile || '📁 Vybrat soubor snímku z počítače'}
                 </span>
               </button>
             </div>
@@ -603,14 +617,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 <Copy className="w-5 h-5" />
               </div>
               <div className="text-xs font-bold text-white">
-                {language === 'cs'
-                  ? 'Klikněte sem a stiskněte Ctrl + V (nebo ⌘ + V)'
-                  : 'Click here and press Ctrl + V (or ⌘ + V)'}
+                {t.tvModalPasteZone || 'Klikněte sem a stiskněte Ctrl + V (nebo ⌘ + V)'}
               </div>
               <p className="text-[11px] text-[#86868b] max-w-xs leading-relaxed">
-                {language === 'cs'
-                  ? 'Okamžitě převezme zkopírovaný snímek z TradingView (Alt+S) nebo výstřižku Windows (Win+Shift+S).'
-                  : 'Immediately captures your copied chart screenshot from TradingView (Alt+S) or Snipping Tool.'}
+                {t.tvModalPasteHint || 'Okamžitě převezme zkopírovaný snímek z TradingView (Alt+S) nebo výstřižku Windows (Win+Shift+S).'}
               </p>
             </div>
 
@@ -619,7 +629,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               <label className="text-[11px] font-medium text-[#a1a1a6] flex items-center gap-1.5">
                 <LinkIcon className="w-3.5 h-3.5 text-emerald-400" />
                 <span>
-                  {language === 'cs' ? 'Nebo vložte odkaz na graf z TradingView:' : 'Or paste TradingView chart snapshot link:'}
+                  {t.tvModalOrUrl || 'Nebo vložte odkaz na graf z TradingView:'}
                 </span>
               </label>
               <form onSubmit={handleFetchUrlSubmit} className="flex gap-2">
@@ -641,10 +651,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                   {isLoadingUrl ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>{language === 'cs' ? 'Stahuji...' : 'Fetching...'}</span>
+                      <span>{t.tvModalFetching || 'Stahuji...'}</span>
                     </>
                   ) : (
-                    <span>{language === 'cs' ? 'Stáhnout' : 'Fetch'}</span>
+                    <span>{t.tvModalFetchBtn || 'Stáhnout'}</span>
                   )}
                 </button>
               </form>
@@ -660,17 +670,13 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             <div className="p-3 bg-white/[0.03] rounded-xl border border-white/[0.06] text-[11px] text-[#86868b] space-y-1">
               <div className="font-semibold text-white flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{language === 'cs' ? 'Jak vyfotit graf v TradingView:' : 'How to snapshot TradingView:'}</span>
+                <span>{t.tvModalHowTo || 'Jak vyfotit graf v TradingView:'}</span>
               </div>
               <p>
-                {language === 'cs'
-                  ? '1. V pravém horním rohu grafu klikněte na ikonu Fotoaparátu 📷 (nebo klávesu Alt + S).'
-                  : '1. In top right corner of chart, click the Camera icon 📷 (or Alt + S).'}
+                {t.tvModalHowTo1 || '1. V pravém horním rohu grafu klikněte na ikonu Fotoaparátu 📷 (nebo klávesu Alt + S).'}
               </p>
               <p>
-                {language === 'cs'
-                  ? '2. Zvolte „Kopírovat obrázek grafu“ nebo „Kopírovat odkaz na obrázek grafu“.'
-                  : '2. Select "Copy chart image" or "Copy link to chart image".'}
+                {t.tvModalHowTo2 || '2. Zvolte „Kopírovat obrázek grafu“ nebo „Kopírovat odkaz na obrázek grafu“.'}
               </p>
             </div>
           </div>
@@ -706,7 +712,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.06] text-xs transition cursor-pointer flex items-center space-x-1.5"
-            title="Otevřít na TradingView.com"
+            title={t.tvOpenTradingViewTooltip || 'Otevřít na TradingView.com'}
           >
             <ExternalLink className="w-3.5 h-3.5 text-[#86868b]" />
             <span className="hidden md:inline text-[11px]">TradingView</span>
@@ -717,11 +723,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             type="button"
             onClick={() => setChartHeight((prev) => (prev === 'standard' ? 'tall' : 'standard'))}
             className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.06] text-xs transition cursor-pointer flex items-center space-x-1"
-            title={chartHeight === 'standard' ? 'Zvětšit výšku grafu' : 'Standardní výška'}
+            title={chartHeight === 'standard' ? (t.tvHeightLargerTooltip || 'Zvětšit výšku grafu') : (t.tvHeightCompactTooltip || 'Standardní výška')}
           >
             <Maximize2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline text-[11px]">
-              {chartHeight === 'standard' ? 'Větší' : 'Kompaktní'}
+              {chartHeight === 'standard' ? (t.tvHeightLarger || 'Větší') : (t.tvHeightCompact || 'Kompaktní')}
             </span>
           </button>
 
@@ -730,7 +736,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
             className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.06] text-xs transition cursor-pointer"
-            title={isExpanded ? 'Sbalit graf' : 'Rozbalit graf'}
+            title={isExpanded ? (t.tvCollapseChart || 'Sbalit graf') : (t.tvExpandChart || 'Rozbalit graf')}
           >
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -744,6 +750,12 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           <div className="flex items-center space-x-1 overflow-x-auto py-0.5 max-w-full scrollbar-none">
             {MARKET_PRESETS.map((preset) => {
               const isSelected = symbol === preset.symbol;
+              const label = preset.id === 'gold'
+                ? (t.tvPresetGold || 'Zlato')
+                : preset.id === 'oil'
+                ? (t.tvPresetOil || 'Ropa')
+                : preset.name.split(' ')[0];
+
               return (
                 <button
                   key={preset.id}
@@ -756,7 +768,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                   }`}
                 >
                   <span>{preset.icon}</span>
-                  <span>{preset.name.split(' ')[0]}</span>
+                  <span>{label}</span>
                 </button>
               );
             })}
@@ -769,7 +781,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 type="text"
                 value={customSymbolInput}
                 onChange={(e) => setCustomSymbolInput(e.target.value)}
-                placeholder="Jiný symbol (AAPL, SOL...)"
+                placeholder={t.tvCustomSymbolInputPlaceholder || 'Jiný symbol (AAPL, SOL, NVDA...)'}
                 className="bg-black/40 border border-white/10 focus:border-emerald-400 rounded-lg px-2.5 py-1 text-xs text-white placeholder-[#636366] focus:outline-none w-36 sm:w-44 uppercase font-mono"
               />
             </div>
@@ -777,7 +789,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               type="submit"
               disabled={!customSymbolInput.trim()}
               className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs transition cursor-pointer disabled:opacity-40"
-              title="Nastavit symbol"
+              title={t.tvSetSymbolBtn || 'Nastavit symbol'}
             >
               <Search className="w-3.5 h-3.5" />
             </button>
@@ -788,7 +800,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             {/* Timeframe Quick Switcher */}
             <div className="flex items-center space-x-1">
               <span className="text-[11px] text-[#86868b] font-medium mr-1 hidden sm:inline">
-                Timeframe:
+                {t.tvTimeframeLabel || 'Timeframe:'}
               </span>
               {TIMEFRAMES.map((tf) => {
                 const isTfSelected = interval === tf.value;
@@ -813,7 +825,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             {/* Multi-Timeframe Dedicated Slot Buttons (Slot 1, Slot 2, Slot 3) */}
             <div className="flex items-center space-x-2">
               <span className="text-[11px] text-[#86868b] font-medium hidden lg:inline">
-                {language === 'cs' ? 'Vložit do analýzy:' : 'Insert into analysis:'}
+                {t.tvInsertIntoAnalysisLabel || 'Vložit do analýzy:'}
               </span>
 
               {slotLabels.map((slotInfo, idx) => {
@@ -839,8 +851,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                       }`}
                       title={
                         isFilled
-                          ? `${slotInfo.short} je obsazen. Klikněte pro nahrazení nebo vložení nového snímku.`
-                          : `Klikněte pro vložení snímku ze schránky nebo otevření nabídky pro ${slotInfo.short}`
+                          ? (t.tvSlotFilledTooltip || `${slotInfo.short} je obsazen. Klikněte pro nahrazení nebo vložení nového snímku.`)
+                          : (t.tvSlotEmptyTooltip || `Klikněte pro vložení snímku ze schránky nebo otevření nabídky pro ${slotInfo.short}`)
                       }
                     >
                       {isFilled ? (
@@ -860,7 +872,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                           ? 'bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200 border-emerald-500/50'
                           : 'bg-white/[0.07] hover:bg-emerald-500/20 text-[#a1a1a6] hover:text-white border-white/[0.08] hover:border-emerald-500/30'
                       }`}
-                      title={`Vybrat soubor snímku ze zařízení pro ${slotInfo.short}`}
+                      title={`${t.tvDirectUploadTooltip || 'Vybrat soubor snímku ze zařízení'} (${slotInfo.short})`}
                     >
                       <Upload className="w-3 h-3" />
                     </button>
@@ -874,7 +886,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 onClick={() => handleScreenCapture(activeSlotIndex ?? 0)}
                 disabled={isCapturing}
                 className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition cursor-pointer flex items-center space-x-1 active:scale-95 shrink-0"
-                title={t.tvScreenCaptureBtn || 'Pořídit snímek výřezu obrazovky'}
+                title={t.tvScreenCaptureTooltip || t.tvScreenCaptureBtn || 'Pořídit snímek výřezu obrazovky'}
               >
                 <Camera className="w-3 h-3 text-emerald-400" />
                 <span className="hidden sm:inline">{t.tvScreenCaptureBtn || 'Snímek'}</span>
@@ -915,6 +927,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               <p className="text-[11px] text-[#86868b] leading-tight mt-0.5">
                 {language === 'cs'
                   ? '1. V grafu nahoře klikněte na ikonu Fotoaparátu 📷 (nebo Alt+S) ➔ 2. Zvolte „Zkopírovat obrázek grafu“ nebo „Kopírovat odkaz“ ➔ 3. Klikněte na tlačítko Slot 1, Slot 2 nebo Slot 3 nahoře.'
+                  : language === 'es'
+                  ? '1. En el gráfico arriba haga clic en la Cámara 📷 (o Alt+S) ➔ 2. Elija "Copiar imagen del gráfico" o "Copiar enlace" ➔ 3. Haga clic en Ranura 1, Ranura 2 o Ranura 3 arriba.'
                   : '1. In chart header, click Camera 📷 (or Alt+S) ➔ 2. Choose "Copy chart image" or "Copy link" ➔ 3. Click Slot 1, Slot 2 or Slot 3 above.'}
               </p>
             </div>
@@ -922,7 +936,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
           <div className="flex items-center space-x-2 shrink-0 self-end md:self-auto">
             <span className="text-[10px] text-[#86868b] font-mono bg-white/[0.04] px-2 py-1 rounded-md border border-white/[0.06]">
-              {language === 'cs' ? 'Zkratka snímku v grafu: Alt + S' : 'Chart shortcut: Alt + S'}
+              {t.tvShortcutBadge || 'Zkratka snímku v grafu: Alt + S'}
             </span>
           </div>
         </div>

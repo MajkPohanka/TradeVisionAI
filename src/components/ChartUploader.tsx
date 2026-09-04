@@ -188,6 +188,8 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
   // Normalized 3-slot array representations
   const currentSlots = [images[0] || null, images[1] || null, images[2] || null];
+  const uploadedCount = currentSlots.filter((img): img is string => Boolean(img)).length;
+  const hasAnyImages = uploadedCount > 0;
 
   // Handle keyboard navigation & escape for the enlarged image preview modal
   useEffect(() => {
@@ -617,7 +619,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             {showGuide ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
           </button>
 
-          {(images.length > 0 || hasAnalysisResult) && (
+          {(hasAnyImages || hasAnalysisResult) && (
             <button
               type="button"
               onClick={() => setShowConfirmResetModal(true)}
@@ -862,12 +864,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </div>
           <div>
             <div className="text-white font-bold text-xs sm:text-sm">
-              {t.uploadStatusCount.replace('{count}', String(images.length)).replace('{max}', String(MAX_IMAGES))}
+              {language === 'cs'
+                ? `Stav podkladů: ${uploadedCount} / ${MAX_IMAGES} ${uploadedCount === 1 ? 'graf' : (uploadedCount >= 2 && uploadedCount <= 4) ? 'grafy' : 'grafů'}`
+                : t.uploadStatusCount.replace('{count}', String(uploadedCount)).replace('{max}', String(MAX_IMAGES))}
             </div>
             <div className="text-[11px] text-[#86868b]">
-              {images.length === 0
+              {uploadedCount === 0
                 ? t.uploadHintEmpty.replace('{key}', 'Ctrl+V / ⌘+V')
-                : images.length < 3
+                : uploadedCount < MAX_IMAGES
                 ? t.uploadHintPartial
                 : t.uploadHintComplete}
             </div>
@@ -877,7 +881,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         <button
           type="button"
           onClick={onAnalyze}
-          disabled={images.length === 0 || isLoading}
+          disabled={uploadedCount === 0 || isLoading}
           className="w-full sm:w-auto sm:min-w-[300px] md:min-w-[360px] lg:min-w-[400px] px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm sm:text-base transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-2.5 shadow-lg shadow-emerald-500/20 active:scale-98 shrink-0"
         >
           {isLoading ? (

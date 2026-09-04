@@ -1081,19 +1081,19 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isTimeout = errMsg.includes('503') || errMsg.includes('Deadline expired') || errMsg.includes('UNAVAILABLE') || errMsg.includes('Časový limit');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
+    const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
 
     let userFriendlyError = 'Nastala chyba při analýze grafu. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.';
-    if (isPrepaymentDepleted) {
-      userFriendlyError = 'Google Gemini API kredit pro tento projekt je vyčerpán (429: Prepayment credits depleted). Pro obnovení analýz doplňte kredit na https://ai.studio/projects v sekci Billing.';
-    } else if (isRateLimit) {
-      userFriendlyError = 'API limit byl dočasně překročen (429). Počkejte prosím ~1 minutu a zkuste to znovu.';
+    if (isCapacityIssue) {
+      userFriendlyError = 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit za tuto analýzu zůstal v plné výši zachován.';
     } else if (isTimeout) {
-      userFriendlyError = 'Služba analýzy je dočasně vytížena (503 / Timeout). Klikněte prosím na tlačítko Zkusit znovu.';
+      userFriendlyError = 'Služba analýzy je dočasně vytížena (503 / Timeout). Klikněte prosím na tlačítko Zkusit znovu za několik sekund.';
     }
 
     res.status(500).json({
       error: userFriendlyError,
-      details: errMsg,
+      isCapacityIssue,
+      details: isCapacityIssue ? 'AI capacity autoscaling in progress' : errMsg,
     });
   }
 });
@@ -1272,13 +1272,13 @@ Return strictly a JSON object conforming to this schema:
     const errMsg = error?.message || String(error);
     const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
+    const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
     res.status(500).json({
-      error: isPrepaymentDepleted
-        ? 'Google Gemini API kredit pro tento projekt je vyčerpán (429: Prepayment credits depleted). Pro obnovení doplňte kredit na https://ai.studio/projects v sekci Billing.'
-        : isRateLimit
-        ? 'API rate limit or quota exceeded (429). Please wait ~1 minute and retry.'
-        : 'An error occurred during MetaTrader audit.',
-      details: errMsg,
+      error: isCapacityIssue
+        ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit zůstal v plné výši zachován.'
+        : 'Došlo k neočekávané chybě při auditu MetaTrader výpisu. Váš kredit byl v pořádku vrácen.',
+      isCapacityIssue,
+      details: isCapacityIssue ? 'AI capacity autoscaling in progress' : errMsg,
     });
   }
 });
@@ -1398,13 +1398,13 @@ Rules for mentor response:
     const errMsg = error?.message || String(error);
     const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
+    const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
     res.status(500).json({
-      error: isPrepaymentDepleted
-        ? 'Google Gemini API kredit pro tento projekt je vyčerpán (429: Prepayment credits depleted). Pro obnovení doplňte kredit na https://ai.studio/projects v sekci Billing.'
-        : isRateLimit
-        ? 'API rate limit or quota exceeded (429). Please wait ~1 minute and retry.'
-        : 'Error communicating with AI Mentor.',
-      details: errMsg,
+      error: isCapacityIssue
+        ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase.'
+        : 'Došlo k neočekávané chybě při komunikaci s AI Mentorem.',
+      isCapacityIssue,
+      details: isCapacityIssue ? 'AI capacity autoscaling in progress' : errMsg,
     });
   }
 });

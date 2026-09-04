@@ -257,7 +257,7 @@ interface ActiveCreditReservation {
 const activeReservations = new Map<string, ActiveCreditReservation>();
 
 // Clean up stale reservations periodically
-setInterval(() => {
+const staleCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [id, res] of activeReservations.entries()) {
     if (now - res.timestamp > 15 * 60 * 1000) {
@@ -265,6 +265,9 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+if (staleCleanupInterval && typeof staleCleanupInterval.unref === 'function') {
+  staleCleanupInterval.unref();
+}
 
 // In-memory IP tracking for trial claims
 const trialClaimsByIp = new Map<string, { count: number; firstClaim: number }>();

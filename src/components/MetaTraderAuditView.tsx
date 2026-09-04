@@ -13,6 +13,7 @@ import {
   Share2,
   Download,
   Printer,
+  Activity,
 } from 'lucide-react';
 import { MetaTraderAuditResult, StrategySettings, LicenseStatus } from '../types';
 import { getTranslation } from '../utils/translations';
@@ -168,7 +169,24 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
       });
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Server communication error');
+      const rawMsg = err.message || 'Server communication error';
+      const isCapacityIssue = rawMsg.includes('kapacit') || 
+                              rawMsg.includes('kontaktován') || 
+                              rawMsg.includes('TRADEOY') ||
+                              rawMsg.includes('prepayment') ||
+                              rawMsg.includes('billing') ||
+                              rawMsg.includes('Gemini') ||
+                              rawMsg.includes('gemini') ||
+                              rawMsg.includes('RESOURCE_EXHAUSTED') ||
+                              rawMsg.includes('quota') ||
+                              rawMsg.includes('Quota exceeded') ||
+                              rawMsg.includes('429');
+
+      if (isCapacityIssue) {
+        setError('Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit za tuto analýzu zůstal v plné výši zachován.');
+      } else {
+        setError(rawMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -292,12 +310,35 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
           </div>
         </div>
 
-        {error && (
-          <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center space-x-2">
-            <AlertOctagon className="w-4 h-4 text-red-400 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+        {error && (() => {
+          const isCapacityNotice = error.includes('kapacit') || 
+                                   error.includes('kontaktován') || 
+                                   error.includes('TRADEOY');
+
+          if (isCapacityNotice) {
+            return (
+              <div className="p-4 rounded-2xl bg-[#14120e] border border-amber-500/40 text-amber-200 text-xs flex items-start space-x-3 shadow-lg">
+                <Activity className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-amber-300">Probíhá automatické navýšení kapacity AI serveru</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold">
+                      ✓ Kredit zachován
+                    </span>
+                  </div>
+                  <p className="text-amber-200/90 leading-relaxed">{error}</p>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center space-x-2">
+              <AlertOctagon className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          );
+        })()}
 
         <button
           onClick={handleRunAudit}

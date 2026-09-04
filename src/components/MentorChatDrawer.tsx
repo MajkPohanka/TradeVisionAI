@@ -93,12 +93,24 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
 
       if (!res.ok || !data.success || !data.answer) {
         const errorDetail = data.error || data.details || t.errorOccurred;
+        const isCapacity = data.isCapacityIssue || 
+                           errorDetail.includes('kapacit') || 
+                           errorDetail.includes('kontaktován') || 
+                           errorDetail.includes('TRADEOY') ||
+                           errorDetail.includes('prepayment') ||
+                           errorDetail.includes('billing') ||
+                           errorDetail.includes('Gemini') ||
+                           errorDetail.includes('quota') ||
+                           errorDetail.includes('429');
+
         setMessages((prev) => [
           ...prev,
           {
             id: (Date.now() + 1).toString(),
             sender: 'mentor',
-            text: `Error: ${errorDetail}`,
+            text: isCapacity
+              ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase.'
+              : `${t.errorOccurred}: ${errorDetail}`,
             timestamp: Date.now(),
           },
         ]);

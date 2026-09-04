@@ -51,11 +51,6 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
   const isInteractingRef = useRef<boolean>(false);
   const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isDraggingRef = useRef<boolean>(false);
-  const dragStartXRef = useRef<number>(0);
-  const dragStartOffsetRef = useRef<number>(0);
-  const hasDraggedFarRef = useRef<boolean>(false);
-
   isHoveredRef.current = isHovered;
 
   // Fetch market data from server endpoint
@@ -162,8 +157,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
       const canAutoAdvance =
         isAutoScrollEnabled &&
         !isHoveredRef.current &&
-        !isInteractingRef.current &&
-        !isDraggingRef.current;
+        !isInteractingRef.current;
 
       if (canAutoAdvance) {
         // Slow, readable speed: 25px per second
@@ -179,7 +173,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
       }
 
       // 4. Update GPU transform
-      if (trackRef.current && !isDraggingRef.current) {
+      if (trackRef.current) {
         trackRef.current.style.transform = `translate3d(-${offsetRef.current.toFixed(2)}px, 0, 0)`;
       }
 
@@ -204,45 +198,6 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
     interactionTimeoutRef.current = setTimeout(() => {
       isInteractingRef.current = false;
     }, 2500);
-  };
-
-  // Pointer drag events for smooth swipe/drag
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    isDraggingRef.current = true;
-    dragStartXRef.current = e.clientX;
-    dragStartOffsetRef.current = offsetRef.current;
-    hasDraggedFarRef.current = false;
-    targetNudgeRef.current = 0;
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {}
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - dragStartXRef.current;
-    if (Math.abs(dx) > 5) {
-      hasDraggedFarRef.current = true;
-    }
-    offsetRef.current = dragStartOffsetRef.current - dx;
-    wrapOffset();
-    applyTransform();
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {}
-
-    // Pause for 2 seconds after manual drag so user can inspect
-    isInteractingRef.current = true;
-    if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
-    interactionTimeoutRef.current = setTimeout(() => {
-      isInteractingRef.current = false;
-    }, 2000);
   };
 
   // Format price
@@ -317,22 +272,23 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
       <button
         key={key}
         type="button"
-        onClick={() => {
-          if (hasDraggedFarRef.current) return;
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           onSelectAsset?.(asset.tvSymbol);
         }}
         title={`${getAssetName(asset)} - ${t.marketClickToChart || 'Kliknutím otevřete v živém grafu TradingView'}`}
-        className={`flex items-center space-x-3 px-3.5 py-2 rounded-xl transition-colors duration-150 cursor-pointer shrink-0 text-left border select-none ${
+        className={`flex items-center space-x-3 px-3.5 py-2 rounded-xl transition-all duration-150 cursor-pointer shrink-0 text-left border select-none ${
           isSelectedInChart
-            ? 'bg-emerald-500/15 border-emerald-500/60 shadow-lg shadow-emerald-500/10'
-            : 'bg-[#15151c] hover:bg-[#1a1a24] border-white/[0.06] hover:border-emerald-500/30'
+            ? 'bg-emerald-500/25 border-emerald-400 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/20'
+            : 'bg-[#15151c] hover:bg-[#1e1e28] border-white/[0.06] hover:border-emerald-500/40 hover:scale-[1.02]'
         }`}
       >
         {/* Icon */}
-        <span className="text-base select-none pointer-events-none">{asset.icon}</span>
+        <span className="text-base select-none">{asset.icon}</span>
 
         {/* Info & Price */}
-        <div className="flex flex-col pointer-events-none">
+        <div className="flex flex-col">
           <div className="flex items-center space-x-1.5">
             <span className="text-xs font-bold text-white whitespace-nowrap">
               {getAssetName(asset)}
@@ -349,7 +305,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
         </div>
 
         {/* Sparkline & Change Badge */}
-        <div className="flex flex-col items-end pl-1 pointer-events-none">
+        <div className="flex flex-col items-end pl-1">
           {renderSparkline(asset.sparkline, isPos)}
           <span
             className={`inline-flex items-center text-[10px] font-mono font-bold mt-1 px-1.5 py-0.2 rounded ${
@@ -512,13 +468,9 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
           {viewMode === 'ticker' ? (
             /* GPU-Accelerated Smooth Ribbon View */
             <div
-              className="relative group select-none overflow-hidden cursor-grab active:cursor-grabbing"
+              className="relative group select-none overflow-hidden"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
             >
               {/* Left & Right Gradient Fade Masks */}
               <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#0d0d12] via-[#0d0d12]/80 to-transparent z-10" />
@@ -580,12 +532,16 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
                   <button
                     key={asset.id}
                     type="button"
-                    onClick={() => onSelectAsset?.(asset.tvSymbol)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSelectAsset?.(asset.tvSymbol);
+                    }}
                     title={`${getAssetName(asset)} - ${t.marketClickToChart || 'Kliknutím otevřete v živém grafu TradingView'}`}
                     className={`p-3 rounded-xl transition-all duration-150 cursor-pointer text-left border flex flex-col justify-between ${
                       isSelectedInChart
-                        ? 'bg-emerald-500/15 border-emerald-500/60 shadow-lg shadow-emerald-500/10'
-                        : 'bg-[#15151c] hover:bg-[#1a1a24] border-white/[0.06] hover:border-emerald-500/30'
+                        ? 'bg-emerald-500/25 border-emerald-400 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/20'
+                        : 'bg-[#15151c] hover:bg-[#1e1e28] border-white/[0.06] hover:border-emerald-500/40 hover:scale-[1.01]'
                     }`}
                   >
                     <div className="flex items-start justify-between">

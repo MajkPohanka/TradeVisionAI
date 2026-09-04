@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, X, Scale, FileText, CheckCircle2, Lock, AlertTriangle, CreditCard, ChevronRight, UserCheck, Gavel, Cpu } from 'lucide-react';
+import { ShieldAlert, X, Scale, FileText, CheckCircle2, Lock, AlertTriangle, CreditCard, ChevronRight, UserCheck, Gavel, Cpu, Activity, Clock } from 'lucide-react';
 import { LanguageOption } from '../types';
 
 interface TermsModalProps {
@@ -223,6 +223,21 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                     : isEs
                     ? 'Los análisis son procesados por redes neuronales y modelos de lenguaje (LLM). La IA puede generar datos inexactos o alucinaciones. Las salidas de la IA no deben considerarse hechos absolutos.'
                     : 'Analyses are powered by deep learning LLMs which generate probabilistic models and may contain errors or hallucinations. AI outputs should never be treated as definitive financial truths.'}
+                </p>
+              </div>
+
+              {/* SLA & Availability Disclaimer */}
+              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-amber-500/20 space-y-2">
+                <div className="flex items-center space-x-2 text-amber-300 font-medium text-xs sm:text-sm">
+                  <Activity className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>{isCs ? 'Dostupnost služby, technické odstávky a SLA (50 %)' : isEs ? 'Disponibilidad del Servicio y SLA (50%)' : 'Service Availability, Maintenance & SLA (50%)'}</span>
+                </div>
+                <p className="text-xs text-[#a1a1a6] leading-relaxed">
+                  {isCs 
+                    ? 'Provozovatel usiluje o maximální stabilitu rozhraní, avšak s ohledem na závislost na externích neuronových sítích (Google Gemini API), cloudových klastrech a internetových přenosech je služba poskytována striktně na bázi „JAK JE“ (AS IS) a „JAK JE DOSTUPNÁ“ (AS AVAILABLE). Provozovatel NEGARANTUJE nepřetržitou 100% dostupnost ani nulovou odezvu; smluvní cílová dostupnost (SLA) činí minimálně 50 % provozního času. Provozovatel si výslovně vyhrazuje právo na plánované i neplánované technické odstávky, navýšení výpočetních kapacit, bezpečnostní záplaty a dočasná pozastavení z důvodu limitů externích poskytovatelů bez vzniku nároku na jakoukoliv finanční kompenzaci či náhradu škody. Nespotřebované kredity zůstávají zachovány na licenčním klíči.'
+                    : isEs
+                    ? 'El servicio se suministra "TAL CUAL" y "SEGÚN DISPONIBILIDAD", sujeto a la disponibilidad de redes neuronales externas y servidores en la nube. No se garantiza una disponibilidad del 100%; el SLA objetivo es de al menos el 50%. El operador se reserva el derecho a interrupciones por mantenimiento, ampliación de capacidad o actualizaciones sin derecho a indemnización económica.'
+                    : 'The service is provided strictly "AS IS" and "AS AVAILABLE", dependent on third-party neural network APIs, cloud compute infrastructure, and telecommunications. TRADEOY.com does NOT guarantee 100% uninterrupted uptime; target contractual availability (SLA) is 50%. The provider explicitly reserves the right to scheduled and emergency maintenance, capacity autoscaling, and temporary downtime without liability for damages or lost trading profits.'}
                 </p>
               </div>
 

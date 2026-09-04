@@ -9,7 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
 import { getTranslation } from './utils/translations';
-import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity } from 'lucide-react';
 
 // Code-split heavy secondary components to ensure lightning-fast initial mobile render
 const MetaTraderAuditView = lazy(() => import('./components/MetaTraderAuditView').then(m => ({ default: m.MetaTraderAuditView })));
@@ -68,6 +68,34 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTvSymbol, setSelectedTvSymbol] = useState<string | null>(null);
+  const [chartFocusTrigger, setChartFocusTrigger] = useState<number>(0);
+
+  // Jump immediately to the live TradingView chart when an asset is clicked in the top Market Overview bar
+  const handleSelectMarketAsset = (tvSymbol: string) => {
+    setActiveTab('analyzer');
+    setSelectedTvSymbol(tvSymbol);
+    setChartFocusTrigger(Date.now());
+
+    // Multi-pass smooth scroll into view with header offset support
+    const scrollToChart = () => {
+      const chartEl = document.getElementById('live-tradingview-section');
+      if (chartEl) {
+        chartEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return true;
+      }
+      return false;
+    };
+
+    if (!scrollToChart()) {
+      requestAnimationFrame(() => {
+        if (!scrollToChart()) {
+          setTimeout(scrollToChart, 80);
+        }
+      });
+    } else {
+      setTimeout(scrollToChart, 160);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<'analyzer' | 'audit' | 'calendar' | 'journal'>('analyzer');
   const [journal, setJournal] = useState<AnalysisResult[]>(() => {
@@ -348,8 +376,27 @@ export default function App() {
       console.error('Analysis error:', err);
       const rawMsg = err?.message || String(err);
       
-      // Translate Safari WebKit 'Load failed' or Chrome 'Failed to fetch' into user-friendly message
-      if (rawMsg === 'Load failed' || rawMsg.includes('Failed to fetch') || rawMsg.includes('NetworkError') || err.name === 'TypeError') {
+      const isCapacityIssue = rawMsg.includes('kapacit') || 
+                              rawMsg.includes('kontaktován') || 
+                              rawMsg.includes('TRADEOY') ||
+                              rawMsg.includes('prepayment') ||
+                              rawMsg.includes('billing') ||
+                              rawMsg.includes('Gemini') ||
+                              rawMsg.includes('gemini') ||
+                              rawMsg.includes('RESOURCE_EXHAUSTED') ||
+                              rawMsg.includes('quota') ||
+                              rawMsg.includes('Quota exceeded') ||
+                              rawMsg.includes('429');
+
+      if (isCapacityIssue) {
+        setError(
+          settings.language === 'cs'
+            ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit za tuto analýzu zůstal v plné výši zachován.'
+            : settings.language === 'es'
+            ? 'La ampliación de capacidad del servidor de IA está en progreso. El equipo de TRADEOY.com ha sido notificado y la funcionalidad completa se restablecerá a la mayor brevedad. Su crédito ha sido preservado íntegramente.'
+            : 'AI server capacity autoscaling is in progress. The TRADEOY.com development team has been promptly notified and full functionality will be restored as soon as possible. Your analysis credit remains fully preserved.'
+        );
+      } else if (rawMsg === 'Load failed' || rawMsg.includes('Failed to fetch') || rawMsg.includes('NetworkError') || err.name === 'TypeError') {
         setError(
           settings.language === 'cs'
             ? 'Spojení se serverem bylo přerušeno nebo nahrávání vypršelo. Klikněte na „Zkusit znovu analýzu“ níže.'
@@ -421,10 +468,7 @@ export default function App() {
         {/* Interactive Top Market Overview Bar (Indices, Gold, Crypto, Forex) */}
         <MarketOverviewBar
           language={settings.language}
-          onSelectAsset={(tvSymbol) => {
-            setSelectedTvSymbol(tvSymbol);
-            setActiveTab('analyzer');
-          }}
+          onSelectAsset={handleSelectMarketAsset}
           selectedTvSymbol={selectedTvSymbol}
         />
 
@@ -451,6 +495,7 @@ export default function App() {
                 onInsertImageToSlot={handleInsertImageToSlot}
                 slots={images}
                 externalSymbol={selectedTvSymbol}
+                focusTrigger={chartFocusTrigger}
               />
 
               {/* Prominent Legal & Educational Disclaimer Banner - Placed below Chart Uploader */}
@@ -479,24 +524,73 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Error Banner */}
-              {error && (
-                <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
-                  <div className="flex items-center space-x-3">
-                    <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-                    <span className="font-medium">{error}</span>
+              {/* Error or Capacity Notice Banner */}
+              {error && (() => {
+                const isCapacityNotice = error.includes('kapacit') || 
+                                         error.includes('kontaktován') || 
+                                         error.includes('TRADEOY') ||
+                                         error.includes('autoscaling') ||
+                                         error.includes('ampliación');
+
+                if (isCapacityNotice) {
+                  return (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#14120e] border border-amber-500/40 text-amber-200 shadow-xl space-y-3 animate-fadeIn">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-start space-x-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                            <Activity className="w-5 h-5 text-amber-400 animate-pulse" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-amber-300 text-sm">
+                                {settings.language === 'cs'
+                                  ? 'Probíhá automatické navýšení kapacity AI serveru'
+                                  : settings.language === 'es'
+                                  ? 'Ampliación de capacidad de IA en curso'
+                                  : 'AI Server Capacity Scaling in Progress'}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold">
+                                ✓ {settings.language === 'cs' ? 'Kredit zachován' : 'Credit preserved'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-200/90 leading-relaxed">
+                              {error}
+                            </p>
+                          </div>
+                        </div>
+                        {images.some(Boolean) && (
+                          <button
+                            onClick={handleAnalyzeChart}
+                            disabled={isLoading}
+                            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold transition border border-amber-500/40 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                            <span>{settings.language === 'cs' ? 'Zkusit znovu' : 'Retry now'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                    <div className="flex items-center space-x-3">
+                      <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+                      <span className="font-medium">{error}</span>
+                    </div>
+                    {images.some(Boolean) && (
+                      <button
+                        onClick={handleAnalyzeChart}
+                        disabled={isLoading}
+                        className="px-4 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
+                      >
+                        <span>Zkusit znovu analýzu</span>
+                      </button>
+                    )}
                   </div>
-                  {images.some(Boolean) && (
-                    <button
-                      onClick={handleAnalyzeChart}
-                      disabled={isLoading}
-                      className="px-4 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
-                    >
-                      <span>Zkusit znovu analýzu</span>
-                    </button>
-                  )}
-                </div>
-              )}
+                );
+              })()}
 
               {/* Analysis Results View */}
               {analysisResult && (

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   TrendingUp,
   Camera,
@@ -35,6 +36,7 @@ interface TradingViewLiveChartProps {
   slots?: (string | null)[];
   activeSlotIndex?: number | null;
   externalSymbol?: string | null;
+  focusTrigger?: number;
 }
 
 interface MarketPreset {
@@ -47,14 +49,21 @@ interface MarketPreset {
 
 const MARKET_PRESETS: MarketPreset[] = [
   { id: 'gold', name: 'Zlato (XAUUSD)', symbol: 'OANDA:XAUUSD', category: 'metal', icon: '🥇' },
-  { id: 'eurusd', name: 'EUR/USD', symbol: 'FX:EURUSD', category: 'forex', icon: '💶' },
-  { id: 'btc', name: 'Bitcoin (BTC)', symbol: 'BINANCE:BTCUSDT', category: 'crypto', icon: '⚡' },
-  { id: 'nasdaq', name: 'Nasdaq (US100)', symbol: 'CAPITALCOM:US100', category: 'index', icon: '📈' },
+  { id: 'silver', name: 'Stříbro (XAGUSD)', symbol: 'OANDA:XAGUSD', category: 'metal', icon: '🥈' },
   { id: 'sp500', name: 'S&P 500 (US500)', symbol: 'CAPITALCOM:US500', category: 'index', icon: '🏛️' },
+  { id: 'nasdaq', name: 'Nasdaq 100 (US100)', symbol: 'CAPITALCOM:US100', category: 'index', icon: '💻' },
+  { id: 'dow', name: 'Dow Jones (US30)', symbol: 'CAPITALCOM:US30', category: 'index', icon: '📈' },
+  { id: 'dax', name: 'DAX 40 (DE40)', symbol: 'CAPITALCOM:DE40', category: 'index', icon: '🇩🇪' },
+  { id: 'oil', name: 'Ropa WTI', symbol: 'TVC:USOIL', category: 'commodity', icon: '🛢️' },
+  { id: 'oil_brent', name: 'Ropa Brent', symbol: 'TVC:UKOIL', category: 'commodity', icon: '🌊' },
+  { id: 'btc', name: 'Bitcoin (BTC)', symbol: 'BINANCE:BTCUSDT', category: 'crypto', icon: '⚡' },
+  { id: 'eth', name: 'Ethereum (ETH)', symbol: 'BINANCE:ETHUSDT', category: 'crypto', icon: '🪙' },
+  { id: 'sol', name: 'Solana (SOL)', symbol: 'BINANCE:SOLUSDT', category: 'crypto', icon: '☀️' },
+  { id: 'xrp', name: 'Ripple (XRP)', symbol: 'BINANCE:XRPUSDT', category: 'crypto', icon: '💧' },
+  { id: 'eurusd', name: 'EUR/USD', symbol: 'FX:EURUSD', category: 'forex', icon: '💶' },
   { id: 'gbpusd', name: 'GBP/USD', symbol: 'FX:GBPUSD', category: 'forex', icon: '💷' },
   { id: 'usdjpy', name: 'USD/JPY', symbol: 'FX:USDJPY', category: 'forex', icon: '🇯🇵' },
-  { id: 'oil', name: 'Ropa (WTI)', symbol: 'TVC:USOIL', category: 'commodity', icon: '🛢️' },
-  { id: 'eth', name: 'Ethereum (ETH)', symbol: 'BINANCE:ETHUSDT', category: 'crypto', icon: '🪙' },
+  { id: 'usdchf', name: 'USD/CHF', symbol: 'FX:USDCHF', category: 'forex', icon: '🇨🇭' },
 ];
 
 const TIMEFRAMES = [
@@ -73,6 +82,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   slots = [null, null, null],
   activeSlotIndex = 0,
   externalSymbol = null,
+  focusTrigger = 0,
 }) => {
   const t = getTranslation(language);
 
@@ -83,14 +93,41 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const [chartHeight, setChartHeight] = useState<'standard' | 'tall' | 'fullscreen'>('standard');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [isHighlighted, setIsHighlighted] = useState<boolean>(false);
 
-  // Sync external symbol if requested (e.g. from the top Market Overview bar)
+  // Sync external symbol if requested (e.g. when clicking on top Market Overview bar)
   useEffect(() => {
-    if (externalSymbol && externalSymbol !== symbol) {
+    if (externalSymbol) {
       setSymbol(externalSymbol);
       setIsExpanded(true);
+
+      // Trigger visual glow highlight
+      setIsHighlighted(true);
+      const highlightTimer = setTimeout(() => setIsHighlighted(false), 2800);
+
+      // Visual feedback toast
+      const matchingPreset = MARKET_PRESETS.find((p) => p.symbol === externalSymbol);
+      const label = matchingPreset ? matchingPreset.name : externalSymbol.replace(/^[A-Z0-9]+:/, '');
+      showToast(
+        language === 'cs'
+          ? `✓ Graf načten: ${label}`
+          : `✓ Chart loaded: ${label}`,
+        'success'
+      );
+
+      // Scroll into view
+      const scrollChart = () => {
+        const el = document.getElementById('live-tradingview-section');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      };
+      scrollChart();
+      setTimeout(scrollChart, 100);
+
+      return () => clearTimeout(highlightTimer);
     }
-  }, [externalSymbol]);
+  }, [externalSymbol, focusTrigger]);
 
   // Quick Insert Modal State
   const [modalSlotIndex, setModalSlotIndex] = useState<number | null>(null);
@@ -506,7 +543,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     <div
       id="live-tradingview-section"
       data-rr-block="true"
-      className={`bg-[#121216] border border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-2xl transition-all duration-300 relative overflow-hidden rr-block rr-ignore ${
+      className={`bg-[#121216] border rounded-2xl sm:rounded-3xl shadow-2xl transition-all duration-500 relative overflow-hidden rr-block rr-ignore scroll-mt-20 sm:scroll-mt-24 ${
+        isHighlighted
+          ? 'border-emerald-400 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/40'
+          : 'border-white/[0.08]'
+      } ${
         chartHeight === 'fullscreen' ? 'z-50' : ''
       }`}
     >
@@ -519,16 +560,16 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
         className="hidden"
       />
 
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className="fixed top-20 right-4 sm:right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+      {/* Toast Alert via Portal */}
+      {toastMessage && typeof document !== 'undefined' && createPortal(
+        <div className="fixed top-20 right-4 sm:right-8 z-[99999] pointer-events-none animate-in fade-in slide-in-from-top-4 duration-200">
           <div
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2.5 shadow-2xl border ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2.5 shadow-2xl border backdrop-blur-md ${
               toastMessage.type === 'success'
-                ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200'
+                ? 'bg-emerald-950/95 border-emerald-500/80 text-emerald-200 shadow-emerald-950/60'
                 : toastMessage.type === 'warning'
-                ? 'bg-amber-950 border-amber-500/50 text-amber-200'
-                : 'bg-cyan-950 border-cyan-500/50 text-cyan-200'
+                ? 'bg-amber-950/95 border-amber-500/80 text-amber-200 shadow-amber-950/60'
+                : 'bg-cyan-950/95 border-cyan-500/80 text-cyan-200 shadow-cyan-950/60'
             }`}
           >
             {toastMessage.type === 'success' ? (
@@ -538,7 +579,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             )}
             <span>{toastMessage.text}</span>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Quick Insert Modal */}

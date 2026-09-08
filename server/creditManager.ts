@@ -195,10 +195,11 @@ function ensureLoaded(force = false) {
 }
 
 // Atomically persist licenses cache to disk with backup to prevent corruption on crash
+let saveScheduled = false;
+
 function saveToDisk() {
   if (isSaving) {
-    // If a save is already in-flight, schedule an immediate deferred save
-    setTimeout(saveToDisk, 20);
+    saveScheduled = true;
     return;
   }
   isSaving = true;
@@ -210,14 +211,14 @@ function saveToDisk() {
     const dataArray = Array.from(licensesCache.values());
     const jsonContent = JSON.stringify(dataArray, null, 2);
 
-    // 1. Write to temporary file first (atomic staging)
-    fs.writeFileSync(LICENSES_TEMP_FILE, jsonContent, 'utf-8');
+    // 1. Write to temporary file first with restricted permissions (atomic staging)
+    fs.writeFileSync(LICENSES_TEMP_FILE, jsonContent, { encoding: 'utf-8', mode: 0o600 });
 
     // 2. If primary file currently exists and is valid, create a backup
     if (fs.existsSync(LICENSES_FILE)) {
       try {
         fs.copyFileSync(LICENSES_FILE, LICENSES_BACKUP_FILE);
-      } catch (backupErr) {
+      } catch {
         // Non-fatal backup warning
       }
     }
@@ -228,6 +229,10 @@ function saveToDisk() {
     console.error('[CreditManager] Error atomically saving licenses storage:', err);
   } finally {
     isSaving = false;
+    if (saveScheduled) {
+      saveScheduled = false;
+      setImmediate(saveToDisk);
+    }
   }
 }
 

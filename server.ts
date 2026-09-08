@@ -29,12 +29,14 @@ process.on('uncaughtException', (error) => {
 const app = express();
 const PORT = 3000;
 
-// 1. Security Headers Middleware
+// 1. Security Headers Middleware (OWASP recommended defense-in-depth)
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   next();
 });
 
@@ -79,21 +81,53 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   next(err);
 });
 
-// 3. In-memory sliding window Rate Limiter for AI endpoints (DoS & Quota exhaustion protection)
+// 4. Rate Limiting & DoS Protection with Leak-Free Sliding Window
 interface RateLimitBucket {
   count: number;
   resetTime: number;
 }
 const rateLimitMap = new Map<string, RateLimitBucket>();
 
-function createRateLimiter(maxRequests: number, windowMs: number) {
+// Safely extract client IP from reverse-proxy header, taking the first valid IP and sanitizing
+function getClientIp(req: express.Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    const first = forwarded.split(',')[0]?.trim();
+    if (first) {
+      return first.replace(/[^a-zA-Z0-9.:_-]/g, '').slice(0, 64);
+    }
+  }
+  const remote = req.socket.remoteAddress || 'unknown-ip';
+  return remote.replace(/[^a-zA-Z0-9.:_-]/g, '').slice(0, 64);
+}
+
+// Scheduled pruning of expired rate limit buckets to prevent memory exhaustion / OOM attacks
+const rateLimitCleaner = setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of rateLimitMap.entries()) {
+    if (now > bucket.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+  // Hard cap safeguard: if map exceeds 25,000 entries, clear oldest
+  if (rateLimitMap.size > 25000) {
+    rateLimitMap.clear();
+  }
+}, 60 * 1000);
+if (rateLimitCleaner && typeof rateLimitCleaner.unref === 'function') {
+  rateLimitCleaner.unref();
+}
+
+function createRateLimiter(maxRequests: number, windowMs: number, customMessage?: string) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown-ip';
+    const ip = getClientIp(req);
+    const routePrefix = req.baseUrl || req.path;
+    const bucketKey = `${routePrefix}:${ip}`;
     const now = Date.now();
-    const bucket = rateLimitMap.get(ip);
+    const bucket = rateLimitMap.get(bucketKey);
 
     if (!bucket || now > bucket.resetTime) {
-      rateLimitMap.set(ip, {
+      rateLimitMap.set(bucketKey, {
         count: 1,
         resetTime: now + windowMs,
       });
@@ -101,10 +135,10 @@ function createRateLimiter(maxRequests: number, windowMs: number) {
     }
 
     if (bucket.count >= maxRequests) {
-      const waitSec = Math.ceil((bucket.resetTime - now) / 1000);
+      const waitSec = Math.max(1, Math.ceil((bucket.resetTime - now) / 1000));
       return res.status(429).json({
         success: false,
-        error: `Příliš mnoho požadavků. Prosím počkejte ${waitSec} sekund před dalším spuštěním AI.`,
+        error: customMessage || `Příliš mnoho požadavků. Prosím počkejte ${waitSec} sekund před dalším pokusem.`,
         retryAfter: waitSec,
       });
     }
@@ -114,8 +148,11 @@ function createRateLimiter(maxRequests: number, windowMs: number) {
   };
 }
 
-// Rate limiter instances: 15 analysis requests per minute per client
-const aiRateLimiter = createRateLimiter(15, 60 * 1000);
+// Rate limiters tuned by risk profile
+const aiRateLimiter = createRateLimiter(15, 60 * 1000, 'Příliš mnoho požadavků na AI analýzu. Prosím počkejte chvíli před dalším spuštěním.');
+const authRateLimiter = createRateLimiter(35, 60 * 1000, 'Příliš mnoho pokusů o ověření licence. Prosím počkejte minutu před dalším pokusem.');
+const trialRateLimiter = createRateLimiter(6, 60 * 1000, 'Příliš mnoho žádostí o zkušební licenci z tohoto připojení.');
+const imageFetchRateLimiter = createRateLimiter(20, 60 * 1000, 'Příliš mnoho požadavků na stažení externích snímků grafu.');
 
 // Concurrency Limiter for Gemini operations (max 4 concurrent AI calls)
 class ConcurrencyLimiter {
@@ -455,7 +492,7 @@ app.get('/api/credits/packages', (_req, res) => {
   });
 });
 
-app.get('/api/credits/status', (req, res) => {
+app.get('/api/credits/status', authRateLimiter, (req, res) => {
   const key = (req.query.key as string) || '';
   if (!key) {
     return res.status(400).json({ success: false, error: 'Chybí licenční klíč.' });
@@ -524,10 +561,10 @@ const handleLicenseVerify = (req: express.Request, res: express.Response) => {
   });
 };
 
-app.post('/api/credits/verify', handleLicenseVerify);
-app.post('/api/credits/check-license', handleLicenseVerify);
+app.post('/api/credits/verify', authRateLimiter, handleLicenseVerify);
+app.post('/api/credits/check-license', authRateLimiter, handleLicenseVerify);
 
-app.post('/api/credits/claim-trial', (req, res) => {
+app.post('/api/credits/claim-trial', trialRateLimiter, (req, res) => {
   try {
     const validation = ClaimTrialSchema.safeParse(req.body);
     if (!validation.success) {
@@ -539,7 +576,7 @@ app.post('/api/credits/claim-trial', (req, res) => {
     }
 
     const { email } = validation.data;
-    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     const result = CreditManager.claimTrialLicense(email || undefined, clientIp);
     if (!result.success) {
       return res.status(429).json({
@@ -624,8 +661,44 @@ app.post('/api/credits/confirm-session', async (req, res) => {
   }
 });
 
+// SSRF Defense helper: Validates that an external URL does not resolve to private, loopback, or cloud metadata endpoints
+function isForbiddenExternalHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === '0.0.0.0' ||
+    h === '::1' ||
+    h === '[::1]' ||
+    h.endsWith('.localhost') ||
+    h.endsWith('.local') ||
+    h.endsWith('.internal') ||
+    h === 'metadata.google.internal' ||
+    h === 'metadata'
+  ) {
+    return true;
+  }
+  // Block IPv4 private ranges & cloud metadata (169.254)
+  if (
+    h.startsWith('10.') ||
+    h.startsWith('192.168.') ||
+    h.startsWith('169.254.') ||
+    h.startsWith('127.') ||
+    h.startsWith('0.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h) ||
+    /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(h)
+  ) {
+    return true;
+  }
+  // Block IPv6 link-local and unique local
+  if (h.startsWith('fe80:') || h.startsWith('fc00:') || h.startsWith('fd00:')) {
+    return true;
+  }
+  return false;
+}
+
 // Endpoint to fetch external chart images / TradingView snapshot links safely for users
-app.post('/api/fetch-chart-image', async (req, res) => {
+app.post('/api/fetch-chart-image', imageFetchRateLimiter, async (req, res) => {
   try {
     const { url } = req.body;
     if (!url || typeof url !== 'string') {
@@ -645,23 +718,8 @@ app.post('/api/fetch-chart-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Neplatný formát URL.' });
     }
 
-    const hostname = parsed.hostname.toLowerCase();
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '0.0.0.0' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      hostname.startsWith('172.16.') ||
-      hostname.startsWith('172.17.') ||
-      hostname.startsWith('172.18.') ||
-      hostname.startsWith('172.19.') ||
-      hostname.startsWith('172.2') ||
-      hostname.startsWith('172.30.') ||
-      hostname.startsWith('172.31.') ||
-      hostname.startsWith('169.254.')
-    ) {
-      return res.status(403).json({ success: false, error: 'Přístup k privátním IP adresám je zakázán.' });
+    if (isForbiddenExternalHost(parsed.hostname)) {
+      return res.status(403).json({ success: false, error: 'Přístup k interním a privátním IP adresám je zakázán.' });
     }
 
     let targetUrl = trimmedUrl;
@@ -706,13 +764,19 @@ app.post('/api/fetch-chart-image', async (req, res) => {
           const html = await pageRes.text();
           const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
           if (ogImageMatch && ogImageMatch[1]) {
-            targetUrl = ogImageMatch[1];
-            response = await fetch(targetUrl, {
-              headers: {
-                'User-Agent':
-                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              },
-            });
+            const rawOgUrl = ogImageMatch[1];
+            try {
+              const ogParsed = new URL(rawOgUrl);
+              if (!isForbiddenExternalHost(ogParsed.hostname)) {
+                targetUrl = rawOgUrl;
+                response = await fetch(targetUrl, {
+                  headers: {
+                    'User-Agent':
+                      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  },
+                });
+              }
+            } catch {}
           }
         }
       } catch {}

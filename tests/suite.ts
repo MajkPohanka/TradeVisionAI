@@ -301,6 +301,114 @@ async function main() {
   });
 
   // ----------------------------------------------------
+  // 4. PENETRATION TESTS & ARCHITECTURAL SECURITY DEFENSES
+  // ----------------------------------------------------
+  console.log('\n--- 4. Penetration Tests & DoS/SSRF/DB Security Defense ---');
+
+  await runTest('PenTest/SSRF', 'POST /api/fetch-chart-image blocks Cloud Metadata service IP (169.254.169.254)', async () => {
+    const res = await fetch(`${BASE_URL}/api/fetch-chart-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'http://169.254.169.254/computeMetadata/v1/instance/id' }),
+    });
+    assert.equal(res.status, 403);
+    const data: any = await res.json();
+    assert.equal(data.success, false);
+  });
+
+  await runTest('PenTest/SSRF', 'POST /api/fetch-chart-image blocks Cloud Metadata hostname (metadata.google.internal)', async () => {
+    const res = await fetch(`${BASE_URL}/api/fetch-chart-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'http://metadata.google.internal/computeMetadata/v1/' }),
+    });
+    assert.equal(res.status, 403);
+    const data: any = await res.json();
+    assert.equal(data.success, false);
+  });
+
+  await runTest('PenTest/SSRF', 'POST /api/fetch-chart-image blocks local loopback (127.0.0.1 / localhost)', async () => {
+    const res = await fetch(`${BASE_URL}/api/fetch-chart-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'http://127.0.0.1:3000/api/health' }),
+    });
+    assert.equal(res.status, 403);
+  });
+
+  await runTest('PenTest/SSRF', 'POST /api/fetch-chart-image blocks RFC 1918 private subnets (10.x, 192.168.x)', async () => {
+    const res1 = await fetch(`${BASE_URL}/api/fetch-chart-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'http://192.168.1.1/admin' }),
+    });
+    assert.equal(res1.status, 403);
+
+    const res2 = await fetch(`${BASE_URL}/api/fetch-chart-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'http://10.0.0.1/' }),
+    });
+    assert.equal(res2.status, 403);
+  });
+
+  await runTest('PenTest/SSRF', 'POST /api/fetch-chart-image rejects non-HTTP protocols (file://, ftp://)', async () => {
+    const res = await fetch(`${BASE_URL}/api/fetch-chart-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'file:///etc/passwd' }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  await runTest('DB/Concurrency', 'Concurrent credit reservation prevents double-spending race conditions', async () => {
+    // Create isolated test license with exactly 2 credits
+    const testLicense = CreditManager.createLicense(2, 'starter', 'concurrency-pentest@tradeoy.com');
+    const key = testLicense.key;
+
+    // Fire 20 simultaneous reservation requests in parallel
+    const reservationAttempts = Array.from({ length: 20 }, () =>
+      CreditManager.reserveCredit(key, 1)
+    );
+
+    const results = await Promise.all(reservationAttempts);
+    const successfulReservations = results.filter((r) => r.success);
+    const rejectedReservations = results.filter((r) => !r.success);
+
+    // Exactly 2 must succeed, exactly 18 must be blocked
+    assert.equal(successfulReservations.length, 2, 'Exactly 2 reservations must succeed for balance 2');
+    assert.equal(rejectedReservations.length, 18, 'Remaining 18 concurrent requests must be rejected');
+
+    const finalState = CreditManager.getLicense(key);
+    assert.equal(finalState?.credits, 0, 'Final credit balance must be exactly 0 (no negative balance)');
+  });
+
+  await runTest('PenTest/DoS', 'Rate limiter blocks brute-force enumeration attacks (returns HTTP 429)', async () => {
+    // Send a burst of requests to trigger rate limit on auth endpoint
+    let triggered429 = false;
+    for (let i = 0; i < 40; i++) {
+      const res = await fetch(`${BASE_URL}/api/credits/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: `BRUTE-FORCE-ATTEMPT-${i}` }),
+      });
+      if (res.status === 429) {
+        triggered429 = true;
+        const data: any = await res.json();
+        assert.ok(data.retryAfter >= 0);
+        break;
+      }
+    }
+    assert.ok(triggered429, 'Rate limiter must engage and return HTTP 429 upon high-frequency burst');
+  });
+
+  await runTest('HTTP/Security', 'OWASP headers contain strict Permissions-Policy and COOP isolation', async () => {
+    const res = await fetch(`${BASE_URL}/api/health`);
+    assert.ok(res.headers.get('permissions-policy')?.includes('camera=()'));
+    assert.equal(res.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+  });
+
+  // ----------------------------------------------------
   // SUMMARY
   // ----------------------------------------------------
   console.log('\n========================================');

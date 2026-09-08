@@ -683,13 +683,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           return (
             <div
               key={idx}
+              id={`uploader-slot-${idx}`}
               onClick={() => setActiveSlotIndex(idx)}
               onDrop={(e) => handleDropOnSlot(e, idx)}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className={`rounded-2xl transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer relative ${
+              className={`rounded-2xl transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer relative scroll-mt-24 ${
                 isSelected
                   ? 'bg-[#151b17] border-2 border-emerald-400 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/20'
                   : hasImage
@@ -711,6 +712,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                   </span>
                   <div>
                     <div className="flex items-center space-x-1.5">
+                      <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span className={`text-xs font-bold ${isSelected ? 'text-emerald-300' : 'text-white'}`}>
                         {slot.tf}
                       </span>
@@ -856,43 +858,53 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         })}
       </div>
 
-      {/* 4. PRIMARY CALL-TO-ACTION (Dominant execution button) */}
-      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#121216] border border-white/[0.08] rounded-2xl p-4 sm:p-5">
-        <div className="flex items-center space-x-3 text-xs text-[#a1a1a6]">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-            <Layers className="w-4 h-4" />
+      {/* 4. PRIMARY CALL-TO-ACTION (Expanded Dominant Execution Bar) */}
+      <div className="pt-3 space-y-3 bg-[#121216] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl">
+        {/* Status and engine guidance row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3 text-xs text-[#a1a1a6]">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-white font-bold text-xs sm:text-sm">
+                {language === 'cs'
+                  ? `Stav podkladů: ${uploadedCount} / ${MAX_IMAGES} ${uploadedCount === 1 ? 'graf' : (uploadedCount >= 2 && uploadedCount <= 4) ? 'grafy' : 'grafů'}`
+                  : t.uploadStatusCount.replace('{count}', String(uploadedCount)).replace('{max}', String(MAX_IMAGES))}
+              </div>
+              <div className="text-[11px] text-[#86868b]">
+                {uploadedCount === 0
+                  ? t.uploadHintEmpty.replace('{key}', 'Ctrl+V / ⌘+V')
+                  : uploadedCount < MAX_IMAGES
+                  ? t.uploadHintPartial
+                  : t.uploadHintComplete}
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-white font-bold text-xs sm:text-sm">
-              {language === 'cs'
-                ? `Stav podkladů: ${uploadedCount} / ${MAX_IMAGES} ${uploadedCount === 1 ? 'graf' : (uploadedCount >= 2 && uploadedCount <= 4) ? 'grafy' : 'grafů'}`
-                : t.uploadStatusCount.replace('{count}', String(uploadedCount)).replace('{max}', String(MAX_IMAGES))}
-            </div>
-            <div className="text-[11px] text-[#86868b]">
-              {uploadedCount === 0
-                ? t.uploadHintEmpty.replace('{key}', 'Ctrl+V / ⌘+V')
-                : uploadedCount < MAX_IMAGES
-                ? t.uploadHintPartial
-                : t.uploadHintComplete}
-            </div>
+
+          <div className="flex items-center space-x-2 text-[11px] text-emerald-400 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Top-Down Multi-Timeframe AI Engine</span>
           </div>
         </div>
 
+        {/* WIDE & ENLARGED BUTTON */}
         <button
           type="button"
+          id="run-ai-analysis-btn"
           onClick={onAnalyze}
           disabled={uploadedCount === 0 || isLoading}
-          className="w-full sm:w-auto sm:min-w-[300px] md:min-w-[360px] lg:min-w-[400px] px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm sm:text-base transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-2.5 shadow-lg shadow-emerald-500/20 active:scale-98 shrink-0"
+          className="w-full py-4 sm:py-5 px-8 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:brightness-110 text-black font-black text-base sm:text-lg tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-3 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 active:scale-[0.99] border border-emerald-300/40"
         >
           {isLoading ? (
             <>
-              <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-3 border-black border-t-transparent rounded-full animate-spin shrink-0" />
               <span>{t.analyzingBtn}</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 text-black fill-black" />
-              <span>{t.analyzeBtn}</span>
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-black fill-black shrink-0" />
+              <span className="uppercase tracking-wider">{t.analyzeBtn}</span>
             </>
           )}
         </button>

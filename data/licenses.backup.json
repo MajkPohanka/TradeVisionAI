@@ -14,8 +14,9 @@
     "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
     "totalPurchased": 999999,
-    "totalUsed": 0,
-    "createdAt": 1786700137553
+    "totalUsed": 1,
+    "createdAt": 1786700137553,
+    "lastUsedAt": 1788872248467
   },
   {
     "key": "AIAUTO-U85R-LZD7-BWCT",
@@ -756,13 +757,24 @@
   },
   {
     "key": "TRADEOY-F5RM-R8W3-7NH5",
-    "credits": 1,
+    "credits": 0,
     "tier": "starter",
     "email": "concurrency-pentest@tradeoy.com",
     "totalPurchased": 2,
-    "totalUsed": 1,
+    "totalUsed": 2,
     "createdAt": 1788862886880,
     "stripeSessionIds": [],
     "lastUsedAt": 1788862886881
+  },
+  {
+    "key": "TRADEOY-4LM5-7WK6-R2GS",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "test_user_777@tradeoy.com",
+    "totalPurchased": 3,
+    "totalUsed": 1,
+    "createdAt": 1788872904021,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1788872907497
   }
 ]

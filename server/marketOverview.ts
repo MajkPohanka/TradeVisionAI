@@ -60,7 +60,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '🏛️',
     source: 'yahoo',
     querySymbol: '^GSPC',
-    fallbackPrice: 5980.25,
+    fallbackPrice: 7718.5,
     fallbackChange: 0.42,
   },
   {
@@ -77,7 +77,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '💻',
     source: 'yahoo',
     querySymbol: '^NDX',
-    fallbackPrice: 21350.8,
+    fallbackPrice: 29540.0,
     fallbackChange: 0.65,
   },
   {
@@ -94,7 +94,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '📈',
     source: 'yahoo',
     querySymbol: '^DJI',
-    fallbackPrice: 43850.4,
+    fallbackPrice: 53410.0,
     fallbackChange: -0.15,
   },
   {
@@ -111,7 +111,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '🇩🇪',
     source: 'yahoo',
     querySymbol: '^GDAXI',
-    fallbackPrice: 19820.5,
+    fallbackPrice: 25990.0,
     fallbackChange: 0.28,
   },
 
@@ -130,7 +130,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '🥇',
     source: 'yahoo',
     querySymbol: 'GC=F',
-    fallbackPrice: 2915.6,
+    fallbackPrice: 4430.0,
     fallbackChange: 0.85,
   },
   {
@@ -147,7 +147,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '🥈',
     source: 'yahoo',
     querySymbol: 'SI=F',
-    fallbackPrice: 32.45,
+    fallbackPrice: 66.5,
     fallbackChange: 1.12,
   },
   {
@@ -164,7 +164,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '🛢️',
     source: 'yahoo',
     querySymbol: 'CL=F',
-    fallbackPrice: 71.85,
+    fallbackPrice: 93.5,
     fallbackChange: -0.45,
   },
   {
@@ -181,7 +181,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '🌊',
     source: 'yahoo',
     querySymbol: 'BZ=F',
-    fallbackPrice: 75.4,
+    fallbackPrice: 98.0,
     fallbackChange: -0.32,
   },
 
@@ -200,7 +200,7 @@ const ASSET_DEFINITIONS: Array<{
     icon: '⚡',
     source: 'binance',
     querySymbol: 'BTCUSDT',
-    fallbackPrice: 87650.0,
+    fallbackPrice: 78500.0,
     fallbackChange: 2.14,
   },
   {
@@ -382,37 +382,40 @@ export async function fetchLiveMarketOverview(): Promise<MarketAssetData[]> {
 
       // 2. Fetch Yahoo Finance charts for all non-crypto assets concurrently
       const yahooItems = ASSET_DEFINITIONS.filter((a) => a.source === 'yahoo');
+      const yahooHosts = ['https://query2.finance.yahoo.com', 'https://query1.finance.yahoo.com'];
+
       const yahooPromises = yahooItems.map(async (def) => {
-        try {
-          const res = await fetch(
-            `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(def.querySymbol)}?interval=1d&range=2d`,
-            {
-              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-              signal: AbortSignal.timeout(3800),
-            }
-          );
-          if (!res.ok) return null;
-          const data: any = await res.json();
-          const meta = data?.chart?.result?.[0]?.meta;
-          if (!meta || typeof meta.regularMarketPrice !== 'number') return null;
+        for (const host of yahooHosts) {
+          try {
+            const res = await fetch(
+              `${host}/v8/finance/chart/${encodeURIComponent(def.querySymbol)}?interval=1d&range=2d`,
+              {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                signal: AbortSignal.timeout(3500),
+              }
+            );
+            if (!res.ok) continue;
+            const data: any = await res.json();
+            const meta = data?.chart?.result?.[0]?.meta;
+            if (!meta || typeof meta.regularMarketPrice !== 'number') continue;
 
-          const price = meta.regularMarketPrice;
-          const prev = meta.chartPreviousClose || meta.previousClose || price;
-          const changePercent = prev ? ((price - prev) / prev) * 100 : 0;
-          const high = meta.regularMarketDayHigh || price * 1.008;
-          const low = meta.regularMarketDayLow || price * 0.992;
+            const price = meta.regularMarketPrice;
+            const prev = meta.chartPreviousClose || meta.previousClose || price;
+            const changePercent = prev ? ((price - prev) / prev) * 100 : 0;
+            const high = meta.regularMarketDayHigh || price * 1.008;
+            const low = meta.regularMarketDayLow || price * 0.992;
 
-          return {
-            id: def.id,
-            price,
-            changePercent,
-            changeValue: price - prev,
-            high,
-            low,
-          };
-        } catch {
-          return null;
+            return {
+              id: def.id,
+              price,
+              changePercent,
+              changeValue: price - prev,
+              high,
+              low,
+            };
+          } catch {}
         }
+        return null;
       });
 
       const [binanceMap, ...yahooResults] = await Promise.all([binancePromise, ...yahooPromises]);

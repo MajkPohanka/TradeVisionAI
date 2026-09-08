@@ -43,7 +43,7 @@ export const translations = {
     customMentorPromptPlaceholder: 'Např.: Buď přísný jako risk manažer z hedge fondu. Neakceptuj obchody s RR nižším než 1:3. Vždy zmiň Wyckoffovu akumulaci/distribuci...',
 
     // Chart Uploader
-    uploaderTitle: 'Nahrání grafu pro AI analýzu',
+    uploaderTitle: 'AI Analýza grafů',
     uploaderSubtitle: 'Přetáhněte snímek grafu (Ctrl+V / ⌘+V) nebo zvolte soubory. Podporuje více-timeframe analýzu.',
     clickToBrowse: 'Klikněte pro výběr obrázku nebo přetáhněte snímek sem',
     supportedFormats: 'Podporuje PNG, JPG, WebP z TradingView',
@@ -511,7 +511,7 @@ export const translations = {
     customMentorPromptPlaceholder: 'E.g.: Be strict like a hedge fund risk manager. Do not accept setups with RR lower than 1:3. Always mention Wyckoff accumulation/distribution phases...',
 
     // Chart Uploader
-    uploaderTitle: 'Upload Chart for AI Analysis',
+    uploaderTitle: 'AI Chart Analysis',
     uploaderSubtitle: 'Drag & drop your chart screenshot (Ctrl+V / ⌘+V) or browse files. Supports multi-timeframe analysis.',
     clickToBrowse: 'Click to select image or drop screenshot here',
     supportedFormats: 'Supports PNG, JPG, WebP from TradingView',
@@ -979,7 +979,7 @@ export const translations = {
     customMentorPromptPlaceholder: 'Ej.: Sé estricto como un gestor de riesgo de hedge fund. No aceptes operaciones con RR inferior a 1:3. Menciona siempre las fases de acumulación/distribución de Wyckoff...',
 
     // Chart Uploader
-    uploaderTitle: 'Carga de gráfico para análisis IA',
+    uploaderTitle: 'Análisis IA de Gráficos',
     uploaderSubtitle: 'Arrastra y suelta tu captura de pantalla (Ctrl+V / ⌘+V) o selecciona archivos. Admite análisis en múltiples temporalidades.',
     clickToBrowse: 'Haz clic para seleccionar o arrastra la captura aquí',
     supportedFormats: 'Soporta PNG, JPG, WebP de TradingView',

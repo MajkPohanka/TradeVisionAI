@@ -9,7 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
 import { getTranslation } from './utils/translations';
-import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity } from 'lucide-react';
+import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity, KeyRound } from 'lucide-react';
 
 // Code-split heavy secondary components to ensure lightning-fast initial mobile render
 const MetaTraderAuditView = lazy(() => import('./components/MetaTraderAuditView').then(m => ({ default: m.MetaTraderAuditView })));
@@ -340,6 +340,17 @@ export default function App() {
         );
       }
 
+      if (response.status === 401 || data.code === 'GEMINI_AUTH_ERROR' || data.isAuthError) {
+        const authErr: any = new Error(
+          data.error ||
+            (settings.language === 'cs'
+              ? 'Google Gemini API klíč v Nastavení (Settings) není platný nebo vypršel (401 / ACCESS_TOKEN_TYPE_UNSUPPORTED). Přejděte v horním menu do nabídky Settings (Nastavení) a zadejte platný API klíč vygenerovaný na https://aistudio.google.com/app/apikey.'
+              : 'Google Gemini API key in Settings is invalid or expired (401 / ACCESS_TOKEN_TYPE_UNSUPPORTED). Please open Settings in the top bar and enter a valid API key from https://aistudio.google.com/app/apikey.')
+        );
+        authErr.isAuthError = true;
+        throw authErr;
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(
           data.error ||
@@ -376,19 +387,26 @@ export default function App() {
       console.error('Analysis error:', err);
       const rawMsg = err?.message || String(err);
       
-      const isCapacityIssue = rawMsg.includes('kapacit') || 
+      const isAuthIssue = err?.isAuthError ||
+                          rawMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') ||
+                          rawMsg.includes('GEMINI_AUTH_ERROR') ||
+                          rawMsg.includes('Google Gemini API klíč') ||
+                          rawMsg.includes('aistudio.google.com/app/apikey');
+
+      const isCapacityIssue = !isAuthIssue && (
+                              rawMsg.includes('kapacit') || 
                               rawMsg.includes('kontaktován') || 
                               rawMsg.includes('TRADEOY') ||
                               rawMsg.includes('prepayment') ||
                               rawMsg.includes('billing') ||
-                              rawMsg.includes('Gemini') ||
-                              rawMsg.includes('gemini') ||
                               rawMsg.includes('RESOURCE_EXHAUSTED') ||
                               rawMsg.includes('quota') ||
                               rawMsg.includes('Quota exceeded') ||
-                              rawMsg.includes('429');
+                              rawMsg.includes('429'));
 
-      if (isCapacityIssue) {
+      if (isAuthIssue) {
+        setError(rawMsg);
+      } else if (isCapacityIssue) {
         setError(
           settings.language === 'cs'
             ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit za tuto analýzu zůstal v plné výši zachován.'
@@ -526,6 +544,69 @@ export default function App() {
 
               {/* Error or Capacity Notice Banner */}
               {error && (() => {
+                const isAuthNotice = error.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || 
+                                     error.includes('Gemini API klíč') ||
+                                     error.includes('GEMINI_AUTH_ERROR') ||
+                                     error.includes('aistudio.google.com/app/apikey');
+
+                if (isAuthNotice) {
+                  return (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#17120a] border border-amber-500/40 text-amber-200 shadow-xl space-y-3 animate-fadeIn">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-start space-x-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                            <KeyRound className="w-5 h-5 text-amber-400" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-amber-300 text-sm">
+                                {settings.language === 'cs'
+                                  ? 'Vyžadována konfigurace Google Gemini API klíče'
+                                  : settings.language === 'es'
+                                  ? 'Configuración requerida de la clave API de Gemini'
+                                  : 'Google Gemini API Key Configuration Required'}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold">
+                                ✓ {settings.language === 'cs' ? 'Kredit 100% zachován' : 'Credit 100% preserved'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-200/90 leading-relaxed">
+                              {error}
+                            </p>
+                            <div className="text-[11px] text-amber-300/80 bg-black/40 p-2.5 rounded-lg border border-amber-500/20">
+                              <span className="font-semibold text-amber-300">
+                                {settings.language === 'cs' ? 'Jak nastavit platný klíč:' : 'How to configure a valid key:'}
+                              </span>
+                              <ol className="list-decimal list-inside mt-1 space-y-0.5 text-amber-200/80">
+                                <li>
+                                  {settings.language === 'cs'
+                                    ? 'Vygenerujte bezplatný API klíč v Google AI Studio (aistudio.google.com/app/apikey).'
+                                    : 'Generate an API key in Google AI Studio (aistudio.google.com/app/apikey).'}
+                                </li>
+                                <li>
+                                  {settings.language === 'cs'
+                                    ? 'V horním menu této aplikace otevřete nabídku Settings a zadejte klíč do položky GEMINI_API_KEY.'
+                                    : 'In the top menu of this app, open Settings and paste the key into GEMINI_API_KEY.'}
+                                </li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                        {images.some(Boolean) && (
+                          <button
+                            onClick={handleAnalyzeChart}
+                            disabled={isLoading}
+                            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold transition border border-amber-500/40 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                            <span>{settings.language === 'cs' ? 'Zkusit znovu' : 'Retry now'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
                 const isCapacityNotice = error.includes('kapacit') || 
                                          error.includes('kontaktován') || 
                                          error.includes('TRADEOY') ||

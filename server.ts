@@ -14,6 +14,7 @@ import {
   formatZodError,
 } from './server/schemas';
 import { fetchLiveMarketOverview } from './server/marketOverview';
+import { getChartCandles } from './server/chartCandles';
 
 dotenv.config();
 
@@ -379,17 +380,44 @@ function setModelCooldown(modelName: string, durationMs: number = 60000) {
   modelCooldownMap.set(modelName, Date.now() + durationMs);
 }
 
+// Custom error class to identify Gemini authentication / API key failures
+export class GeminiAuthError extends Error {
+  public isAuthError = true;
+  public details?: string;
+  constructor(message: string, details?: string) {
+    super(message);
+    this.name = 'GeminiAuthError';
+    this.details = details;
+  }
+}
+
+export function isGeminiAuthError(err: any): boolean {
+  if (!err) return false;
+  if (err.isAuthError || err.name === 'GeminiAuthError') return true;
+  const errMsg = err?.message || String(err);
+  return (
+    err.status === 401 ||
+    errMsg.includes('401') ||
+    errMsg.includes('UNAUTHENTICATED') ||
+    errMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') ||
+    errMsg.includes('invalid authentication credentials') ||
+    errMsg.includes('API_KEY_INVALID') ||
+    errMsg.includes('API key not valid') ||
+    errMsg.includes('GEMINI_API_KEY environment variable is not configured')
+  );
+}
+
 // Helper function to execute Gemini requests with aggressive retry & multi-model fallback against transient 503 / 429 / quota errors
 async function callGeminiWithRetry(
   aiClient: ReturnType<typeof getGeminiClient>,
   requestParams: any,
   maxRetries = 1
 ) {
-  const primaryModel = requestParams.model || 'gemini-3.6-flash';
+  const primaryModel = requestParams.model || 'gemini-2.5-flash';
   // Comprehensive fallback chain with verified, high-availability multi-modal models
   const allCandidateModels = Array.from(new Set([
     primaryModel,
-    'gemini-3.6-flash',
+    'gemini-2.5-flash',
     'gemini-3.8-flash',
     'gemini-3.1-flash-lite',
     'gemini-flash-latest',
@@ -422,6 +450,16 @@ async function callGeminiWithRetry(
       } catch (err: any) {
         lastError = err;
         const errMsg = err?.message || String(err);
+
+        // If this is an authentication error (e.g. 401 / ACCESS_TOKEN_TYPE_UNSUPPORTED / invalid API key),
+        // fail FAST immediately! Retrying across different models or multiple attempts will NEVER succeed with an invalid key.
+        if (isGeminiAuthError(err)) {
+          console.warn(`[Gemini Auth Failure] 401 UNAUTHENTICATED (ACCESS_TOKEN_TYPE_UNSUPPORTED). Halting retries immediately.`);
+          throw new GeminiAuthError(
+            'Google Gemini API klíč v Nastavení (Settings) není platný nebo vypršel (chyba ověření Google AI 401: ACCESS_TOKEN_TYPE_UNSUPPORTED). Přejděte prosím v horním menu do nabídky Settings (Nastavení) a zadejte platný Gemini API klíč vygenerovaný na https://aistudio.google.com/app/apikey.',
+            errMsg
+          );
+        }
         
         const isNotFound = errMsg.includes('404') || errMsg.includes('NOT_FOUND') || errMsg.includes('no longer available');
         const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || err?.status === 503;
@@ -696,6 +734,25 @@ function isForbiddenExternalHost(hostname: string): boolean {
   }
   return false;
 }
+
+// Endpoint to fetch live candlestick OHLCV data for TradingView snapshot generation
+app.post('/api/chart-candles', async (req, res) => {
+  try {
+    const { symbol, timeframe } = req.body || {};
+    const sym = String(symbol || 'BTCUSDT').trim();
+    const tf = String(timeframe || '4h').trim();
+
+    const data = await getChartCandles(sym, tf);
+    res.json(data);
+  } catch (err: any) {
+    console.error('Error in /api/chart-candles:', err?.message || err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch chart candles',
+      details: err?.message,
+    });
+  }
+});
 
 // Endpoint to fetch external chart images / TradingView snapshot links safely for users
 app.post('/api/fetch-chart-image', imageFetchRateLimiter, async (req, res) => {
@@ -1113,7 +1170,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.6-flash',
+        model: 'gemini-2.5-flash',
         contents: [...imageParts, { text: promptText }],
         config: {
           systemInstruction: systemInstruction,
@@ -1142,6 +1199,17 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     }
     console.error('Error analyzing chart:', error);
     const errMsg = error?.message || String(error);
+
+    if (isGeminiAuthError(error)) {
+      return res.status(401).json({
+        success: false,
+        code: 'GEMINI_AUTH_ERROR',
+        isAuthError: true,
+        error: 'Google Gemini API klíč v Nastavení (Settings) není platný nebo vypršel (chyba ověření Google AI 401: ACCESS_TOKEN_TYPE_UNSUPPORTED). Přejděte prosím v pravém horním menu do nabídky Settings (Nastavení) a zadejte platný Gemini API klíč z https://aistudio.google.com/app/apikey.',
+        details: 'Váš licenční kredit za tuto analýzu byl v plné výši vrácen (nebyl odečten).',
+      });
+    }
+
     const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isTimeout = errMsg.includes('503') || errMsg.includes('Deadline expired') || errMsg.includes('UNAVAILABLE') || errMsg.includes('Časový limit');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
@@ -1155,6 +1223,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     }
 
     res.status(500).json({
+      success: false,
       error: userFriendlyError,
       isCapacityIssue,
       details: isCapacityIssue ? 'AI capacity autoscaling in progress' : errMsg,
@@ -1307,7 +1376,7 @@ Return strictly a JSON object conforming to this schema:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.6-flash',
+        model: 'gemini-2.5-flash',
         contents: contentParts,
         config: {
           systemInstruction: systemPrompt,
@@ -1334,10 +1403,22 @@ Return strictly a JSON object conforming to this schema:
     }
     console.error('Error auditing MetaTrader trades:', error);
     const errMsg = error?.message || String(error);
+
+    if (isGeminiAuthError(error)) {
+      return res.status(401).json({
+        success: false,
+        code: 'GEMINI_AUTH_ERROR',
+        isAuthError: true,
+        error: 'Google Gemini API klíč v Nastavení (Settings) není platný nebo vypršel (chyba ověření Google AI 401: ACCESS_TOKEN_TYPE_UNSUPPORTED). Přejděte prosím v pravém horním menu do nabídky Settings (Nastavení) a zadejte platný Gemini API klíč z https://aistudio.google.com/app/apikey.',
+        details: 'Váš licenční kredit za tento audit byl v plné výši vrácen.',
+      });
+    }
+
     const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
     const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
     res.status(500).json({
+      success: false,
       error: isCapacityIssue
         ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit zůstal v plné výši zachován.'
         : 'Došlo k neočekávané chybě při auditu MetaTrader výpisu. Váš kredit byl v pořádku vrácen.',
@@ -1438,7 +1519,7 @@ Rules for mentor response:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-3.6-flash',
+        model: 'gemini-2.5-flash',
         contents: promptContent,
         config: {
           systemInstruction: systemPrompt,
@@ -1460,10 +1541,21 @@ Rules for mentor response:
   } catch (error: any) {
     console.error('Error asking mentor:', error);
     const errMsg = error?.message || String(error);
+
+    if (isGeminiAuthError(error)) {
+      return res.status(401).json({
+        success: false,
+        code: 'GEMINI_AUTH_ERROR',
+        isAuthError: true,
+        error: 'Google Gemini API klíč v Nastavení (Settings) není platný nebo vypršel (chyba ověření Google AI 401: ACCESS_TOKEN_TYPE_UNSUPPORTED). Přejděte prosím v pravém horním menu do nabídky Settings (Nastavení) a zadejte platný Gemini API klíč z https://aistudio.google.com/app/apikey.',
+      });
+    }
+
     const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
     const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
     res.status(500).json({
+      success: false,
       error: isCapacityIssue
         ? 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase.'
         : 'Došlo k neočekávané chybě při komunikaci s AI Mentorem.',

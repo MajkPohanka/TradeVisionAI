@@ -16,19 +16,13 @@ import {
   Layers,
   ArrowRight,
   Info,
-  Copy,
   Scan,
-  Upload,
-  Link as LinkIcon,
-  X,
-  Loader2,
   Check,
   Plus,
   Image as ImageIcon,
 } from 'lucide-react';
 import { LanguageOption, HoldingPeriod } from '../types';
 import { getTranslation } from '../utils/translations';
-import { renderTradingViewChartSnapshot } from '../utils/chartSnapshotRenderer';
 
 interface TradingViewLiveChartProps {
   language?: LanguageOption;
@@ -94,8 +88,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const [chartHeight, setChartHeight] = useState<'standard' | 'tall' | 'fullscreen'>('standard');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
-  const [capturingSlotIndex, setCapturingSlotIndex] = useState<number | null>(null);
   const [isHighlighted, setIsHighlighted] = useState<boolean>(false);
+  const chartFrameContainerRef = useRef<HTMLDivElement>(null);
+  const widgetInstanceRef = useRef<any>(null);
+  const tvContainerId = 'tradingview_live_chart_embed_box';
 
   // Sync external symbol if requested (e.g. when clicking on top Market Overview bar)
   useEffect(() => {
@@ -130,6 +126,58 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       return () => clearTimeout(highlightTimer);
     }
   }, [externalSymbol, focusTrigger]);
+
+  // Global paste handler to directly capture any copied chart screenshot into the first free slot
+  useEffect(() => {
+    const handleGlobalPaste = async (e: ClipboardEvent) => {
+      // Do not intercept if user is typing in an input or textarea
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
+      const items = e.clipboardData?.items;
+      if (!items || items.length === 0) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            const dataUrl = await fileToDataUrl(file);
+            const targetSlot = getTargetSlotIndex();
+            const targetLabel = `Slot ${targetSlot + 1}`;
+            onInsertImageToSlot(dataUrl, targetSlot);
+            showToast(
+              language === 'cs'
+                ? `✓ Snímek grafu ze schránky byl vložen do ${targetLabel}!`
+                : `✓ Chart snapshot from clipboard inserted into ${targetLabel}!`,
+              'success'
+            );
+            scrollToSlot(targetSlot);
+            return;
+          }
+        }
+      }
+
+      const text = e.clipboardData?.getData('text/plain')?.trim();
+      if (text && (text.startsWith('http://') || text.startsWith('https://') || text.startsWith('data:image/'))) {
+        if (text.match(/\.(jpeg|jpg|png|webp|gif)/i) || text.includes('tradingview.com/x/') || text.startsWith('data:image/')) {
+          e.preventDefault();
+          handleFetchUrlSnapshot(text);
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, [activeSlotIndex, slots, language]);
 
   // Hidden file input for direct slot uploading
   const slotFileInputRef = useRef<HTMLInputElement>(null);
@@ -196,7 +244,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       hide_side_toolbar: false, // Essential: drawing tools for support/resistance, boxes, fibs
       hide_top_toolbar: false, // Essential: timeframe switchers, indicators, camera snapshot
       withdateranges: true,
-      save_image: true, // Native camera snapshot button
+      save_image: false, // User requested removing camera icon from chart
       calendar: false,
       hide_volume: false,
       support_host: 'https://www.tradingview.com',
@@ -207,6 +255,83 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       JSON.stringify(widgetConfig)
     )}`;
   }, [symbol, interval, tvLocale]);
+
+  // Mount TradingView widget using TradingView.widget constructor or fallback to iframe
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    let isMounted = true;
+
+    const mountTradingViewWidget = () => {
+      if (!isMounted) return;
+      const el = document.getElementById(tvContainerId);
+      if (!el) return;
+
+      if (typeof (window as any).TradingView?.widget === 'function') {
+        el.innerHTML = '';
+        try {
+          const widget = new (window as any).TradingView.widget({
+            autosize: true,
+            symbol: symbol,
+            interval: interval,
+            timezone: 'Europe/Prague',
+            theme: 'dark',
+            style: '1',
+            locale: tvLocale,
+            enable_publishing: false,
+            allow_symbol_change: true,
+            hide_side_toolbar: false,
+            hide_top_toolbar: false,
+            withdateranges: true,
+            save_image: false,
+            hide_volume: false,
+            container_id: tvContainerId,
+            backgroundColor: '#0d0d11',
+            gridColor: 'rgba(255, 255, 255, 0.04)',
+          });
+          widgetInstanceRef.current = widget;
+          return;
+        } catch (err) {
+          console.warn('TradingView.widget constructor error, falling back to direct iframe:', err);
+        }
+      }
+
+      // Direct clean iframe fallback
+      el.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.src = chartUrl;
+      iframe.title = `TradingView Advanced Chart ${symbol}`;
+      iframe.className = 'w-full h-full border-0 block';
+      iframe.setAttribute('allow', 'clipboard-write; clipboard-read');
+      iframe.setAttribute('tabIndex', '-1');
+      iframe.setAttribute('scrolling', 'no');
+      el.appendChild(iframe);
+    };
+
+    mountTradingViewWidget();
+
+    // If tv.js is still loading in the background, re-check
+    if (typeof window !== 'undefined' && !(window as any).TradingView?.widget) {
+      const pollTimer = window.setInterval(() => {
+        if ((window as any).TradingView?.widget) {
+          window.clearInterval(pollTimer);
+          mountTradingViewWidget();
+        }
+      }, 250);
+      const maxTimer = window.setTimeout(() => {
+        window.clearInterval(pollTimer);
+      }, 3000);
+      return () => {
+        isMounted = false;
+        window.clearInterval(pollTimer);
+        window.clearTimeout(maxTimer);
+      };
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [symbol, interval, tvLocale, isExpanded, chartUrl]);
 
   const handleApplyCustomSymbol = (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,145 +377,232 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     });
   };
 
-  // Direct slot photo capture and insertion workflow
-  const handleCaptureToSlot = async (targetSlot: number) => {
-    const targetLabel = slotLabels[targetSlot]?.short || `Slot ${targetSlot + 1}`;
-    const targetTf = slotLabels[targetSlot]?.tf || interval;
-    setIsCapturing(true);
-    setCapturingSlotIndex(targetSlot);
+  // Determine target slot (first empty slot or slot 0/active slot)
+  const getTargetSlotIndex = (): number => {
+    if (typeof activeSlotIndex === 'number' && activeSlotIndex >= 0 && activeSlotIndex < 3 && !slots[activeSlotIndex]) {
+      return activeSlotIndex;
+    }
+    const emptyIdx = slots.findIndex((s) => !s);
+    if (emptyIdx !== -1) return emptyIdx;
+    if (typeof activeSlotIndex === 'number' && activeSlotIndex >= 0 && activeSlotIndex < 3) {
+      return activeSlotIndex;
+    }
+    return 0;
+  };
 
-    // 1. Check if clipboard already contains an image from TradingView (Camera / Alt+S)
+  // Fetch chart image from TradingView snapshot link or image URL
+  const handleFetchUrlSnapshot = async (urlToFetch: string) => {
+    const trimmed = urlToFetch.trim();
+    if (!trimmed) return;
+    setIsCapturing(true);
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.read) {
-        const items = await navigator.clipboard.read();
-        for (const item of items) {
-          const imgType = item.types.find((t) => t.startsWith('image/'));
-          if (imgType) {
-            const blob = await item.getType(imgType);
-            const dataUrl = await fileToDataUrl(blob);
-            if (dataUrl) {
-              onInsertImageToSlot(dataUrl, targetSlot);
-              showToast(
-                language === 'cs'
-                  ? `✓ Snímek grafu ze schránky byl vložen do ${targetLabel}!`
-                  : `✓ Chart snapshot from clipboard inserted into ${targetLabel}!`,
-                'success'
-              );
-              scrollToSlot(targetSlot);
-              setIsCapturing(false);
-              setCapturingSlotIndex(null);
-              return;
-            }
+      const res = await fetch('/api/fetch-chart-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: trimmed }),
+      });
+      const data = await res.json();
+      if (data && data.success && data.dataUrl) {
+        const targetSlot = getTargetSlotIndex();
+        const targetLabel = `Slot ${targetSlot + 1}`;
+        onInsertImageToSlot(data.dataUrl, targetSlot);
+        showToast(
+          language === 'cs'
+            ? `✓ Snímek z odkazu byl úspěšně vložen do ${targetLabel}!`
+            : `✓ Chart snapshot fetched and inserted into ${targetLabel}!`,
+          'success'
+        );
+        scrollToSlot(targetSlot);
+      } else {
+        showToast(
+          data?.error || (language === 'cs' ? 'Nepodařilo se stáhnout snímek z odkazu.' : 'Failed to fetch snapshot from link.'),
+          'warning'
+        );
+      }
+    } catch {
+      showToast(
+        language === 'cs' ? 'Chyba při stahování snímku.' : 'Error fetching snapshot.',
+        'warning'
+      );
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  // 1-Click Unified Snapshot Function: Captures current chart and places directly into next free slot
+  const handleCaptureCurrentChart = async () => {
+    if (isCapturing) return;
+    setIsCapturing(true);
+
+    const targetSlot = getTargetSlotIndex();
+    const targetLabel = `Slot ${targetSlot + 1}`;
+
+    try {
+      // 1. Try widget.imageCanvas() if supported by TradingView tv.js
+      if (widgetInstanceRef.current && typeof widgetInstanceRef.current.imageCanvas === 'function') {
+        try {
+          const canvas = await Promise.race([
+            widgetInstanceRef.current.imageCanvas(),
+            new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2200)),
+          ]);
+          if (canvas && typeof canvas.toDataURL === 'function') {
+            const dataUrl = canvas.toDataURL('image/png');
+            onInsertImageToSlot(dataUrl, targetSlot);
+            showToast(
+              language === 'cs'
+                ? `✓ Přesný snímek grafu z okna byl vložen do ${targetLabel}!`
+                : `✓ Exact chart snapshot from window inserted into ${targetLabel}!`,
+              'success'
+            );
+            scrollToSlot(targetSlot);
+            setIsCapturing(false);
+            return;
           }
+        } catch {
+          // Proceed to screen capture crop
         }
       }
-    } catch {}
 
-    // 2. Check if clipboard has TradingView image URL or dataUrl
-    try {
+      // 2. Try browser screen capture cropped to the exact chart container
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+        try {
+          const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              displaySurface: 'browser',
+            } as any,
+            preferCurrentTab: true,
+          } as any);
+
+          const video = document.createElement('video');
+          video.srcObject = stream;
+          video.muted = true;
+          await video.play();
+
+          // Wait brief tick for frame to render
+          await new Promise((r) => setTimeout(r, 200));
+
+          const container = chartFrameContainerRef.current;
+          if (container) {
+            const rect = container.getBoundingClientRect();
+            const videoTrack = stream.getVideoTracks()[0];
+            const settings = videoTrack?.getSettings() || {};
+            const vWidth = video.videoWidth || settings.width || window.innerWidth;
+            const vHeight = video.videoHeight || settings.height || window.innerHeight;
+
+            const scaleX = vWidth / window.innerWidth;
+            const scaleY = vHeight / window.innerHeight;
+
+            const sx = Math.max(0, rect.left * scaleX);
+            const sy = Math.max(0, rect.top * scaleY);
+            const sWidth = Math.min(vWidth - sx, rect.width * scaleX);
+            const sHeight = Math.min(vHeight - sy, rect.height * scaleY);
+
+            if (sWidth > 50 && sHeight > 50) {
+              const canvas = document.createElement('canvas');
+              canvas.width = sWidth;
+              canvas.height = sHeight;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+                const dataUrl = canvas.toDataURL('image/png');
+                stream.getTracks().forEach((t) => t.stop());
+
+                onInsertImageToSlot(dataUrl, targetSlot);
+                showToast(
+                  language === 'cs'
+                    ? `✓ Graf byl úspěšně vyfocen a vložen do ${targetLabel}!`
+                    : `✓ Chart captured and inserted into ${targetLabel}!`,
+                  'success'
+                );
+                scrollToSlot(targetSlot);
+                setIsCapturing(false);
+                return;
+              }
+            }
+          }
+          stream.getTracks().forEach((t) => t.stop());
+        } catch {
+          // If user cancelled screen capture dialog, continue smoothly to clipboard check without error
+        }
+      }
+
+      // 3. Check system clipboard for image
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.read) {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            const imgType = item.types.find((t) => t.startsWith('image/'));
+            if (imgType) {
+              const blob = await item.getType(imgType);
+              const dataUrl = await fileToDataUrl(blob);
+              if (dataUrl) {
+                onInsertImageToSlot(dataUrl, targetSlot);
+                showToast(
+                  language === 'cs'
+                    ? `✓ Snímek grafu ze schránky byl vložen do ${targetLabel}!`
+                    : `✓ Chart snapshot from clipboard inserted into ${targetLabel}!`,
+                  'success'
+                );
+                scrollToSlot(targetSlot);
+                setIsCapturing(false);
+                return;
+              }
+            }
+          }
+        } catch {
+          // Clipboard read not permitted or empty
+        }
+      }
+
+      // 4. Check clipboard text for TradingView snapshot link (https://www.tradingview.com/x/...)
       if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.readText) {
-        const text = (await navigator.clipboard.readText()).trim();
-        if (text.startsWith('data:image/')) {
-          onInsertImageToSlot(text, targetSlot);
-          showToast(
-            language === 'cs'
-              ? `✓ Snímek byl vložen do ${targetLabel}!`
-              : `✓ Chart snapshot inserted into ${targetLabel}!`,
-            'success'
-          );
-          scrollToSlot(targetSlot);
-          setIsCapturing(false);
-          setCapturingSlotIndex(null);
-          return;
-        } else if (text.startsWith('http://') || text.startsWith('https://')) {
-          if (text.includes('tradingview.com') || text.match(/\.(png|jpg|jpeg|webp)$/i)) {
+        try {
+          const text = (await navigator.clipboard.readText()).trim();
+          if (text.startsWith('data:image/')) {
+            onInsertImageToSlot(text, targetSlot);
+            showToast(
+              language === 'cs'
+                ? `✓ Snímek grafu byl vložen do ${targetLabel}!`
+                : `✓ Chart snapshot inserted into ${targetLabel}!`,
+              'success'
+            );
+            scrollToSlot(targetSlot);
+            setIsCapturing(false);
+            return;
+          } else if (text.includes('tradingview.com/x/') || text.match(/\.(png|jpe?g|webp)$/i)) {
             const res = await fetch('/api/fetch-chart-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ url: text }),
             });
             const data = await res.json();
-            if (data.success && data.dataUrl) {
+            if (data && data.success && data.dataUrl) {
               onInsertImageToSlot(data.dataUrl, targetSlot);
               showToast(
                 language === 'cs'
-                  ? `✓ Snímek byl stažen a vložen do ${targetLabel}!`
-                  : `✓ Chart snapshot fetched and inserted into ${targetLabel}!`,
+                  ? `✓ Snímek z TradingView byl vložen do ${targetLabel}!`
+                  : `✓ TradingView snapshot inserted into ${targetLabel}!`,
                 'success'
               );
               scrollToSlot(targetSlot);
               setIsCapturing(false);
-              setCapturingSlotIndex(null);
               return;
             }
           }
+        } catch {
+          // Proceed to friendly info toast
         }
       }
-    } catch {}
 
-    // 3. Instant Live Chart Snapshot: fetch real OHLCV market candles and render TradingView chart
-    try {
-      const cleanSym = symbol.includes(':') ? symbol.split(':')[1] : symbol;
-      const res = await fetch('/api/chart-candles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: cleanSym,
-          timeframe: targetTf,
-        }),
-      });
-
-      const candleData = await res.json();
-      if (candleData && candleData.candles && candleData.candles.length > 0) {
-        const snapshotDataUrl = renderTradingViewChartSnapshot({
-          symbol: cleanSym,
-          timeframe: targetTf,
-          displayName: candleData.displayName,
-          candles: candleData.candles,
-          precision: candleData.precision,
-          currentPrice: candleData.currentPrice,
-          priceChangePercent: candleData.priceChangePercent,
-          width: 1280,
-          height: 720,
-        });
-
-        if (snapshotDataUrl) {
-          onInsertImageToSlot(snapshotDataUrl, targetSlot);
-          showToast(
-            language === 'cs'
-              ? `✓ Fotka grafu ${targetLabel} (${targetTf}) byla pořízena a vložena do slotu!`
-              : `✓ Chart snapshot for ${targetLabel} (${targetTf}) captured and inserted!`,
-            'success'
-          );
-          scrollToSlot(targetSlot);
-          setIsCapturing(false);
-          setCapturingSlotIndex(null);
-          return;
-        }
-      }
-    } catch (err: any) {
-      console.error('Failed to generate chart snapshot:', err);
-    }
-
-    // 4. Clean finish without showing modal dialog
-    setIsCapturing(false);
-    setCapturingSlotIndex(null);
-    showToast(
-      language === 'cs'
-        ? `✓ Graf ${targetLabel} byl vyfocen a vložen do analýzy.`
-        : `✓ Chart ${targetLabel} snapshot inserted into analysis.`,
-      'success'
-    );
-    scrollToSlot(targetSlot);
-  };
-
-  // Trigger file picker directly for a specific slot with 0 extra clicks
-  const handleDirectUploadClick = (slotIdx: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    targetSlotRef.current = slotIdx;
-    if (slotFileInputRef.current) {
-      slotFileInputRef.current.value = '';
-      slotFileInputRef.current.click();
+      // 5. Friendly reminder if direct capture was not permitted:
+      showToast(
+        language === 'cs'
+          ? 'Pro vložení grafu stačí stisknout Ctrl + V kdekoli na stránce.'
+          : 'To insert chart snapshot, press Ctrl + V anywhere on the page.',
+        'info'
+      );
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -400,7 +612,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     if (!file) return;
 
     const targetSlot = targetSlotRef.current;
-    const targetLabel = slotLabels[targetSlot]?.short || `Slot ${targetSlot + 1}`;
+    const targetLabel = `Slot ${targetSlot + 1}`;
 
     try {
       const dataUrl = await fileToDataUrl(file);
@@ -420,24 +632,25 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     }
   };
 
-  // Handle Drag & Drop directly onto slot buttons
-  const handleDropOnSlot = async (slotIdx: number, e: React.DragEvent) => {
+  // Handle Drag & Drop directly onto the snapshot button
+  const handleDropOnSnapshot = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const targetLabel = slotLabels[slotIdx]?.short || `Slot ${slotIdx + 1}`;
+    const targetSlot = getTargetSlotIndex();
+    const targetLabel = `Slot ${targetSlot + 1}`;
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
       try {
         const dataUrl = await fileToDataUrl(file);
-        onInsertImageToSlot(dataUrl, slotIdx);
+        onInsertImageToSlot(dataUrl, targetSlot);
         showToast(
           language === 'cs'
             ? `✓ Snímek byl přetažen a vložen do ${targetLabel}!`
             : `✓ Snapshot dropped into ${targetLabel}!`,
           'success'
         );
-        scrollToSlot(slotIdx);
+        scrollToSlot(targetSlot);
       } catch {
         showToast(language === 'cs' ? 'Chyba při zpracování snímku.' : 'Error processing image.', 'warning');
       }
@@ -633,69 +846,40 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               })}
             </div>
 
-            {/* Multi-Timeframe Dedicated Slot Buttons (Slot 1, Slot 2, Slot 3) */}
-            <div className="flex items-center space-x-2">
-              <span className="text-[11px] text-[#86868b] font-medium hidden lg:inline">
-                {language === 'cs' ? 'Vyfotit graf do slotu:' : (t.tvInsertIntoAnalysisLabel || 'Vložit do analýzy:')}
-              </span>
-
-              {slotLabels.map((slotInfo, idx) => {
-                const isFilled = Boolean(slots[idx]);
-                const isCurrentlyCapturing = isCapturing && capturingSlotIndex === idx;
-
-                return (
-                  <div
-                    key={idx}
-                    className="inline-flex items-center rounded-lg shadow-sm"
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onDrop={(e) => handleDropOnSlot(idx, e)}
-                  >
-                    {/* Main Slot Capture-and-Insert Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleCaptureToSlot(idx)}
-                      disabled={isCapturing}
-                      className={`px-3 py-1.5 rounded-l-lg text-[11px] font-bold transition cursor-pointer flex items-center space-x-1.5 active:scale-95 border ${
-                        isFilled
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
-                          : 'bg-white/[0.05] hover:bg-emerald-500/20 text-[#f5f5f7] hover:text-emerald-300 border-white/[0.08] hover:border-emerald-500/40'
-                      }`}
-                      title={
-                        language === 'cs'
-                          ? `Kliknutím pořídíte fotku grafu a rovnou vložíte do ${slotInfo.short}`
-                          : `Click to capture photo of the chart and insert into ${slotInfo.short}`
-                      }
-                    >
-                      {isCurrentlyCapturing ? (
-                        <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                      ) : (
-                        <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      )}
-                      <span>{slotInfo.short}</span>
-                      {isFilled && (
-                        <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                      )}
-                    </button>
-
-                    {/* Direct Upload Icon (One-Click file selector fallback for this slot) */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleDirectUploadClick(idx, e)}
-                      className={`p-1.5 rounded-r-lg border-y border-r transition cursor-pointer ${
-                        isFilled
-                          ? 'bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200 border-emerald-500/50'
-                          : 'bg-white/[0.07] hover:bg-emerald-500/20 text-[#a1a1a6] hover:text-white border-white/[0.08] hover:border-emerald-500/30'
-                      }`}
-                      title={`${t.tvDirectUploadTooltip || 'Vybrat soubor snímku ze zařízení'} (${slotInfo.short})`}
-                    >
-                      <Upload className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              })}
+            {/* Snapshot Action Control - Exactly 1 Functional Button */}
+            <div
+              className="inline-flex items-center"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={handleDropOnSnapshot}
+            >
+              <button
+                type="button"
+                id="capture-live-chart-btn"
+                onClick={handleCaptureCurrentChart}
+                disabled={isCapturing}
+                className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-black font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-lg shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
+                title={
+                  language === 'cs'
+                    ? `Vyfotit aktuální graf a vložit do volného pole (Slot ${getTargetSlotIndex() + 1})`
+                    : `Capture current chart and insert into available slot (Slot ${getTargetSlotIndex() + 1})`
+                }
+              >
+                {isCapturing ? (
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin shrink-0" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-black shrink-0" />
+                )}
+                <span>
+                  {isCapturing
+                    ? (language === 'cs' ? 'Fotografuji graf...' : 'Capturing chart...')
+                    : (language === 'cs'
+                        ? `Vyfotit aktuální graf (do Slotu ${getTargetSlotIndex() + 1})`
+                        : `Capture Current Chart (to Slot ${getTargetSlotIndex() + 1})`)}
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -704,46 +888,32 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       {/* 3. TradingView Embed Container */}
       {isExpanded && (
         <div
+          ref={chartFrameContainerRef}
           className={`w-full bg-[#0d0d11] relative transition-all duration-200 rr-block rr-ignore ${getContainerHeightClass()}`}
           data-rr-block="true"
         >
-          <iframe
-            key={`${symbol}-${interval}-${tvLocale}`}
-            src={chartUrl}
-            title={`TradingView Advanced Chart ${symbol}`}
-            className="w-full h-full border-0 block rr-block rr-ignore"
-            data-rr-block="true"
-            tabIndex={-1}
-            allow="clipboard-write"
-            scrolling="no"
+          <div
+            id={tvContainerId}
+            className="w-full h-full relative"
           />
         </div>
       )}
 
-      {/* 4. Snapshot Guide Footer */}
+      {/* 4. Snapshot Info Footer */}
       {isExpanded && (
-        <div className="p-3 sm:p-4 bg-[#0a0a0d] border-t border-white/[0.06] text-xs text-[#a1a1a6] flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="p-3 sm:p-4 bg-[#0a0a0d] border-t border-white/[0.06] text-xs text-[#a1a1a6] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center space-x-2.5">
-            <Camera className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div>
-              <span className="font-bold text-white block text-[11px] sm:text-xs">
-                {language === 'cs'
-                  ? 'Jak vložit snímek grafu do analýzy:'
-                  : (t.tvSnapshotGuideTitle || 'Jak pořídit snímek z TradingView do analýzy:')}
-              </span>
-              <p className="text-[11px] text-[#86868b] leading-tight mt-0.5">
-                {language === 'cs'
-                  ? 'Klikněte přímo na tlačítko 📷 Slot 1 / Slot 2 / Slot 3 pro okamžité pořízení fotky grafu a vložení nahoru do daného slotu.'
-                  : language === 'es'
-                  ? 'Haga clic directamente en 📷 Slot 1 / Slot 2 / Slot 3 para capturar la foto del gráfico e insertarla de inmediato en la ranura superior.'
-                  : 'Click directly on 📷 Slot 1 / Slot 2 / Slot 3 to instantly take a photo of the chart and insert it into that slot above.'}
-              </p>
-            </div>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-[11px] sm:text-xs text-[#86868b]">
+              {language === 'cs'
+                ? 'Klikněte na zelené tlačítko „Vyfotit aktuální graf“ výše pro okamžité uložení grafu do analýzy.'
+                : 'Click the green "Capture Current Chart" button above to instantly save chart into analysis.'}
+            </span>
           </div>
 
-          <div className="flex items-center space-x-2 shrink-0 self-end md:self-auto">
+          <div className="flex items-center space-x-2 shrink-0">
             <span className="text-[10px] text-[#86868b] font-mono bg-white/[0.04] px-2 py-1 rounded-md border border-white/[0.06]">
-              {t.tvShortcutBadge || 'Zkratka snímku v grafu: Alt + S'}
+              {language === 'cs' ? 'Rychlé vložení: Ctrl + V' : 'Quick paste: Ctrl + V'}
             </span>
           </div>
         </div>

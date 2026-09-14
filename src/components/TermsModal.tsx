@@ -6,43 +6,61 @@ interface TermsModalProps {
   isOpen: boolean;
   onClose: () => void;
   language: LanguageOption;
+  theme?: 'dark' | 'light';
 }
 
-export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, language }) => {
+export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, language, theme = 'dark' }) => {
   const [activeSection, setActiveSection] = useState<'disclaimer' | 'terms' | 'payments' | 'privacy' | 'jurisdiction'>('disclaimer');
 
   if (!isOpen) return null;
 
+  const isLight = theme === 'light';
   const isCs = language === 'cs';
   const isEs = language === 'es';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-3xl bg-[#161618] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto"
+        className={`relative w-full max-w-3xl border rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto transition-colors ${
+          isLight
+            ? 'bg-slate-50 border-slate-300 text-slate-800'
+            : 'bg-[#161618] border-white/10'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-white/[0.08] bg-[#1c1c1e] flex items-center justify-between sticky top-0 z-10">
+        <div className={`p-4 sm:p-6 border-b flex items-center justify-between sticky top-0 z-10 transition-colors ${
+          isLight ? 'bg-white border-slate-200' : 'bg-[#1c1c1e] border-white/[0.08]'
+        }`}>
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Scale className="w-5 h-5 text-amber-400" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              isLight
+                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-600'
+                : 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
+            }`}>
+              <Scale className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <h2 className={`text-base sm:text-lg font-bold flex items-center gap-2 ${
+                isLight ? 'text-slate-900' : 'text-white'
+              }`}>
                 {isCs ? 'Podmínky používání & Právní doložka' : isEs ? 'Términos de Uso y Aviso Legal' : 'Terms of Service & Disclaimer'}
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold">
                   TRADEOY.com
                 </span>
               </h2>
-              <p className="text-xs text-[#86868b]">
+              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-[#86868b]'}`}>
                 {isCs ? 'Právní ochrana, výukový charakter, limitace odpovědnosti a platební podmínky' : isEs ? 'Protección legal, carácter educativo, limitación de responsabilidad y condiciones' : 'Legal protection, educational scope, limitation of liability, and payment terms'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-[#86868b] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              isLight
+                ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                : 'text-[#86868b] hover:text-white hover:bg-white/10'
+            }`}
             aria-label="Zavřít"
           >
             <X className="w-5 h-5" />
@@ -50,16 +68,18 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
         </div>
 
         {/* Section Navigation Tabs */}
-        <div className="flex border-b border-white/[0.08] bg-[#121214] overflow-x-auto no-scrollbar p-1.5 gap-1 text-xs font-medium">
+        <div className={`flex border-b overflow-x-auto no-scrollbar p-1.5 gap-1 text-xs font-medium transition-colors ${
+          isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#121214] border-white/[0.08]'
+        }`}>
           <button
             onClick={() => setActiveSection('disclaimer')}
             className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
               activeSection === 'disclaimer'
-                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold'
-                : 'text-[#86868b] hover:text-white hover:bg-white/5'
+                ? (isLight ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold')
+                : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-white' : 'text-[#86868b] hover:text-white hover:bg-white/5')
             }`}
           >
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+            <ShieldAlert className={`w-3.5 h-3.5 ${activeSection === 'disclaimer' ? (isLight ? 'text-white' : 'text-amber-400') : (isLight ? 'text-slate-500' : 'text-amber-400')}`} />
             <span>{isCs ? '1. Vyloučení odpovědnosti' : isEs ? '1. Descargo de Responsabilidad' : '1. Risk Disclaimer'}</span>
           </button>
 
@@ -67,11 +87,11 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
             onClick={() => setActiveSection('terms')}
             className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
               activeSection === 'terms'
-                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold'
-                : 'text-[#86868b] hover:text-white hover:bg-white/5'
+                ? (isLight ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold')
+                : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-white' : 'text-[#86868b] hover:text-white hover:bg-white/5')
             }`}
           >
-            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+            <FileText className={`w-3.5 h-3.5 ${activeSection === 'terms' && isLight ? 'text-white' : 'text-emerald-400'}`} />
             <span>{isCs ? '2. Podmínky & Výuka' : isEs ? '2. Uso Educativo' : '2. Educational Scope'}</span>
           </button>
 
@@ -79,11 +99,11 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
             onClick={() => setActiveSection('payments')}
             className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
               activeSection === 'payments'
-                ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold'
-                : 'text-[#86868b] hover:text-white hover:bg-white/5'
+                ? (isLight ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold')
+                : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-white' : 'text-[#86868b] hover:text-white hover:bg-white/5')
             }`}
           >
-            <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+            <CreditCard className={`w-3.5 h-3.5 ${activeSection === 'payments' && isLight ? 'text-white' : 'text-cyan-400'}`} />
             <span>{isCs ? '3. Platby & Kredity' : isEs ? '3. Pagos y Créditos' : '3. Payments & Credits'}</span>
           </button>
 
@@ -91,11 +111,11 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
             onClick={() => setActiveSection('privacy')}
             className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
               activeSection === 'privacy'
-                ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold'
-                : 'text-[#86868b] hover:text-white hover:bg-white/5'
+                ? (isLight ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold')
+                : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-white' : 'text-[#86868b] hover:text-white hover:bg-white/5')
             }`}
           >
-            <Lock className="w-3.5 h-3.5 text-purple-400" />
+            <Lock className={`w-3.5 h-3.5 ${activeSection === 'privacy' && isLight ? 'text-white' : 'text-purple-400'}`} />
             <span>{isCs ? '4. Ochrana soukromí' : isEs ? '4. Privacidad' : '4. Privacy'}</span>
           </button>
 
@@ -103,17 +123,19 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
             onClick={() => setActiveSection('jurisdiction')}
             className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
               activeSection === 'jurisdiction'
-                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold'
-                : 'text-[#86868b] hover:text-white hover:bg-white/5'
+                ? (isLight ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold')
+                : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-white' : 'text-[#86868b] hover:text-white hover:bg-white/5')
             }`}
           >
-            <Gavel className="w-3.5 h-3.5 text-amber-400" />
+            <Gavel className={`w-3.5 h-3.5 ${activeSection === 'jurisdiction' ? (isLight ? 'text-white' : 'text-amber-400') : (isLight ? 'text-slate-500' : 'text-amber-400')}`} />
             <span>{isCs ? '5. Jurisdikce & Limitace' : isEs ? '5. Jurisdicción y Límites' : '5. Jurisdiction & Liability'}</span>
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-sm text-[#c7c7cc] leading-relaxed custom-scrollbar">
+        <div className={`p-4 sm:p-6 overflow-y-auto space-y-6 text-sm leading-relaxed custom-scrollbar ${
+          isLight ? 'text-slate-700' : 'text-[#c7c7cc]'
+        }`}>
           
           {/* SECTION 1: DISCLAIMER */}
           {activeSection === 'disclaimer' && (
@@ -394,14 +416,20 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
         </div>
 
         {/* Footer actions */}
-        <div className="p-4 sm:p-5 border-t border-white/[0.08] bg-[#1c1c1e] flex items-center justify-between gap-3">
-          <div className="text-[11px] text-[#86868b] flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5 text-emerald-400" />
+        <div className={`p-4 sm:p-5 border-t flex items-center justify-between gap-3 transition-colors ${
+          isLight ? 'bg-white border-slate-200' : 'bg-[#1c1c1e] border-white/[0.08]'
+        }`}>
+          <div className={`text-[11px] flex items-center gap-1.5 ${isLight ? 'text-slate-500' : 'text-[#86868b]'}`}>
+            <Lock className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
             <span>{isCs ? 'Platné od: 1. 1. 2026' : isEs ? 'Vigente desde: 1/1/2026' : 'Effective date: Jan 1, 2026'}</span>
           </div>
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-semibold text-xs sm:text-sm hover:from-emerald-400 hover:to-teal-400 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center space-x-1.5"
+            className={`px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer shadow-lg active:scale-95 flex items-center space-x-1.5 ${
+              isLight
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black hover:from-emerald-400 hover:to-teal-400 shadow-emerald-500/20'
+            }`}
           >
             <span>{isCs ? 'Rozumím a Souhlasím' : isEs ? 'Entendido y Acepto' : 'I Understand & Agree'}</span>
             <ChevronRight className="w-4 h-4" />

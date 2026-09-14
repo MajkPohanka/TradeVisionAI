@@ -8,8 +8,11 @@ import {
   Bot,
   Check,
   X,
+  Sun,
+  Moon,
+  Eclipse,
 } from 'lucide-react';
-import { StrategySettings, HoldingPeriod, RiskTolerance, TradingStrategy } from '../types';
+import { StrategySettings, HoldingPeriod, RiskTolerance, TradingStrategy, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface StrategyPreferencesModalProps {
@@ -17,6 +20,8 @@ interface StrategyPreferencesModalProps {
   onClose: () => void;
   settings: StrategySettings;
   onUpdateSettings: (newSettings: Partial<StrategySettings>) => void;
+  theme?: AppTheme;
+  onUpdateTheme?: (newTheme: AppTheme) => void;
 }
 
 export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> = ({
@@ -24,10 +29,21 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
   onClose,
   settings,
   onUpdateSettings,
+  theme = 'light',
+  onUpdateTheme,
 }) => {
   const t = getTranslation(settings.language);
 
   if (!isOpen) return null;
+
+  const currentTheme = theme || settings.theme || 'light';
+
+  const handleThemeChange = (newTheme: AppTheme) => {
+    if (onUpdateTheme) {
+      onUpdateTheme(newTheme);
+    }
+    onUpdateSettings({ theme: newTheme });
+  };
 
   const holdingPeriods: { id: HoldingPeriod; label: string; desc: string }[] = [
     { id: 'scalp', label: t.scalpLabel, desc: t.scalpDesc },
@@ -187,7 +203,7 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs font-semibold text-[#a1a1a6] flex items-center space-x-1.5 mb-2.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t.riskProfileLabel}</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -198,7 +214,7 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
                     onClick={() => onUpdateSettings({ riskTolerance: risk.id })}
                     className={`p-2.5 rounded-xl text-center border transition cursor-pointer ${
                       settings.riskTolerance === risk.id
-                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 font-bold'
+                        ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 font-bold'
                         : 'bg-white/[0.02] border-white/[0.06] text-[#86868b] hover:text-white'
                     }`}
                   >
@@ -227,6 +243,74 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
                 />
                 <span className="text-xs font-bold text-emerald-400">%</span>
               </div>
+            </div>
+          </div>
+
+          {/* Theme Appearance Setting */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-[#a1a1a6] flex items-center justify-between">
+              <span className="flex items-center space-x-1.5">
+                <Sun className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{t.themeLabel || 'Vzhled aplikace (Design & Téma)'}</span>
+              </span>
+              <span className="text-[11px] text-emerald-400 font-semibold">
+                {currentTheme === 'light' ? (t.themeLight || 'Světlý') : currentTheme === 'dark' ? (t.themeDark || 'Tmavý') : (t.themeBlack || 'Černý')}
+              </span>
+            </label>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleThemeChange('light')}
+                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col items-center text-center space-y-1.5 ${
+                  currentTheme === 'light'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 ring-1 ring-emerald-500/30'
+                    : 'bg-white/[0.02] border-white/[0.08] text-[#a1a1a6] hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                <Sun className="w-5 h-5 text-emerald-400" />
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs font-bold text-white">{t.themeLight || 'Světlý'}</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-emerald-400 font-semibold px-1 py-0.2 rounded">
+                    {settings.language === 'cs' ? 'Šetrný k očím' : 'Eye Comfort'}
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#86868b] leading-tight">
+                  {t.themeLightDesc || 'Jemný a přehledný světlý design'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleThemeChange('dark')}
+                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col items-center text-center space-y-1.5 ${
+                  currentTheme === 'dark'
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-300 ring-1 ring-sky-500/30'
+                    : 'bg-white/[0.02] border-white/[0.08] text-[#a1a1a6] hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                <Moon className="w-5 h-5 text-sky-400" />
+                <span className="text-xs font-bold text-white">{t.themeDark || 'Tmavý'}</span>
+                <span className="text-[10px] text-[#86868b] leading-tight">
+                  {t.themeDarkDesc || 'Šedý břidlicový režim šetrný k očím'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleThemeChange('black')}
+                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col items-center text-center space-y-1.5 ${
+                  currentTheme === 'black'
+                    ? 'bg-purple-500/15 border-purple-500/40 text-purple-300 ring-1 ring-purple-500/30'
+                    : 'bg-white/[0.02] border-white/[0.08] text-[#a1a1a6] hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                <Eclipse className="w-5 h-5 text-purple-400" />
+                <span className="text-xs font-bold text-white">{t.themeBlack || 'Černý'}</span>
+                <span className="text-[10px] text-[#86868b] leading-tight">
+                  {t.themeBlackDesc || 'Čistě černý OLED režim'}
+                </span>
+              </button>
             </div>
           </div>
 

@@ -4,26 +4,314 @@
   font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: dark;
+  color-scheme: light dark;
   -webkit-tap-highlight-color: transparent;
 }
 
-html {
-  background-color: #0a0a0c;
-  color: #f5f5f7;
-  height: 100%;
-  overflow-x: clip;
-}
-
-body {
+/* Base HTML & Body defaults - Default to Gentle Light Theme */
+html, body {
   font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 400;
   line-height: 1.5;
-  background-color: #0a0a0c;
-  color: #f5f5f7;
   min-height: 100%;
   overflow-x: clip;
   overscroll-behavior-y: auto;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ==========================================================================
+   THEME 1: SVĚTLÝ (GENTLE EYE-COMFORT LIGHT DESIGN) - SOFT SLATE NEUTRAL
+   ========================================================================== */
+html[data-theme="light"],
+html.theme-light {
+  background-color: #eaedf1;
+  color: #0f172a;
+  color-scheme: light;
+}
+
+html[data-theme="light"] body,
+html.theme-light body {
+  background-color: #eaedf1;
+  color: #0f172a;
+}
+
+/* Root layout background override for light mode */
+[data-theme="light"] #root > div,
+[data-theme="light"] .theme-bg-base {
+  background-color: #eaedf1 !important;
+  background-image: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(16, 185, 129, 0.08), transparent 70%) !important;
+  color: #0f172a !important;
+}
+
+/* Light Mode Surface Containers & Cards (Eye-friendly soft slate, eliminates harsh white glare) */
+[data-theme="light"] .bg-\[\#0a0a0c\],
+[data-theme="light"] .bg-\[\#0c0c0e\],
+[data-theme="light"] .bg-\[\#0e0e12\],
+[data-theme="light"] .bg-\[\#121216\],
+[data-theme="light"] .bg-\[\#121216\]\/95,
+[data-theme="light"] .bg-\[\#141418\],
+[data-theme="light"] .bg-\[\#16161a\],
+[data-theme="light"] .bg-\[\#18181c\],
+[data-theme="light"] .bg-\[\#1c1c1e\],
+[data-theme="light"] .bg-\[\#222226\],
+[data-theme="light"] .bg-\[\#15151c\],
+[data-theme="light"] .bg-\[\#131318\],
+[data-theme="light"] .bg-\[\#0d0d11\],
+[data-theme="light"] .bg-\[\#0a0a0d\],
+[data-theme="light"] .bg-\[\#1a1a1f\],
+[data-theme="light"] .bg-\[\#18181f\],
+[data-theme="light"] .bg-\[\#18181e\],
+[data-theme="light"] .bg-\[\#161618\],
+[data-theme="light"] .bg-\[\#111116\] {
+  background-color: #f3f5f8 !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Light Mode Inner Wells & Sub-surfaces */
+[data-theme="light"] .bg-black\/20,
+[data-theme="light"] .bg-black\/30,
+[data-theme="light"] .bg-black\/40,
+[data-theme="light"] .bg-black\/50,
+[data-theme="light"] .bg-black\/60,
+[data-theme="light"] .bg-black\/70,
+[data-theme="light"] .bg-black\/80,
+[data-theme="light"] .bg-\[\#070709\],
+[data-theme="light"] .bg-\[\#09090c\] {
+  background-color: #e2e6eb !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Light Mode Header Bar */
+[data-theme="light"] header {
+  background-color: rgba(234, 237, 241, 0.95) !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Light Mode Navigation and Segment Controls */
+[data-theme="light"] nav {
+  background-color: #e2e6eb !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Light Mode Text High-Contrast Rules */
+[data-theme="light"] .text-white:not([class*="bg-emerald"]):not([class*="bg-teal"]):not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-black"]):not([class*="from-"]):not(.keep-white) {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-\[\#f5f5f7\] {
+  color: #0f172a !important;
+}
+
+/* Light Mode Secondary Text (Slate-600 - High legibility, gentle on the eyes) */
+[data-theme="light"] .text-\[\#86868b\],
+[data-theme="light"] .text-\[\#a1a1a6\],
+[data-theme="light"] .text-\[\#8e8e93\],
+[data-theme="light"] .text-\[\#71717a\],
+[data-theme="light"] .text-\[\#6e6e73\],
+[data-theme="light"] .text-zinc-400,
+[data-theme="light"] .text-zinc-500 {
+  color: #475569 !important;
+}
+
+/* Light Mode Borders */
+[data-theme="light"] .border-white\/\[0\.04\],
+[data-theme="light"] .border-white\/\[0\.06\],
+[data-theme="light"] .border-white\/\[0\.08\],
+[data-theme="light"] .border-white\/\[0\.1\],
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/15,
+[data-theme="light"] .border-white\/20,
+[data-theme="light"] .border-white\/5 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Light Mode Form Inputs & Selects */
+[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background-color: #e9ecf1 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Light Mode Glassmorphism Surfaces */
+[data-theme="light"] .apple-glass {
+  background: rgba(243, 245, 248, 0.98) !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .apple-glass-subtle {
+  background: rgba(234, 237, 241, 0.95) !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Light Mode Interactive Hovers */
+[data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover,
+[data-theme="light"] .hover\:bg-white\/\[0\.06\]:hover,
+[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: #e2e6eb !important;
+}
+
+[data-theme="light"] .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+/* Light Mode Scrollbars */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18) !important;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.30) !important;
+}
+
+/* Light Mode: Convert amber/orange buttons, badges & accents to fresh emerald green */
+[data-theme="light"] button[class*="bg-amber-500\/10"],
+[data-theme="light"] button[class*="bg-amber-500\/15"],
+[data-theme="light"] button[class*="bg-amber-500\/20"],
+[data-theme="light"] button[class*="bg-amber-500\/25"],
+[data-theme="light"] button[class*="bg-orange-500\/15"],
+[data-theme="light"] button[class*="bg-orange-500\/20"],
+[data-theme="light"] button[class*="bg-amber-500"],
+[data-theme="light"] .bg-amber-500\/10,
+[data-theme="light"] .bg-amber-500\/15,
+[data-theme="light"] .bg-amber-500\/20,
+[data-theme="light"] .bg-amber-500\/25 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #047857 !important;
+}
+
+[data-theme="light"] button[class*="bg-amber-500\/10"]:hover,
+[data-theme="light"] button[class*="bg-amber-500\/15"]:hover,
+[data-theme="light"] button[class*="bg-amber-500\/20"]:hover,
+[data-theme="light"] button[class*="bg-amber-500\/25"]:hover,
+[data-theme="light"] button[class*="hover:bg-amber-500"]:hover,
+[data-theme="light"] .hover\:bg-amber-500\/20:hover,
+[data-theme="light"] .hover\:bg-amber-500\/25:hover,
+[data-theme="light"] .hover\:bg-amber-500\/30:hover {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+  color: #065f46 !important;
+}
+
+[data-theme="light"] .text-amber-200,
+[data-theme="light"] .text-amber-300,
+[data-theme="light"] .text-amber-400,
+[data-theme="light"] .text-amber-500,
+[data-theme="light"] .text-orange-400,
+[data-theme="light"] .text-orange-500 {
+  color: #059669 !important;
+}
+
+[data-theme="light"] .border-amber-500\/20,
+[data-theme="light"] .border-amber-500\/25,
+[data-theme="light"] .border-amber-500\/30,
+[data-theme="light"] .border-amber-500\/40,
+[data-theme="light"] .border-amber-500\/50,
+[data-theme="light"] .border-orange-500\/30,
+[data-theme="light"] .border-orange-500\/40 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="light"] .ring-amber-500\/25,
+[data-theme="light"] .ring-amber-500\/30,
+[data-theme="light"] .ring-amber-500\/40 {
+  --tw-ring-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+/* ==========================================================================
+   THEME 2: TMAVÝ (SLATE DARK MODE) - COMFORTABLE CHARCOAL/SLATE
+   ========================================================================== */
+html[data-theme="dark"],
+html.theme-dark {
+  background-color: #121318;
+  color: #f1f5f9;
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body,
+html.theme-dark body {
+  background-color: #121318;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] #root > div,
+[data-theme="dark"] .theme-bg-base {
+  background-color: #121318 !important;
+  background-image: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(16, 185, 129, 0.06), transparent 70%) !important;
+  color: #f1f5f9 !important;
+}
+
+/* Dark Mode Surfaces */
+[data-theme="dark"] .bg-\[\#0a0a0c\],
+[data-theme="dark"] .bg-\[\#0c0c0e\],
+[data-theme="dark"] .bg-\[\#0e0e12\],
+[data-theme="dark"] .bg-\[\#121216\],
+[data-theme="dark"] .bg-\[\#141418\],
+[data-theme="dark"] .bg-\[\#16161a\],
+[data-theme="dark"] .bg-\[\#18181c\],
+[data-theme="dark"] .bg-\[\#1c1c1e\],
+[data-theme="dark"] .bg-\[\#222226\],
+[data-theme="dark"] .bg-\[\#15151c\],
+[data-theme="dark"] .bg-\[\#131318\],
+[data-theme="dark"] .bg-\[\#0d0d11\],
+[data-theme="dark"] .bg-\[\#0a0a0d\],
+[data-theme="dark"] .bg-\[\#1a1a1f\] {
+  background-color: #1a1b24 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] header {
+  background-color: rgba(20, 21, 28, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .apple-glass {
+  background: rgba(26, 27, 36, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ==========================================================================
+   THEME 3: ČERNÝ (PURE OLED MIDNIGHT BLACK)
+   ========================================================================== */
+html[data-theme="black"],
+html.theme-black {
+  background-color: #000000;
+  color: #f5f5f7;
+  color-scheme: dark;
+}
+
+html[data-theme="black"] body,
+html.theme-black body {
+  background-color: #000000;
+  color: #f5f5f7;
+}
+
+[data-theme="black"] #root > div,
+[data-theme="black"] .theme-bg-base {
+  background-color: #000000 !important;
+  background-image: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(16, 185, 129, 0.04), transparent 70%) !important;
+  color: #f5f5f7 !important;
+}
+
+[data-theme="black"] .bg-\[\#121216\],
+[data-theme="black"] .bg-\[\#16161a\],
+[data-theme="black"] .bg-\[\#1c1c1e\] {
+  background-color: #0b0b0e !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="black"] header {
+  background-color: rgba(8, 8, 10, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Typography System Definition for Manrope */

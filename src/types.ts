@@ -3,6 +3,7 @@ export type RiskTolerance = 'conservative' | 'balanced' | 'aggressive';
 export type TradingStrategy = 'price_action' | 'smc_ict' | 'trend_breakout' | 'supply_demand' | 'wyckoff' | 'custom';
 export type TradeSignal = 'LONG' | 'SHORT' | 'NEUTRAL_WAIT';
 export type LanguageOption = 'cs' | 'en' | 'es';
+export type AppTheme = 'light' | 'dark' | 'black';
 
 export interface StrategyPreset {
   id: string;
@@ -24,6 +25,7 @@ export interface StrategySettings {
   customRules: string;
   customMentorPrompt: string;
   language: LanguageOption;
+  theme?: AppTheme;
   accountRiskPercent: number; // e.g. 1% or 2%
   presets?: StrategyPreset[];
   activePresetId?: string;

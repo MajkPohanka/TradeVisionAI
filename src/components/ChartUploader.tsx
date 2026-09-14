@@ -30,7 +30,7 @@ import {
   ChevronRight,
   Eye,
 } from 'lucide-react';
-import { LanguageOption, HoldingPeriod } from '../types';
+import { LanguageOption, HoldingPeriod, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
 import { convertSvgToPng } from '../utils/sampleChart';
 
@@ -44,6 +44,7 @@ interface ChartUploaderProps {
   language?: LanguageOption;
   holdingPeriod?: HoldingPeriod;
   onOpenSettings?: () => void;
+  theme?: AppTheme;
 }
 
 export const ChartUploader: React.FC<ChartUploaderProps> = ({
@@ -56,7 +57,9 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   language = 'cs',
   holdingPeriod = 'intraday',
   onOpenSettings,
+  theme = 'light',
 }) => {
+  const isLight = theme === 'light';
   const t = getTranslation(language as LanguageOption);
   const [showGuide, setShowGuide] = useState(false);
   const [showConfirmResetModal, setShowConfirmResetModal] = useState(false);
@@ -570,10 +573,10 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
             {t.uploaderTitle}
           </h1>
-          <p className="text-xs sm:text-sm text-[#a1a1a6] mt-1 max-w-2xl leading-relaxed">
+          <p className={`text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>
             {t.uploaderSubtitle}
           </p>
         </div>
@@ -586,10 +589,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               const el = document.getElementById('live-tradingview-section');
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap"
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap border ${
+              isLight
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/25'
+            }`}
             title={language === 'cs' ? 'Přejít na živý TradingView graf' : language === 'es' ? 'Ir al gráfico en vivo' : 'Jump to live chart'}
           >
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <TrendingUp className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-white' : 'text-emerald-400'}`} />
             <span>{language === 'cs' ? 'Živý TradingView' : language === 'es' ? 'TradingView en Vivo' : 'Live TradingView'}</span>
           </button>
 
@@ -597,10 +604,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#18181c] hover:bg-[#222226] text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap"
+              className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap ${
+                isLight
+                  ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs'
+                  : 'bg-[#18181c] hover:bg-[#222226] text-white border-white/10'
+              }`}
               title={t.analysisSettingsTooltip}
             >
-              <Sliders className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <Sliders className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <span>{t.analysisSettingsBtn}</span>
             </button>
           )}
@@ -610,11 +621,15 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             onClick={() => setShowGuide(!showGuide)}
             className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 whitespace-nowrap ${
               showGuide
-                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                ? isLight
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
+                  : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                : isLight
+                ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs'
                 : 'bg-[#18181c] text-[#a1a1a6] border-white/10 hover:text-white hover:bg-[#222226]'
             }`}
           >
-            <HelpCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <HelpCircle className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-emerald-600' : 'text-cyan-400'}`} />
             <span>{t.timeframeGuideBtn}</span>
             {showGuide ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
           </button>
@@ -623,10 +638,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             <button
               type="button"
               onClick={() => setShowConfirmResetModal(true)}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/25 text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap"
+              className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap border ${
+                isLight
+                  ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                  : 'bg-red-500/10 hover:bg-red-500/20 text-red-300 border-red-500/25'
+              }`}
               title={t.clearAndNewAnalysis}
             >
-              <RotateCcw className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <RotateCcw className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <span>{t.clearAndNewAnalysis}</span>
             </button>
           )}
@@ -635,38 +654,62 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
       {/* 2. Expandable Timeframe Guide (Contextual) */}
       {showGuide && (
-        <div className="p-5 rounded-2xl bg-[#141418] border border-cyan-500/25 text-[#f5f5f7] text-xs space-y-4 shadow-lg animate-fadeIn">
-          <div className="flex items-center space-x-2.5 border-b border-white/[0.08] pb-3">
-            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+        <div className={`p-5 rounded-2xl text-xs space-y-4 shadow-lg animate-fadeIn border ${
+          isLight
+            ? 'bg-white border-slate-300 text-slate-800'
+            : 'bg-[#141418] border-cyan-500/25 text-[#f5f5f7]'
+        }`}>
+          <div className={`flex items-center space-x-2.5 border-b pb-3 ${
+            isLight ? 'border-slate-200' : 'border-white/[0.08]'
+          }`}>
+            <div className={`p-1.5 rounded-lg ${isLight ? 'bg-emerald-100 text-emerald-700' : 'bg-cyan-500/10 text-cyan-400'}`}>
               <Compass className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-xs">{t.timeframeGuideTitle}</h3>
-              <p className="text-[11px] text-[#86868b]">{t.timeframeGuideSubtitle}</p>
+              <h3 className={`font-bold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>{t.timeframeGuideTitle}</h3>
+              <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>{t.timeframeGuideSubtitle}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-              <div className="text-emerald-400 font-bold text-[11px] mb-1 flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-center text-[10px] leading-4">1</span>
+            <div className={`p-3.5 rounded-xl border ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/[0.06]'
+            }`}>
+              <div className={`font-bold text-[11px] mb-1 flex items-center gap-1.5 ${
+                isLight ? 'text-emerald-700' : 'text-emerald-400'
+              }`}>
+                <span className={`w-4 h-4 rounded-full text-center text-[10px] leading-4 ${
+                  isLight ? 'bg-emerald-200 text-emerald-900 font-bold' : 'bg-emerald-500/20'
+                }`}>1</span>
                 <span>{t.tfStep1Title}</span>
               </div>
-              <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep1Desc}</p>
+              <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>{t.tfStep1Desc}</p>
             </div>
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-              <div className="text-cyan-400 font-bold text-[11px] mb-1 flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-center text-[10px] leading-4">2</span>
+            <div className={`p-3.5 rounded-xl border ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/[0.06]'
+            }`}>
+              <div className={`font-bold text-[11px] mb-1 flex items-center gap-1.5 ${
+                isLight ? 'text-teal-700' : 'text-cyan-400'
+              }`}>
+                <span className={`w-4 h-4 rounded-full text-center text-[10px] leading-4 ${
+                  isLight ? 'bg-teal-200 text-teal-900 font-bold' : 'bg-cyan-500/20'
+                }`}>2</span>
                 <span>{t.tfStep2Title}</span>
               </div>
-              <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep2Desc}</p>
+              <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>{t.tfStep2Desc}</p>
             </div>
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-              <div className="text-purple-400 font-bold text-[11px] mb-1 flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-purple-500/20 text-center text-[10px] leading-4">3</span>
+            <div className={`p-3.5 rounded-xl border ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/[0.06]'
+            }`}>
+              <div className={`font-bold text-[11px] mb-1 flex items-center gap-1.5 ${
+                isLight ? 'text-indigo-700' : 'text-purple-400'
+              }`}>
+                <span className={`w-4 h-4 rounded-full text-center text-[10px] leading-4 ${
+                  isLight ? 'bg-indigo-200 text-indigo-900 font-bold' : 'bg-purple-500/20'
+                }`}>3</span>
                 <span>{t.tfStep3Title}</span>
               </div>
-              <p className="text-[11px] text-[#a1a1a6] leading-relaxed">{t.tfStep3Desc}</p>
+              <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>{t.tfStep3Desc}</p>
             </div>
           </div>
         </div>
@@ -690,49 +733,89 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className={`rounded-2xl transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer relative scroll-mt-24 ${
-                isSelected
+              className={`rounded-2xl transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer relative scroll-mt-24 border ${
+                isLight
+                  ? isSelected
+                    ? 'bg-emerald-50/70 border-2 border-emerald-600 shadow-lg shadow-emerald-500/10 ring-2 ring-emerald-500/20'
+                    : hasImage
+                    ? 'bg-white border-2 border-emerald-500/60 shadow-sm'
+                    : isRecommendedNext
+                    ? 'bg-white border-2 border-dashed border-emerald-500/50 hover:border-emerald-600 shadow-xs'
+                    : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 shadow-xs'
+                  : isSelected
                   ? 'bg-[#151b17] border-2 border-emerald-400 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/20'
                   : hasImage
-                  ? 'bg-[#121216] border border-emerald-500/40 hover:border-emerald-500/60 shadow-md'
+                  ? 'bg-[#121216] border-emerald-500/40 hover:border-emerald-500/60 shadow-md'
                   : isRecommendedNext
-                  ? 'bg-[#121216]/90 border border-dashed border-emerald-500/40 hover:border-emerald-400/70 shadow-sm'
-                  : 'bg-[#121216]/80 hover:bg-[#18181e] border border-white/10 hover:border-white/20'
+                  ? 'bg-[#121216]/90 border-dashed border-emerald-500/40 hover:border-emerald-400/70 shadow-sm'
+                  : 'bg-[#121216]/80 hover:bg-[#18181e] border-white/10 hover:border-white/20'
               }`}
             >
               {/* Slot Header */}
-              <div className={`p-4 border-b border-white/[0.06] flex items-center justify-between transition-colors ${
-                isSelected ? 'bg-emerald-500/10' : 'bg-black/30'
+              <div className={`p-4 border-b flex items-center justify-between transition-colors ${
+                isLight
+                  ? isSelected
+                    ? 'bg-emerald-100/70 border-emerald-200'
+                    : 'bg-slate-100/90 border-slate-200'
+                  : isSelected
+                  ? 'bg-emerald-500/10 border-white/[0.06]'
+                  : 'bg-black/30 border-white/[0.06]'
               }`}>
                 <div className="flex items-center space-x-2.5">
                   <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                    isSelected ? 'bg-emerald-500 text-black' : 'bg-white/[0.08] text-[#86868b]'
+                    isLight
+                      ? isSelected
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-200 text-slate-700'
+                      : isSelected
+                      ? 'bg-emerald-500 text-black'
+                      : 'bg-white/[0.08] text-[#86868b]'
                   }`}>
                     {slot.step}
                   </span>
                   <div>
                     <div className="flex items-center space-x-1.5">
-                      <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className={`text-xs font-bold ${isSelected ? 'text-emerald-300' : 'text-white'}`}>
+                      <Camera className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                      <span className={`text-xs font-bold ${
+                        isLight
+                          ? isSelected
+                            ? 'text-emerald-900'
+                            : 'text-slate-900'
+                          : isSelected
+                          ? 'text-emerald-300'
+                          : 'text-white'
+                      }`}>
                         {slot.tf}
                       </span>
-                      <span className="text-[10px] text-[#86868b]">• {slot.role}</span>
+                      <span className={`text-[10px] ${isLight ? 'text-slate-600 font-medium' : 'text-[#86868b]'}`}>• {slot.role}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-1.5">
                   {hasImage ? (
-                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className={`text-[10px] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full border ${
+                      isLight
+                        ? 'text-emerald-800 bg-emerald-100 border-emerald-300'
+                        : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    }`}>
                       <CheckCircle2 className="w-3 h-3" />
                       {t.slotStatusReady}
                     </span>
                   ) : isSelected ? (
-                    <span className="text-[10px] font-semibold text-emerald-300 flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40 animate-pulse">
+                    <span className={`text-[10px] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full border animate-pulse ${
+                      isLight
+                        ? 'text-emerald-900 bg-emerald-200/80 border-emerald-400 font-bold'
+                        : 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40'
+                    }`}>
                       {t.slotStatusActiveTarget} (Ctrl+V / ⌘+V)
                     </span>
                   ) : isRecommendedNext ? (
-                    <span className="text-[10px] font-medium text-emerald-400/80 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                      isLight
+                        ? 'text-emerald-800 bg-emerald-50 border-emerald-200 font-semibold'
+                        : 'text-emerald-400/80 bg-emerald-500/5 border-emerald-500/15'
+                    }`}>
                       {t.slotStatusNext}
                     </span>
                   ) : null}
@@ -747,7 +830,11 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                       setPreviewSlotIndex(idx);
                       setIsZoomScaleToggled(false);
                     }}
-                    className="relative rounded-xl overflow-hidden aspect-video bg-black group border border-white/10 hover:border-emerald-500/50 transition-all duration-200 cursor-pointer shadow-sm"
+                    className={`relative rounded-xl overflow-hidden aspect-video bg-black group border transition-all duration-200 cursor-pointer shadow-sm ${
+                      isLight
+                        ? 'border-slate-300 hover:border-emerald-600'
+                        : 'border-white/10 hover:border-emerald-500/50'
+                    }`}
                     title={t.zoomSlotPreviewTooltip || 'Kliknutím zvětšíte náhled snímku grafu'}
                   >
                     <img
@@ -806,37 +893,59 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                       triggerUploadForSlot(idx, false);
                     }}
                     className={`border border-dashed rounded-xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[160px] group ${
-                      isSelected
+                      isLight
+                        ? isSelected
+                          ? 'border-emerald-500 bg-emerald-50/60'
+                          : 'border-slate-300 hover:border-emerald-500 bg-slate-50/70 hover:bg-emerald-50/30'
+                        : isSelected
                         ? 'border-emerald-400 bg-emerald-950/20'
                         : 'border-white/15 hover:border-emerald-400/50 bg-black/20 hover:bg-emerald-950/10'
                     }`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 transition ${
-                      isSelected
+                      isLight
+                        ? isSelected
+                          ? 'bg-emerald-100 text-emerald-700 scale-110'
+                          : 'bg-slate-200/80 group-hover:bg-emerald-100 text-slate-600 group-hover:text-emerald-700'
+                        : isSelected
                         ? 'bg-emerald-500/20 text-emerald-300 scale-110'
                         : 'bg-white/[0.04] group-hover:bg-emerald-500/10 text-[#86868b] group-hover:text-emerald-400'
                     }`}>
                       <Upload className="w-5 h-5" />
                     </div>
                     <div className={`text-xs font-bold transition ${
-                      isSelected ? 'text-emerald-300' : 'text-white group-hover:text-emerald-300'
+                      isLight
+                        ? isSelected
+                          ? 'text-emerald-900'
+                          : 'text-slate-800 group-hover:text-emerald-700'
+                        : isSelected
+                        ? 'text-emerald-300'
+                        : 'text-white group-hover:text-emerald-300'
                     }`}>
                       {t.uploadSlotChart.replace('{tf}', slot.tf)}
                     </div>
-                    <div className="text-[11px] text-[#86868b] mt-1 text-center max-w-[200px] leading-snug">
+                    <div className={`text-[11px] mt-1 text-center max-w-[200px] leading-snug ${
+                      isLight ? 'text-slate-600' : 'text-[#86868b]'
+                    }`}>
                       {slot.desc}
                     </div>
 
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06] opacity-80 group-hover:opacity-100">
-                      <span className="text-[10px] text-emerald-400 font-semibold hover:underline">{t.browseFiles}</span>
-                      <span className="text-[#86868b] text-[10px]">•</span>
+                    <div className={`flex items-center gap-2 mt-3 pt-3 border-t opacity-80 group-hover:opacity-100 ${
+                      isLight ? 'border-slate-200' : 'border-white/[0.06]'
+                    }`}>
+                      <span className={`text-[10px] font-semibold hover:underline ${
+                        isLight ? 'text-emerald-700' : 'text-emerald-400'
+                      }`}>{t.browseFiles}</span>
+                      <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-[#86868b]'}`}>•</span>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           triggerUploadForSlot(idx, true);
                         }}
-                        className="text-[10px] text-cyan-400 font-medium hover:underline flex items-center gap-1"
+                        className={`text-[10px] font-medium hover:underline flex items-center gap-1 ${
+                          isLight ? 'text-teal-700' : 'text-cyan-400'
+                        }`}
                       >
                         <Camera className="w-3 h-3" />
                         {t.camera}
@@ -848,7 +957,13 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
               {/* Slot Footer Helper with Keyboard Shortcut instruction */}
               <div className={`px-4 py-2.5 border-t text-[11px] flex items-center justify-between transition-colors ${
-                isSelected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-black/20 border-white/[0.04] text-[#86868b]'
+                isLight
+                  ? isSelected
+                    ? 'bg-emerald-100/50 border-emerald-200 text-emerald-900 font-medium'
+                    : 'bg-slate-100/80 border-slate-200 text-slate-600'
+                  : isSelected
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                  : 'bg-black/20 border-white/[0.04] text-[#86868b]'
               }`}>
                 <span>{isSelected ? t.pressPasteHere.replace('{key}', 'Ctrl+V / ⌘+V') : t.slotRolePurpose.replace('{role}', slot.role)}</span>
                 <span className="font-mono text-[10px] font-bold">{slot.tf}</span>
@@ -859,20 +974,30 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       </div>
 
       {/* 4. PRIMARY CALL-TO-ACTION (Expanded Dominant Execution Bar) */}
-      <div className="pt-3 space-y-3 bg-[#121216] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl">
+      <div className={`pt-3 space-y-3 rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all border ${
+        isLight
+          ? 'bg-white border-slate-300 shadow-lg shadow-slate-200/50'
+          : 'bg-[#121216] border-white/[0.08] shadow-2xl'
+      }`}>
         {/* Status and engine guidance row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3 text-xs text-[#a1a1a6]">
+        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 text-xs ${
+          isLight ? 'border-slate-200 text-slate-600' : 'border-white/[0.06] text-[#a1a1a6]'
+        }`}>
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              isLight
+                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+            }`}>
               <Layers className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-white font-bold text-xs sm:text-sm">
+              <div className={`font-bold text-xs sm:text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {language === 'cs'
                   ? `Stav podkladů: ${uploadedCount} / ${MAX_IMAGES} ${uploadedCount === 1 ? 'graf' : (uploadedCount >= 2 && uploadedCount <= 4) ? 'grafy' : 'grafů'}`
                   : t.uploadStatusCount.replace('{count}', String(uploadedCount)).replace('{max}', String(MAX_IMAGES))}
               </div>
-              <div className="text-[11px] text-[#86868b]">
+              <div className={`text-[11px] ${isLight ? 'text-slate-500 font-medium' : 'text-[#86868b]'}`}>
                 {uploadedCount === 0
                   ? t.uploadHintEmpty.replace('{key}', 'Ctrl+V / ⌘+V')
                   : uploadedCount < MAX_IMAGES
@@ -882,8 +1007,8 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 text-[11px] text-emerald-400 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className={`flex items-center space-x-2 text-[11px] font-medium ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Top-Down Multi-Timeframe AI Engine</span>
           </div>
         </div>
@@ -894,16 +1019,24 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           id="run-ai-analysis-btn"
           onClick={onAnalyze}
           disabled={uploadedCount === 0 || isLoading}
-          className="w-full py-4 sm:py-5 px-8 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:brightness-110 text-black font-black text-base sm:text-lg tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-3 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 active:scale-[0.99] border border-emerald-300/40"
+          className={`w-full py-4 sm:py-5 px-8 rounded-xl sm:rounded-2xl font-black text-base sm:text-lg tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-3 active:scale-[0.99] border ${
+            isLight
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 border-emerald-600'
+              : 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:brightness-110 text-black shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 border-emerald-300/40'
+          }`}
         >
           {isLoading ? (
             <>
-              <div className="w-5 h-5 border-3 border-black border-t-transparent rounded-full animate-spin shrink-0" />
+              <div className={`w-5 h-5 border-3 border-t-transparent rounded-full animate-spin shrink-0 ${
+                isLight ? 'border-white' : 'border-black'
+              }`} />
               <span>{t.analyzingBtn}</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-black fill-black shrink-0" />
+              <Sparkles className={`w-5 h-5 sm:w-6 sm:h-6 shrink-0 ${
+                isLight ? 'text-white fill-white' : 'text-black fill-black'
+              }`} />
               <span className="uppercase tracking-wider">{t.analyzeBtn}</span>
             </>
           )}
@@ -914,7 +1047,11 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       {showConfirmResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-[#141418] border border-white/10 rounded-2xl sm:rounded-3xl p-6 shadow-2xl space-y-5"
+            className={`w-full max-w-md rounded-2xl sm:rounded-3xl p-6 shadow-2xl space-y-5 border ${
+              isLight
+                ? 'bg-white border-slate-300 text-slate-900'
+                : 'bg-[#141418] border-white/10 text-white'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start space-x-3.5">
@@ -922,10 +1059,10 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 <Trash2 className="w-6 h-6" />
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-white leading-snug">
+                <h3 className={`text-base font-bold leading-snug ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {t.confirmResetTitle}
                 </h3>
-                <p className="text-xs text-[#a1a1a6] leading-relaxed">
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>
                   {t.confirmResetDesc}
                 </p>
               </div>
@@ -935,7 +1072,11 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <button
                 type="button"
                 onClick={() => setShowConfirmResetModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white text-xs font-semibold transition cursor-pointer active:scale-95"
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
+                    : 'bg-white/[0.06] hover:bg-white/10 text-white'
+                }`}
               >
                 {t.cancel}
               </button>

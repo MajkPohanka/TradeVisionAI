@@ -7,8 +7,9 @@ import { TradingViewLiveChart } from './components/TradingViewLiveChart';
 import { MarketOverviewBar } from './components/MarketOverviewBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PasswordGate } from './components/PasswordGate';
-import { AnalysisResult, StrategySettings, LicenseStatus } from './types';
+import { AnalysisResult, StrategySettings, LicenseStatus, AppTheme } from './types';
 import { getTranslation } from './utils/translations';
+import { getInitialTheme, applyThemeToDocument } from './utils/theme';
 import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity, KeyRound } from 'lucide-react';
 
 // Code-split heavy secondary components to ensure lightning-fast initial mobile render
@@ -54,6 +55,21 @@ export default function App() {
   });
 
   const t = getTranslation(settings.language);
+
+  // App Theme state: 'light' (primary default), 'dark', or 'black'
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    return settings.theme || getInitialTheme();
+  });
+
+  // Sync theme changes to document element & localStorage
+  useEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
+
+  const handleUpdateTheme = (newTheme: AppTheme) => {
+    setTheme(newTheme);
+    setSettings((prev) => ({ ...prev, theme: newTheme }));
+  };
 
   // Sync settings to localStorage
   useEffect(() => {
@@ -212,6 +228,9 @@ export default function App() {
   }, [journal]);
 
   const handleUpdateSettings = (newSettings: Partial<StrategySettings>) => {
+    if (newSettings.theme && newSettings.theme !== theme) {
+      setTheme(newSettings.theme);
+    }
     setSettings((prev) => ({ ...prev, ...newSettings }));
   };
 
@@ -461,7 +480,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.05),transparent_70%)] text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative">
+    <div className="min-h-screen theme-bg-base bg-[#0a0a0c] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.05),transparent_70%)] text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative">
       {/* Header Bar */}
       <Header
         settings={settings}
@@ -470,6 +489,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         savedCount={journal.length}
         creditsCount={currentLicense?.credits ?? 0}
+        theme={theme}
+        onUpdateTheme={handleUpdateTheme}
         onOpenCreditsModal={() => {
           setIsPaywallTriggered(false);
           setIsCreditsModalOpen(true);
@@ -488,6 +509,7 @@ export default function App() {
           language={settings.language}
           onSelectAsset={handleSelectMarketAsset}
           selectedTvSymbol={selectedTvSymbol}
+          theme={theme}
         />
 
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
@@ -504,6 +526,7 @@ export default function App() {
                 language={settings.language}
                 holdingPeriod={settings.holdingPeriod}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
+                theme={theme}
               />
 
               {/* Real-Time Live TradingView Chart & Snapshot Station */}
@@ -514,19 +537,32 @@ export default function App() {
                 slots={images}
                 externalSymbol={selectedTvSymbol}
                 focusTrigger={chartFocusTrigger}
+                theme={theme}
               />
 
               {/* Prominent Legal & Educational Disclaimer Banner - Placed below Chart Uploader */}
-              <div className="bg-[#121216]/95 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-lg shadow-black/40">
+              <div className={`rounded-2xl p-3.5 sm:p-4 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-lg ${
+                theme === 'light'
+                  ? 'bg-emerald-500/[0.07] border border-emerald-500/25 shadow-emerald-500/5'
+                  : 'bg-[#121216]/95 border border-amber-500/30 shadow-black/40'
+              }`}>
                 <div className="flex items-start space-x-3.5 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0 mt-0.5">
-                    <Scale className="w-4 h-4 text-amber-400" />
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                    theme === 'light'
+                      ? 'bg-emerald-500/15 border border-emerald-500/30'
+                      : 'bg-amber-500/10 border border-amber-500/25'
+                  }`}>
+                    <Scale className={`w-4 h-4 ${theme === 'light' ? 'text-emerald-600' : 'text-amber-400'}`} />
                   </div>
                   <div className="space-y-1">
-                    <span className="font-bold text-amber-300 block text-[11px] sm:text-xs uppercase tracking-wider">
+                    <span className={`font-bold block text-[11px] sm:text-xs uppercase tracking-wider ${
+                      theme === 'light' ? 'text-emerald-800' : 'text-amber-300'
+                    }`}>
                       {t.topDisclaimerTitle}
                     </span>
-                    <p className="text-[11px] sm:text-xs text-[#a1a1a6] leading-relaxed">
+                    <p className={`text-[11px] sm:text-xs leading-relaxed ${
+                      theme === 'light' ? 'text-slate-600' : 'text-[#a1a1a6]'
+                    }`}>
                       {t.topDisclaimerText}
                     </p>
                   </div>
@@ -534,9 +570,13 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsTermsOpen(true)}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-1.5 transition cursor-pointer shrink-0 active:scale-95 whitespace-nowrap shadow-sm"
+                  className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition cursor-pointer shrink-0 active:scale-95 whitespace-nowrap shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 shadow-xs'
+                      : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30'
+                  }`}
                 >
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  <ShieldAlert className={`w-3.5 h-3.5 ${theme === 'light' ? 'text-white' : 'text-amber-400'}`} />
                   <span>{t.viewFullTerms || 'Zobrazit kompletní podmínky'}</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -596,7 +636,11 @@ export default function App() {
                           <button
                             onClick={handleAnalyzeChart}
                             disabled={isLoading}
-                            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold transition border border-amber-500/40 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                            className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50 shrink-0 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap shadow-xs ${
+                              theme === 'light'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600'
+                                : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40'
+                            }`}
                           >
                             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                             <span>{settings.language === 'cs' ? 'Zkusit znovu' : 'Retry now'}</span>
@@ -643,7 +687,11 @@ export default function App() {
                           <button
                             onClick={handleAnalyzeChart}
                             disabled={isLoading}
-                            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold transition border border-amber-500/40 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                            className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50 shrink-0 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap shadow-xs ${
+                              theme === 'light'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600'
+                                : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40'
+                            }`}
                           >
                             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                             <span>{settings.language === 'cs' ? 'Zkusit znovu' : 'Retry now'}</span>
@@ -682,6 +730,7 @@ export default function App() {
                     isSaved={isCurrentSaved}
                     onOpenChat={() => setIsChatOpen(true)}
                     language={settings.language}
+                    theme={theme}
                   />
                 </div>
               )}
@@ -737,6 +786,8 @@ export default function App() {
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
+        theme={theme}
+        onUpdateTheme={handleUpdateTheme}
       />
 
       {/* Interactive AI Mentor Chat Drawer */}
@@ -764,6 +815,7 @@ export default function App() {
           currentLicense={currentLicense}
           onLicenseUpdated={handleLicenseUpdated}
           isTriggeredByPaywall={isPaywallTriggered}
+          theme={theme}
           onOpenTermsModal={() => {
             setIsCreditsModalOpen(false);
             setIsTermsOpen(true);
@@ -777,6 +829,7 @@ export default function App() {
           isOpen={isTermsOpen}
           onClose={() => setIsTermsOpen(false)}
           language={settings.language}
+          theme={theme}
         />
       </Suspense>
 
@@ -794,9 +847,13 @@ export default function App() {
             <button
               id="footer-terms-btn"
               onClick={() => setIsTermsOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 font-medium shadow-xs"
+              className={`px-3.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 font-medium shadow-xs ${
+                theme === 'light'
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600'
+                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30'
+              }`}
             >
-              <Scale className="w-3.5 h-3.5 text-amber-400" />
+              <Scale className={`w-3.5 h-3.5 ${theme === 'light' ? 'text-white' : 'text-amber-400'}`} />
               <span>{t.footerTermsLink}</span>
             </button>
           </div>

@@ -169,7 +169,7 @@ export const StrategyPreferences: React.FC<StrategyPreferencesProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs font-semibold text-[#a1a1a6] flex items-center space-x-1.5 mb-2.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t.riskProfileLabel}</span>
               </label>
               <div className="grid grid-cols-3 gap-2.5">
@@ -180,7 +180,7 @@ export const StrategyPreferences: React.FC<StrategyPreferencesProps> = ({
                     onClick={() => onUpdateSettings({ riskTolerance: risk.id })}
                     className={`p-3 rounded-2xl text-center border transition-all duration-200 cursor-pointer active:scale-[0.98] ${
                       settings.riskTolerance === risk.id
-                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 font-bold ring-1 ring-amber-500/25'
+                        ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 font-bold ring-1 ring-emerald-500/25'
                         : 'bg-white/[0.03] border-white/[0.06] text-[#86868b] hover:text-[#f5f5f7] hover:bg-white/[0.06]'
                     }`}
                   >

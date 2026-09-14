@@ -1,7 +1,30 @@
 <!doctype html>
-<html lang="cs" class="dark">
+<html lang="cs">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Immediate theme initialization to prevent flash of wrong theme (default: 'light')
+      (function() {
+        try {
+          var theme = 'light';
+          var savedSettings = localStorage.getItem('tradeoy_settings');
+          if (savedSettings) {
+            var parsed = JSON.parse(savedSettings);
+            if (parsed && parsed.theme) theme = parsed.theme;
+          }
+          var savedTheme = localStorage.getItem('tradeoy_theme');
+          if (savedTheme) theme = savedTheme;
+          document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'dark' || theme === 'black') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.add('theme-' + theme);
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('theme-light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script>
       // Safe fallback for HTMLIFrameElement.prototype.contentWindow to prevent "contentWindow is not available"
       (function() {
@@ -98,7 +121,7 @@
     <!-- TradingView Widget Script -->
     <script src="https://s3.tradingview.com/tv.js"></script>
   </head>
-  <body class="bg-black text-[#f5f5f7] antialiased selection:bg-emerald-500/30 selection:text-white">
+  <body class="antialiased selection:bg-emerald-500 selection:text-black">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

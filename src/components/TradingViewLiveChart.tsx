@@ -21,7 +21,7 @@ import {
   Plus,
   Image as ImageIcon,
 } from 'lucide-react';
-import { LanguageOption, HoldingPeriod } from '../types';
+import { LanguageOption, HoldingPeriod, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface TradingViewLiveChartProps {
@@ -32,6 +32,7 @@ interface TradingViewLiveChartProps {
   activeSlotIndex?: number | null;
   externalSymbol?: string | null;
   focusTrigger?: number;
+  theme?: AppTheme;
 }
 
 interface MarketPreset {
@@ -78,8 +79,15 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   activeSlotIndex = 0,
   externalSymbol = null,
   focusTrigger = 0,
+  theme = 'light',
 }) => {
+  const isLight = theme === 'light';
   const t = getTranslation(language);
+
+  const isLightTheme = theme === 'light';
+  const tvTheme = isLightTheme ? 'light' : 'dark';
+  const tvBgColor = isLightTheme ? '#eef1f5' : theme === 'black' ? '#000000' : '#0d0d11';
+  const tvGridColor = isLightTheme ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)';
 
   const [symbol, setSymbol] = useState<string>('OANDA:XAUUSD');
   const [customSymbolInput, setCustomSymbolInput] = useState<string>('');
@@ -236,7 +244,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       symbol: symbol,
       interval: interval,
       timezone: 'Europe/Prague',
-      theme: 'dark',
+      theme: tvTheme,
       style: '1', // Candlesticks
       locale: tvLocale,
       enable_publishing: false,
@@ -248,13 +256,13 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       calendar: false,
       hide_volume: false,
       support_host: 'https://www.tradingview.com',
-      backgroundColor: '#0d0d11',
-      gridColor: 'rgba(255, 255, 255, 0.04)',
+      backgroundColor: tvBgColor,
+      gridColor: tvGridColor,
     };
     return `https://www.tradingview-widget.com/embed-widget/advanced-chart/?locale=${tvLocale}#${encodeURIComponent(
       JSON.stringify(widgetConfig)
     )}`;
-  }, [symbol, interval, tvLocale]);
+  }, [symbol, interval, tvLocale, tvTheme, tvBgColor, tvGridColor]);
 
   // Mount TradingView widget using TradingView.widget constructor or fallback to iframe
   useEffect(() => {
@@ -275,7 +283,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             symbol: symbol,
             interval: interval,
             timezone: 'Europe/Prague',
-            theme: 'dark',
+            theme: tvTheme,
             style: '1',
             locale: tvLocale,
             enable_publishing: false,
@@ -286,8 +294,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             save_image: false,
             hide_volume: false,
             container_id: tvContainerId,
-            backgroundColor: '#0d0d11',
-            gridColor: 'rgba(255, 255, 255, 0.04)',
+            backgroundColor: tvBgColor,
+            gridColor: tvGridColor,
           });
           widgetInstanceRef.current = widget;
           return;
@@ -331,7 +339,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [symbol, interval, tvLocale, isExpanded, chartUrl]);
+  }, [symbol, interval, tvLocale, isExpanded, chartUrl, tvTheme, tvBgColor, tvGridColor]);
 
   const handleApplyCustomSymbol = (e: React.FormEvent) => {
     e.preventDefault();
@@ -667,10 +675,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     <div
       id="live-tradingview-section"
       data-rr-block="true"
-      className={`bg-[#121216] border rounded-2xl sm:rounded-3xl shadow-2xl transition-all duration-500 relative overflow-hidden rr-block rr-ignore scroll-mt-20 sm:scroll-mt-24 ${
+      className={`border rounded-2xl sm:rounded-3xl shadow-2xl transition-all duration-500 relative overflow-hidden rr-block rr-ignore scroll-mt-20 sm:scroll-mt-24 ${
+        isLight
+          ? 'bg-[#f1f5f9] border-slate-300/80 shadow-slate-300/30'
+          : 'bg-[#121216] border-white/[0.08]'
+      } ${
         isHighlighted
-          ? 'border-emerald-400 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/40'
-          : 'border-white/[0.08]'
+          ? 'border-emerald-500 shadow-2xl shadow-emerald-500/30 ring-4 ring-emerald-500/40'
+          : ''
       } ${
         chartHeight === 'fullscreen' ? 'z-50' : ''
       }`}
@@ -708,21 +720,29 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       )}
 
       {/* 1. Header Toolbar */}
-      <div className="p-3 sm:p-4 border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-3 bg-[#15151c]/90">
+      <div className={`p-3 sm:p-4 border-b flex flex-wrap items-center justify-between gap-3 ${
+        isLight
+          ? 'bg-slate-200/90 border-slate-300/90'
+          : 'bg-[#15151c]/90 border-white/[0.08]'
+      }`}>
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-sm">
             <TrendingUp className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+              <h2 className={`text-xs sm:text-sm font-extrabold tracking-wide ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {t.tvLiveChartTitle || 'Živý TradingView Graf & Snímkovací Stanice'}
               </h2>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                isLight
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}>
                 LIVE
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-[#86868b]">
+            <p className={`text-[10px] sm:text-[11px] ${isLight ? 'text-slate-600 font-medium' : 'text-[#86868b]'}`}>
               {t.tvLiveChartSubtitle || 'Interaktivní graf pro přípravu a okamžité vložení snímků do AI analýzy'}
             </p>
           </div>
@@ -735,22 +755,30 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.06] text-xs transition cursor-pointer flex items-center space-x-1.5"
+            className={`p-1.5 sm:px-2.5 sm:py-1 rounded-lg border text-xs transition cursor-pointer flex items-center space-x-1.5 ${
+              isLight
+                ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300 shadow-xs'
+                : 'bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border-white/[0.06]'
+            }`}
             title={t.tvOpenTradingViewTooltip || 'Otevřít na TradingView.com'}
           >
-            <ExternalLink className="w-3.5 h-3.5 text-[#86868b]" />
-            <span className="hidden md:inline text-[11px]">TradingView</span>
+            <ExternalLink className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`} />
+            <span className="hidden md:inline text-[11px] font-medium">TradingView</span>
           </a>
 
           {/* Chart Height Toggle */}
           <button
             type="button"
             onClick={() => setChartHeight((prev) => (prev === 'standard' ? 'tall' : 'standard'))}
-            className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.06] text-xs transition cursor-pointer flex items-center space-x-1"
+            className={`p-1.5 sm:px-2.5 sm:py-1 rounded-lg border text-xs transition cursor-pointer flex items-center space-x-1 ${
+              isLight
+                ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300 shadow-xs'
+                : 'bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border-white/[0.06]'
+            }`}
             title={chartHeight === 'standard' ? (t.tvHeightLargerTooltip || 'Zvětšit výšku grafu') : (t.tvHeightCompactTooltip || 'Standardní výška')}
           >
             <Maximize2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-[11px]">
+            <span className="hidden sm:inline text-[11px] font-medium">
               {chartHeight === 'standard' ? (t.tvHeightLarger || 'Větší') : (t.tvHeightCompact || 'Kompaktní')}
             </span>
           </button>
@@ -759,7 +787,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           <button
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.06] text-xs transition cursor-pointer"
+            className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+              isLight
+                ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300 shadow-xs'
+                : 'bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border-white/[0.06]'
+            }`}
             title={isExpanded ? (t.tvCollapseChart || 'Sbalit graf') : (t.tvExpandChart || 'Rozbalit graf')}
           >
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -769,7 +801,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
       {/* 2. Quick Instrument Selector & Timeframe Toolbar */}
       {isExpanded && (
-        <div className="p-2.5 sm:p-3 bg-[#0d0d11] border-b border-white/[0.06] flex flex-wrap items-center justify-between gap-2.5">
+        <div className={`p-2.5 sm:p-3 border-b flex flex-wrap items-center justify-between gap-2.5 ${
+          isLight
+            ? 'bg-slate-100/95 border-slate-300/80'
+            : 'bg-[#0d0d11] border-white/[0.06]'
+        }`}>
           {/* Presets Bar */}
           <div className="flex items-center space-x-1 overflow-x-auto py-0.5 max-w-full scrollbar-none">
             {MARKET_PRESETS.map((preset) => {
@@ -787,7 +823,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                   onClick={() => setSymbol(preset.symbol)}
                   className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5 border ${
                     isSelected
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                      ? isLight
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-bold'
+                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                      : isLight
+                      ? 'bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-950 border-slate-200/90 shadow-xs'
                       : 'bg-white/[0.03] hover:bg-white/[0.07] text-[#a1a1a6] hover:text-white border-white/[0.05]'
                   }`}
                 >
@@ -806,13 +846,21 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 value={customSymbolInput}
                 onChange={(e) => setCustomSymbolInput(e.target.value)}
                 placeholder={t.tvCustomSymbolInputPlaceholder || 'Jiný symbol (AAPL, SOL, NVDA...)'}
-                className="bg-black/40 border border-white/10 focus:border-emerald-400 rounded-lg px-2.5 py-1 text-xs text-white placeholder-[#636366] focus:outline-none w-36 sm:w-44 uppercase font-mono"
+                className={`border rounded-lg px-2.5 py-1 text-xs focus:outline-none w-36 sm:w-44 uppercase font-mono ${
+                  isLight
+                    ? 'bg-white border-slate-300 focus:border-emerald-500 text-slate-900 placeholder-slate-400 shadow-xs'
+                    : 'bg-black/40 border-white/10 focus:border-emerald-400 text-white placeholder-[#636366]'
+                }`}
               />
             </div>
             <button
               type="submit"
               disabled={!customSymbolInput.trim()}
-              className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs transition cursor-pointer disabled:opacity-40"
+              className={`p-1.5 rounded-lg text-xs transition cursor-pointer disabled:opacity-40 ${
+                isLight
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                  : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30'
+              }`}
               title={t.tvSetSymbolBtn || 'Nastavit symbol'}
             >
               <Search className="w-3.5 h-3.5" />
@@ -820,10 +868,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           </form>
 
           {/* Timeframe Selectors + Dedicated Multi-Slot Insertion Buttons */}
-          <div className="flex flex-wrap items-center justify-between w-full pt-2 border-t border-white/[0.04] gap-2">
+          <div className={`flex flex-wrap items-center justify-between w-full pt-2 border-t gap-2 ${
+            isLight ? 'border-slate-300/60' : 'border-white/[0.04]'
+          }`}>
             {/* Timeframe Quick Switcher */}
             <div className="flex items-center space-x-1">
-              <span className="text-[11px] text-[#86868b] font-medium mr-1 hidden sm:inline">
+              <span className={`text-[11px] font-semibold mr-1 hidden sm:inline ${
+                isLight ? 'text-slate-700' : 'text-[#86868b]'
+              }`}>
                 {t.tvTimeframeLabel || 'Timeframe:'}
               </span>
               {TIMEFRAMES.map((tf) => {
@@ -835,12 +887,16 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                     onClick={() => setInterval(tf.value)}
                     className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition cursor-pointer ${
                       isTfSelected
-                        ? 'bg-emerald-500 text-black shadow-sm'
+                        ? isLight
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-emerald-500 text-black shadow-sm'
+                        : isLight
+                        ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-300 shadow-xs'
                         : 'bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border border-white/[0.04]'
                     }`}
                   >
                     <span>{tf.label}</span>
-                    <span className="text-[9px] font-normal opacity-70 ml-1 hidden md:inline">({tf.role})</span>
+                    <span className="text-[9px] font-normal opacity-75 ml-1 hidden md:inline">({tf.role})</span>
                   </button>
                 );
               })}
@@ -860,7 +916,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 id="capture-live-chart-btn"
                 onClick={handleCaptureCurrentChart}
                 disabled={isCapturing}
-                className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-black font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-lg shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
+                className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-md shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
                 title={
                   language === 'cs'
                     ? `Vyfotit aktuální graf a vložit do volného pole (Slot ${getTargetSlotIndex() + 1})`
@@ -889,7 +945,9 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       {isExpanded && (
         <div
           ref={chartFrameContainerRef}
-          className={`w-full bg-[#0d0d11] relative transition-all duration-200 rr-block rr-ignore ${getContainerHeightClass()}`}
+          className={`w-full relative transition-all duration-200 rr-block rr-ignore ${
+            isLight ? 'bg-slate-100' : 'bg-[#0d0d11]'
+          } ${getContainerHeightClass()}`}
           data-rr-block="true"
         >
           <div
@@ -901,10 +959,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
       {/* 4. Snapshot Info Footer */}
       {isExpanded && (
-        <div className="p-3 sm:p-4 bg-[#0a0a0d] border-t border-white/[0.06] text-xs text-[#a1a1a6] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className={`p-3 sm:p-4 border-t text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+          isLight
+            ? 'bg-slate-200/80 border-slate-300 text-slate-700'
+            : 'bg-[#0a0a0d] border-white/[0.06] text-[#a1a1a6]'
+        }`}>
           <div className="flex items-center space-x-2.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="text-[11px] sm:text-xs text-[#86868b]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className={`text-[11px] sm:text-xs ${isLight ? 'text-slate-700 font-medium' : 'text-[#86868b]'}`}>
               {language === 'cs'
                 ? 'Klikněte na zelené tlačítko „Vyfotit aktuální graf“ výše pro okamžité uložení grafu do analýzy.'
                 : 'Click the green "Capture Current Chart" button above to instantly save chart into analysis.'}
@@ -912,7 +974,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
-            <span className="text-[10px] text-[#86868b] font-mono bg-white/[0.04] px-2 py-1 rounded-md border border-white/[0.06]">
+            <span className={`text-[10px] font-mono px-2 py-1 rounded-md border ${
+              isLight
+                ? 'bg-white text-slate-700 border-slate-300 shadow-xs'
+                : 'text-[#86868b] bg-white/[0.04] border-white/[0.06]'
+            }`}>
               {language === 'cs' ? 'Rychlé vložení: Ctrl + V' : 'Quick paste: Ctrl + V'}
             </span>
           </div>

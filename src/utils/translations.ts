@@ -11,6 +11,16 @@ export const translations = {
     githubExport: 'GitHub & Export',
     proMentorTag: 'PRO MENTOR 3.6',
 
+    // Theme appearance
+    themeLabel: 'Vzhled',
+    themeLight: 'Tlumený světlý',
+    themeDark: 'Tmavý',
+    themeBlack: 'Černý',
+    themeLightDesc: 'Příjemný tlumený tón šetrný k očím bez oslňující bílé',
+    themeDarkDesc: 'Tmavý břidlicový režim šetrný k očím',
+    themeBlackDesc: 'Čistě černý OLED režim',
+    themeSwitchTooltip: 'Přepnout vzhled (Tlumený / Tmavý / Černý)',
+
     // Strategy Preferences
     strategyTitle: 'Nastavení a Přizpůsobení AI Mentora & Strategie',
     strategyBadge: 'Upravitelné kdykoliv',
@@ -484,6 +494,16 @@ export const translations = {
     githubExport: 'GitHub & Export',
     proMentorTag: 'PRO MENTOR 3.6',
 
+    // Theme appearance
+    themeLabel: 'Appearance',
+    themeLight: 'Soft Eye-Care',
+    themeDark: 'Dark',
+    themeBlack: 'Black',
+    themeLightDesc: 'Comfortable muted tone easy on the eyes without glare',
+    themeDarkDesc: 'Slate dark mode easy on eyes',
+    themeBlackDesc: 'Pure OLED black mode',
+    themeSwitchTooltip: 'Switch appearance (Soft Light / Dark / Black)',
+
     // Strategy Preferences
     strategyTitle: 'AI Mentor Strategy Settings & Customization',
     strategyBadge: 'Editable anytime',
@@ -956,6 +976,16 @@ export const translations = {
     tabJournal: 'Diario de Trading',
     githubExport: 'GitHub y Exportación',
     proMentorTag: 'PRO MENTOR 3.6',
+
+    // Theme appearance
+    themeLabel: 'Apariencia',
+    themeLight: 'Claro Suave',
+    themeDark: 'Oscuro',
+    themeBlack: 'Negro',
+    themeLightDesc: 'Tono neutro suave que cuida la vista sin reflejos molestos',
+    themeDarkDesc: 'Modo oscuro pizarra relajante',
+    themeBlackDesc: 'Modo negro puro OLED',
+    themeSwitchTooltip: 'Cambiar apariencia (Claro Suave / Oscuro / Negro)',
 
     // Strategy Preferences
     strategyTitle: 'Configuración y Personalización de la Estrategia del Mentor IA',

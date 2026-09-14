@@ -834,13 +834,19 @@ export default function App() {
       </Suspense>
 
       {/* Clean, Refined Footer */}
-      <footer className="mt-auto border-t border-white/[0.08] bg-[#0c0c0e] py-6 text-xs text-[#86868b] relative z-10">
+      <footer className={`mt-auto border-t py-6 text-xs transition-colors relative z-10 ${
+        theme === 'light'
+          ? 'bg-white border-slate-200 text-slate-500'
+          : 'bg-[#0c0c0e] border-white/[0.08] text-[#86868b]'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
-            <span className="font-bold text-white tracking-tight">TRADEOY<span className="text-emerald-400">.com</span></span>
-            <span className="text-[#6e6e73]">© {new Date().getFullYear()}</span>
-            <span className="text-[#6e6e73]">•</span>
-            <span>{t.footerToolDesc}</span>
+            <span className={`font-bold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+              TRADEOY<span className="text-emerald-500">.com</span>
+            </span>
+            <span className={theme === 'light' ? 'text-slate-400' : 'text-[#6e6e73]'}>© {new Date().getFullYear()}</span>
+            <span className={theme === 'light' ? 'text-slate-400' : 'text-[#6e6e73]'}>•</span>
+            <span className={theme === 'light' ? 'text-slate-600' : 'text-[#86868b]'}>{t.footerToolDesc}</span>
           </div>
 
           <div className="flex items-center space-x-4">

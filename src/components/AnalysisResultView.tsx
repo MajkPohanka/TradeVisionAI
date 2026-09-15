@@ -22,7 +22,7 @@ import {
   AlertOctagon,
   Printer,
 } from 'lucide-react';
-import { AnalysisResult, LanguageOption } from '../types';
+import { AnalysisResult, LanguageOption, AppTheme } from '../types';
 import { ShareAnalysisModal } from './ShareAnalysisModal';
 import { getTranslation } from '../utils/translations';
 
@@ -116,7 +116,7 @@ interface AnalysisResultViewProps {
   isSaved: boolean;
   onOpenChat: () => void;
   language?: LanguageOption;
-  theme?: 'dark' | 'light';
+  theme?: AppTheme;
 }
 
 export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({

@@ -76,10 +76,32 @@ html.theme-light body {
 [data-theme="light"] .bg-black\/60,
 [data-theme="light"] .bg-black\/70,
 [data-theme="light"] .bg-black\/80,
+[data-theme="light"] .bg-black\/85,
+[data-theme="light"] .bg-black\/90,
 [data-theme="light"] .bg-\[\#070709\],
 [data-theme="light"] .bg-\[\#09090c\] {
   background-color: #e2e6eb !important;
   border-color: #cbd5e1 !important;
+}
+
+/* Light Mode Gradients & Ticker Masks (Prevents dark blocks on sides) */
+[data-theme="light"] .from-\[\#0d0d12\],
+[data-theme="light"] .from-\[\#14141c\],
+[data-theme="light"] .from-black {
+  --tw-gradient-from: #f1f5f9 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(241, 245, 249, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #f1f5f9 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+[data-theme="light"] .to-\[\#0d0d12\],
+[data-theme="light"] .to-\[\#14141c\],
+[data-theme="light"] .to-black {
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+}
+
+[data-theme="light"] .via-\[\#0d0d12\]\/80,
+[data-theme="light"] .via-\[\#0d0d12\]\/60 {
+  --tw-gradient-stops: var(--tw-gradient-from), rgba(241, 245, 249, 0.6) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
 /* Light Mode Header Bar */

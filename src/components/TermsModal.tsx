@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ShieldAlert, X, Scale, FileText, CheckCircle2, Lock, AlertTriangle, CreditCard, ChevronRight, UserCheck, Gavel, Cpu, Activity, Clock } from 'lucide-react';
-import { LanguageOption } from '../types';
+import { LanguageOption, AppTheme } from '../types';
 
 interface TermsModalProps {
   isOpen: boolean;
   onClose: () => void;
   language: LanguageOption;
-  theme?: 'dark' | 'light';
+  theme?: AppTheme;
 }
 
 export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, language, theme = 'dark' }) => {

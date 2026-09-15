@@ -53,4 +53,23 @@ export function applyThemeToDocument(theme: AppTheme): void {
     root.classList.add('dark');
     root.style.colorScheme = 'dark';
   }
+
+  // Synchronize mobile status bar & browser toolbar color
+  try {
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    const targetColor = theme === 'light' ? '#eaedf1' : theme === 'black' ? '#000000' : '#0c0c0e';
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', targetColor);
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      meta.content = targetColor;
+      document.head.appendChild(meta);
+    }
+
+    const metaStatusBarStyle = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (metaStatusBarStyle) {
+      metaStatusBarStyle.setAttribute('content', theme === 'light' ? 'default' : 'black-translucent');
+    }
+  } catch {}
 }

@@ -10,7 +10,7 @@ import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus, AppTheme } from './types';
 import { getTranslation } from './utils/translations';
 import { getInitialTheme, applyThemeToDocument } from './utils/theme';
-import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity, KeyRound } from 'lucide-react';
+import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity, KeyRound, TrendingUp } from 'lucide-react';
 
 // Code-split heavy secondary components to ensure lightning-fast initial mobile render
 const MetaTraderAuditView = lazy(() => import('./components/MetaTraderAuditView').then(m => ({ default: m.MetaTraderAuditView })));
@@ -480,7 +480,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen theme-bg-base bg-[#0a0a0c] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.05),transparent_70%)] text-[#f5f5f7] flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative">
+    <div className={`min-h-screen theme-bg-base flex flex-col font-sans selection:bg-emerald-500 selection:text-black relative transition-colors ${
+      theme === 'light'
+        ? 'bg-[#eaedf1] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.06),transparent_70%)] text-slate-900'
+        : 'bg-[#0a0a0c] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(16,185,129,0.05),transparent_70%)] text-[#f5f5f7]'
+    }`}>
       {/* Header Bar */}
       <Header
         settings={settings}
@@ -840,10 +844,15 @@ export default function App() {
           : 'bg-[#0c0c0e] border-white/[0.08] text-[#86868b]'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-2">
-            <span className={`font-bold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
-              TRADEOY<span className="text-emerald-500">.com</span>
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center shadow-xs shrink-0">
+                <TrendingUp className="w-3.5 h-3.5 text-black stroke-[2.5]" />
+              </div>
+              <span className={`font-extrabold tracking-tight text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                Trade<span className="text-emerald-500">OY</span><span className="text-emerald-500">.com</span>
+              </span>
+            </div>
             <span className={theme === 'light' ? 'text-slate-400' : 'text-[#6e6e73]'}>© {new Date().getFullYear()}</span>
             <span className={theme === 'light' ? 'text-slate-400' : 'text-[#6e6e73]'}>•</span>
             <span className={theme === 'light' ? 'text-slate-600' : 'text-[#86868b]'}>{t.footerToolDesc}</span>

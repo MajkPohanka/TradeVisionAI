@@ -26,7 +26,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
   language = 'cs',
   onSelectAsset,
   selectedTvSymbol,
-  theme = 'dark',
+  theme = 'light',
 }) => {
   const isLight = theme === 'light';
   const t = getTranslation(language);
@@ -521,29 +521,29 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
-              {/* Left & Right Gradient Fade Masks */}
-              <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-12 z-10 ${
+              {/* Left & Right Gradient Fade Masks - subtle and theme-aware */}
+              <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-6 sm:w-10 z-10 ${
                 isLight
-                  ? 'bg-gradient-to-r from-slate-100 via-slate-100/80 to-transparent'
-                  : 'bg-gradient-to-r from-[#0d0d12] via-[#0d0d12]/80 to-transparent'
+                  ? 'bg-gradient-to-r from-slate-100 via-slate-100/60 to-transparent'
+                  : 'bg-gradient-to-r from-[#0d0d12] via-[#0d0d12]/60 to-transparent'
               }`} />
-              <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-12 z-10 ${
+              <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-6 sm:w-10 z-10 ${
                 isLight
-                  ? 'bg-gradient-to-l from-slate-100 via-slate-100/80 to-transparent'
-                  : 'bg-gradient-to-l from-[#0d0d12] via-[#0d0d12]/80 to-transparent'
+                  ? 'bg-gradient-to-l from-slate-100 via-slate-100/60 to-transparent'
+                  : 'bg-gradient-to-l from-[#0d0d12] via-[#0d0d12]/60 to-transparent'
               }`} />
 
-              {/* Left Scroll Button (Manual Nav / Nudge) */}
+              {/* Left Scroll Button (Desktop hover only - hidden on mobile to eliminate dark boxes) */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   nudge('left');
                 }}
-                className={`absolute left-1.5 top-1/2 -translate-y-1/2 z-20 w-8 h-12 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-xl backdrop-blur-md hover:scale-105 active:scale-95 opacity-90 sm:opacity-0 group-hover:opacity-100 ${
+                className={`hidden sm:flex absolute left-1.5 top-1/2 -translate-y-1/2 z-20 w-8 h-10 rounded-xl items-center justify-center transition-all cursor-pointer shadow-md backdrop-blur-md hover:scale-105 active:scale-95 opacity-0 group-hover:opacity-100 ${
                   isLight
-                    ? 'bg-white/95 hover:bg-emerald-600 text-slate-800 hover:text-white border border-slate-300 shadow-md'
-                    : 'bg-black/85 hover:bg-emerald-600 text-white border border-white/10 hover:border-emerald-400/50'
+                    ? 'bg-white/95 hover:bg-emerald-600 text-slate-800 hover:text-white border border-slate-300 shadow-sm'
+                    : 'bg-[#181820]/90 hover:bg-emerald-600 text-white border border-white/10 hover:border-emerald-400/50'
                 }`}
                 title={t.marketScrollLeft || 'Posunout doleva'}
                 aria-label="Scroll left"
@@ -568,17 +568,17 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
                 </div>
               </div>
 
-              {/* Right Scroll Button (Manual Nav / Push Forward) */}
+              {/* Right Scroll Button (Desktop hover only - hidden on mobile to eliminate dark boxes) */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   nudge('right');
                 }}
-                className={`absolute right-1.5 top-1/2 -translate-y-1/2 z-20 w-8 h-12 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-xl backdrop-blur-md hover:scale-105 active:scale-95 opacity-90 sm:opacity-0 group-hover:opacity-100 ${
+                className={`hidden sm:flex absolute right-1.5 top-1/2 -translate-y-1/2 z-20 w-8 h-10 rounded-xl items-center justify-center transition-all cursor-pointer shadow-md backdrop-blur-md hover:scale-105 active:scale-95 opacity-0 group-hover:opacity-100 ${
                   isLight
                     ? 'bg-white/95 hover:bg-emerald-600 text-slate-800 hover:text-white border border-slate-300 shadow-md'
-                    : 'bg-black/85 hover:bg-emerald-600 text-white border border-white/10 hover:border-emerald-400/50'
+                    : 'bg-[#181820]/90 hover:bg-emerald-600 text-white border border-white/10 hover:border-emerald-400/50'
                 }`}
                 title={t.marketScrollRight || 'Posunout doprava'}
                 aria-label="Scroll right"

@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`sticky top-0 z-40 border-b transition-colors ${
       isLight
-        ? 'bg-[#eaedf1]/95 backdrop-blur-md border-slate-300 text-slate-900 shadow-xs'
+        ? 'bg-[#eaedf1] sm:bg-[#eaedf1]/95 backdrop-blur-md border-slate-300/90 text-slate-900 shadow-xs'
         : 'bg-[#0c0c0e] sm:bg-[#0c0c0e]/95 sm:backdrop-blur-md border-white/[0.08] text-[#f5f5f7]'
     }`}>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -139,12 +139,13 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-1">
-                <span className={`font-extrabold text-sm sm:text-lg tracking-tight whitespace-nowrap leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <span className={`font-extrabold text-sm sm:text-lg tracking-tight whitespace-nowrap leading-none ${isLight ? 'text-black' : 'text-white'}`}>
                   TRADE<span className="text-emerald-500">OY.com</span>
                 </span>
               </div>
-              <p className="text-[9px] sm:text-[10px] text-emerald-500 font-bold tracking-widest uppercase mt-0.5">
-                TRADE. ENJOY.
+              <p className="text-[9px] sm:text-[10px] font-bold tracking-widest uppercase mt-0.5 whitespace-nowrap">
+                <span className={isLight ? 'text-black' : 'text-slate-300'}>TRADE.</span>{' '}
+                <span className="text-emerald-500">ENJOY.</span>
               </p>
             </div>
           </button>

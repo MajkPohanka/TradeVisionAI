@@ -13,7 +13,7 @@ import {
   AlertCircle,
   HelpCircle
 } from 'lucide-react';
-import { CreditPackage, LicenseStatus, LanguageOption } from '../types';
+import { CreditPackage, LicenseStatus, LanguageOption, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface CreditsModalProps {
@@ -24,7 +24,7 @@ interface CreditsModalProps {
   onLicenseUpdated: (license: LicenseStatus) => void;
   isTriggeredByPaywall?: boolean;
   onOpenTermsModal?: () => void;
-  theme?: 'dark' | 'light';
+  theme?: AppTheme;
 }
 
 export const CreditsModal: React.FC<CreditsModalProps> = ({

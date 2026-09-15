@@ -249,6 +249,67 @@ html.theme-light body {
   --tw-ring-color: rgba(16, 185, 129, 0.35) !important;
 }
 
+/* Light Mode: High-Contrast Red & Warning System (Prevents washed-out pink text and muddy brown boxes) */
+[data-theme="light"] .text-red-200,
+[data-theme="light"] .text-red-300,
+[data-theme="light"] .text-red-400,
+[data-theme="light"] .text-rose-200,
+[data-theme="light"] .text-rose-300,
+[data-theme="light"] .text-rose-400 {
+  color: #b91c1c !important; /* Rich crimson red with 6.5:1+ contrast against light backgrounds */
+  font-weight: 600;
+}
+
+[data-theme="light"] .bg-red-950\/40,
+[data-theme="light"] .bg-red-950\/30,
+[data-theme="light"] .bg-red-950\/20,
+[data-theme="light"] .bg-red-950,
+[data-theme="light"] .bg-rose-950\/40,
+[data-theme="light"] .bg-rose-950\/30,
+[data-theme="light"] .bg-rose-950 {
+  background-color: #fff1f2 !important; /* Soft rose background */
+  border-color: #fecdd3 !important;
+  color: #881337 !important; /* Deep readable burgundy text */
+}
+
+[data-theme="light"] .bg-amber-950\/30,
+[data-theme="light"] .bg-amber-950\/40,
+[data-theme="light"] .bg-amber-950 {
+  background-color: #fefce8 !important; /* Clean soft amber surface */
+  border-color: #fde047 !important;
+  color: #713f12 !important; /* Rich dark amber text */
+}
+
+[data-theme="light"] .bg-red-500\/10,
+[data-theme="light"] .bg-red-500\/15,
+[data-theme="light"] .bg-red-500\/20,
+[data-theme="light"] .bg-red-500\/25,
+[data-theme="light"] .bg-rose-500\/10,
+[data-theme="light"] .bg-rose-500\/15,
+[data-theme="light"] .bg-rose-500\/20,
+[data-theme="light"] .bg-rose-500\/25 {
+  background-color: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #991b1b !important;
+}
+
+[data-theme="light"] .border-red-500\/20,
+[data-theme="light"] .border-red-500\/25,
+[data-theme="light"] .border-red-500\/30,
+[data-theme="light"] .border-red-500\/40,
+[data-theme="light"] .border-rose-500\/25,
+[data-theme="light"] .border-rose-500\/30 {
+  border-color: #fca5a5 !important;
+}
+
+[data-theme="light"] button.bg-red-500,
+[data-theme="light"] button[class*="bg-red-500"],
+[data-theme="light"] button.bg-rose-600,
+[data-theme="light"] span.bg-red-500,
+[data-theme="light"] span.bg-rose-600 {
+  color: #ffffff !important;
+}
+
 /* ==========================================================================
    THEME 2: TMAVÝ (SLATE DARK MODE) - COMFORTABLE CHARCOAL/SLATE
    ========================================================================== */

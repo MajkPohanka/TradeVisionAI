@@ -761,7 +761,7 @@ export default function App() {
         <ErrorBoundary fallbackTitle="Chyba v modulu kalendáře / Macro Calendar Module Error">
           {activeTab === 'calendar' && (
             <Suspense fallback={<div className="py-20 text-center text-slate-400 flex items-center justify-center space-x-3"><RefreshCw className="w-5 h-5 animate-spin text-emerald-500" /><span>Načítám ekonomický kalendář...</span></div>}>
-              <EconomicCalendarWidget symbol={analysisResult?.symbol} language={settings.language} />
+              <EconomicCalendarWidget symbol={analysisResult?.symbol} language={settings.language} theme={theme} />
             </Suspense>
           )}
         </ErrorBoundary>
@@ -778,6 +778,7 @@ export default function App() {
                   setActiveTab('analyzer');
                 }}
                 language={settings.language}
+                theme={theme}
               />
             </Suspense>
           )}
@@ -850,7 +851,7 @@ export default function App() {
                 <TrendingUp className="w-3.5 h-3.5 text-black stroke-[2.5]" />
               </div>
               <span className={`font-extrabold tracking-tight text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-                Trade<span className="text-emerald-500">OY</span><span className="text-emerald-500">.com</span>
+                TRADE<span className="text-emerald-500">OY.com</span>
               </span>
             </div>
             <span className={theme === 'light' ? 'text-slate-400' : 'text-[#6e6e73]'}>© {new Date().getFullYear()}</span>

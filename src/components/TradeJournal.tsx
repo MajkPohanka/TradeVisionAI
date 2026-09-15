@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { History, TrendingUp, TrendingDown, Trash2, CheckCircle2, Download, ExternalLink } from 'lucide-react';
-import { AnalysisResult, LanguageOption } from '../types';
+import { AnalysisResult, LanguageOption, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface TradeJournalProps {
@@ -9,6 +9,7 @@ interface TradeJournalProps {
   onRemoveEntry: (id: string) => void;
   onSelectEntry: (entry: AnalysisResult) => void;
   language?: LanguageOption;
+  theme?: AppTheme;
 }
 
 export const TradeJournal: React.FC<TradeJournalProps> = ({
@@ -17,7 +18,9 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
   onRemoveEntry,
   onSelectEntry,
   language = 'cs',
+  theme = 'light',
 }) => {
+  const isLight = theme === 'light';
   const t = getTranslation(language as LanguageOption);
   const [filter, setFilter] = useState<'ALL' | 'LONG' | 'SHORT' | 'WIN' | 'LOSS'>('ALL');
 
@@ -78,12 +81,16 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#121216] border border-white/[0.08] rounded-3xl p-5 flex items-center justify-between shadow-lg">
+        <div className={`border rounded-3xl p-5 flex items-center justify-between shadow-lg ${
+          isLight ? 'bg-white border-slate-300 shadow-md' : 'bg-[#121216] border-white/[0.08]'
+        }`}>
           <div>
-            <div className="text-xs font-semibold text-[#86868b]">{t.losingTrades}</div>
-            <div className="text-3xl font-extrabold text-red-400 mt-1">{losses}</div>
+            <div className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>{t.losingTrades}</div>
+            <div className={`text-3xl font-extrabold mt-1 ${isLight ? 'text-rose-700' : 'text-red-400'}`}>{losses}</div>
           </div>
-          <div className="p-3.5 bg-red-500/15 rounded-2xl text-red-400 border border-red-500/25">
+          <div className={`p-3.5 rounded-2xl border ${
+            isLight ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-red-500/15 text-red-400 border-red-500/25'
+          }`}>
             <TrendingDown className="w-5 h-5" />
           </div>
         </div>
@@ -147,26 +154,26 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
                   <div>
                     <div className="flex items-center space-x-2.5">
-                      <span className="font-extrabold text-white text-sm">{entry.symbol}</span>
+                      <span className={`font-extrabold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>{entry.symbol}</span>
                       <span
                         className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                           entry.signal === 'LONG'
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            ? (isLight ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30')
                             : entry.signal === 'SHORT'
-                            ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                            ? (isLight ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-red-500/15 text-red-400 border border-red-500/30')
+                            : (isLight ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30')
                         }`}
                       >
                         {entry.signal}
                       </span>
-                      <span className="text-[10px] font-mono text-[#86868b]">{entry.timeframe}</span>
+                      <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-[#86868b]'}`}>{entry.timeframe}</span>
                     </div>
 
-                    <div className="text-xs text-[#86868b] mt-1.5 flex flex-wrap items-center gap-3">
-                      <span>{t.entryZone}: <strong className="text-white">{entry.entryZone?.recommended || (entry.entryZone?.min ? `${entry.entryZone.min} - ${entry.entryZone.max}` : 'N/A')}</strong></span>
-                      <span>SL: <strong className="text-red-400">{entry.stopLoss?.price ?? 'N/A'}</strong></span>
-                      <span>TP1: <strong className="text-emerald-400">{entry.takeProfitTargets?.[0]?.price ?? 'N/A'}</strong></span>
-                      <span>R:R <strong className="text-[#f5f5f7]">{entry.overallRiskRewardRatio ?? 'N/A'}</strong></span>
+                    <div className={`text-xs mt-1.5 flex flex-wrap items-center gap-3 ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>
+                      <span>{t.entryZone}: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{entry.entryZone?.recommended || (entry.entryZone?.min ? `${entry.entryZone.min} - ${entry.entryZone.max}` : 'N/A')}</strong></span>
+                      <span>SL: <strong className={isLight ? 'text-rose-700 font-extrabold' : 'text-red-400 font-bold'}>{entry.stopLoss?.price ?? 'N/A'}</strong></span>
+                      <span>TP1: <strong className={isLight ? 'text-emerald-700 font-extrabold' : 'text-emerald-400 font-bold'}>{entry.takeProfitTargets?.[0]?.price ?? 'N/A'}</strong></span>
+                      <span>R:R <strong className={isLight ? 'text-slate-900' : 'text-[#f5f5f7]'}>{entry.overallRiskRewardRatio ?? 'N/A'}</strong></span>
                     </div>
                   </div>
                 </div>

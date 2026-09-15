@@ -391,7 +391,12 @@ export default function App() {
         ...data.data,
         id: data.data.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
         timestamp: data.data.timestamp || Date.now(),
-        uploadedImages: (data.data.uploadedImages && data.data.uploadedImages.length > 0) ? data.data.uploadedImages : optimizedImages,
+        uploadedImages:
+          data.data.uploadedImages && data.data.uploadedImages.length > 0
+            ? data.data.uploadedImages
+            : activeImages.length > 0
+            ? activeImages
+            : optimizedImages,
       };
 
       setAnalysisResult(fullResult);

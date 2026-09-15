@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   TrendingUp,
   TrendingDown,
@@ -21,10 +22,21 @@ import {
   Compass,
   AlertOctagon,
   Printer,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+  Check,
+  X,
+  RefreshCw,
+  BarChart2,
+  Radio,
+  Camera,
 } from 'lucide-react';
 import { AnalysisResult, LanguageOption, AppTheme } from '../types';
 import { ShareAnalysisModal } from './ShareAnalysisModal';
 import { getTranslation } from '../utils/translations';
+import { renderTradingViewChartSnapshot } from '../utils/chartSnapshotRenderer';
 
 const parsePrice = (val: any): number => {
   if (typeof val === 'number') return val;
@@ -134,11 +146,104 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  const uploadedImages = result.uploadedImages || [];
+  const [chartViewMode, setChartViewMode] = useState<'snapshot' | 'hd_chart' | 'live_tv'>(
+    uploadedImages.length > 0 ? 'snapshot' : 'hd_chart'
+  );
+  const [hdChartUrl, setHdChartUrl] = useState<string | null>(null);
+  const [isGeneratingHdChart, setIsGeneratingHdChart] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isZoomScaleToggled, setIsZoomScaleToggled] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
+
+  const generateHdChart = async () => {
+    if (isGeneratingHdChart) return;
+    setIsGeneratingHdChart(true);
+    try {
+      const sym = (result.symbol || 'BTCUSDT').replace(/\s+/g, '');
+      const tf = result.timeframe || '15';
+      let candles: any[] = [];
+      let precision = 2;
+      let currentPrice: number | undefined = undefined;
+
+      try {
+        const res = await fetch('/api/chart-candles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: sym, timeframe: tf }),
+        });
+        if (res.ok) {
+          const chartData = await res.json();
+          if (chartData && chartData.success && Array.isArray(chartData.candles) && chartData.candles.length > 0) {
+            candles = chartData.candles;
+            precision = chartData.precision ?? 2;
+            currentPrice = chartData.currentPrice;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch chart candles, generating fallback:', err);
+      }
+
+      const slVal = parsePrice(result.stopLoss?.price);
+      const entryVal = parsePrice(result.entryZone?.recommended || result.entryZone?.min);
+      const tpVals = (result.takeProfitTargets || [])
+        .map((t) => ({
+          price: parsePrice(t.price),
+          target: t.target,
+          closePercent: t.closePercentage,
+        }))
+        .filter((t) => !isNaN(t.price));
+
+      const generatedUrl = renderTradingViewChartSnapshot({
+        symbol: sym,
+        timeframe: tf,
+        displayName: result.assetName || sym,
+        candles,
+        precision,
+        currentPrice,
+        theme: isLight ? 'light' : 'dark',
+        width: 1280,
+        height: 720,
+        overlayLevels: {
+          isShort: result.signal === 'SHORT',
+          slPrice: isNaN(slVal) ? undefined : slVal,
+          entryPrice: isNaN(entryVal) ? undefined : entryVal,
+          tpPrices: tpVals,
+        },
+      });
+
+      setHdChartUrl(generatedUrl);
+    } catch (e) {
+      console.error('Error generating HD chart:', e);
+    } finally {
+      setIsGeneratingHdChart(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!hdChartUrl && (chartViewMode === 'hd_chart' || uploadedImages.length === 0 || imageLoadError)) {
+      generateHdChart();
+    }
+  }, [chartViewMode, hdChartUrl, uploadedImages.length, imageLoadError]);
+
+  // Handle ESC key for lightbox
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsLightboxOpen(false);
+        setIsZoomScaleToggled(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen]);
+
   const getSignalBadge = () => {
     switch (result.signal) {
       case 'LONG':
         return {
-          bg: isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
+          bg: isLight ? 'bg-emerald-100 border-2 border-emerald-400 text-emerald-950 font-bold' : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
           gradient: 'from-emerald-500 via-teal-500 to-emerald-600',
           text: t.buySignal,
           icon: <TrendingUp className={`w-6 h-6 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`} />,
@@ -146,15 +251,15 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
         };
       case 'SHORT':
         return {
-          bg: isLight ? 'bg-red-100 border-red-300 text-red-800' : 'bg-red-500/15 border-red-500/40 text-red-400',
-          gradient: 'from-red-500 via-rose-500 to-red-600',
+          bg: isLight ? 'bg-rose-100 border-2 border-rose-400 text-rose-950 font-black' : 'bg-rose-950/40 border-2 border-rose-500/50 text-rose-200 font-bold',
+          gradient: 'from-rose-600 via-red-600 to-rose-700',
           text: t.sellSignal,
-          icon: <TrendingDown className={`w-6 h-6 ${isLight ? 'text-red-700' : 'text-red-400'}`} />,
+          icon: <TrendingDown className={`w-6 h-6 ${isLight ? 'text-rose-700' : 'text-rose-400'}`} />,
           color: 'red',
         };
       default:
         return {
-          bg: isLight ? 'bg-amber-100 border-amber-300 text-amber-900' : 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+          bg: isLight ? 'bg-amber-100 border-2 border-amber-400 text-amber-950 font-bold' : 'bg-amber-500/15 border-amber-500/40 text-amber-400',
           gradient: 'from-amber-500 via-orange-500 to-amber-600',
           text: t.waitSignal,
           icon: <PauseCircle className={`w-6 h-6 ${isLight ? 'text-amber-700' : 'text-amber-400'}`} />,
@@ -164,7 +269,6 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   };
 
   const signalInfo = getSignalBadge();
-  const uploadedImages = result.uploadedImages || [];
   const currentImage = uploadedImages[selectedImageIdx] || uploadedImages[0] || '';
 
   return (
@@ -362,28 +466,28 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 </div>
               </div>
 
-              {/* Stop Loss Level */}
+              {/* Stop Loss Level - High Contrast Red/Rose */}
               <div className={`p-3.5 rounded-2xl relative overflow-hidden border ${
                 isLight
-                  ? 'bg-red-50/70 border-red-200 text-slate-900'
-                  : 'bg-black/50 border-red-500/30 text-white'
+                  ? 'bg-rose-50 border-2 border-rose-300 text-slate-900 shadow-xs'
+                  : 'bg-rose-950/40 border-2 border-rose-500/50 text-white shadow-xs'
               }`}>
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500" />
+                <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-rose-600" />
                 <div className="flex items-center justify-between">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                    isLight ? 'text-red-700' : 'text-red-400'
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${
+                    isLight ? 'text-rose-950' : 'text-rose-200'
                   }`}>{t.stopLoss}</span>
-                  <span className={`text-[10px] font-mono font-bold ${
-                    isLight ? 'text-red-700' : 'text-red-400'
+                  <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full border ${
+                    isLight ? 'bg-rose-200/90 text-rose-950 border-rose-400' : 'bg-rose-900/60 text-rose-200 border-rose-500/40'
                   }`}>-{result.stopLoss?.distancePercent ?? 0}%</span>
                 </div>
-                <div className={`text-lg font-black mt-0.5 ${
-                  isLight ? 'text-red-800' : 'text-red-300'
+                <div className={`text-xl font-black mt-1 tracking-tight ${
+                  isLight ? 'text-rose-950' : 'text-rose-100'
                 }`}>
                   {result.stopLoss?.price ?? 'N/A'}
                 </div>
-                <div className={`text-[11px] mt-0.5 ${
-                  isLight ? 'text-slate-600' : 'text-[#86868b]'
+                <div className={`text-[11px] mt-1 font-medium ${
+                  isLight ? 'text-rose-900' : 'text-rose-200/90'
                 }`}>
                   {result.stopLoss?.reason ?? ''}
                 </div>
@@ -392,14 +496,14 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               {/* Take Profit Targets */}
               <div className="space-y-2">
                 <div className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${
-                  isLight ? 'text-slate-600' : 'text-[#86868b]'
+                  isLight ? 'text-slate-700' : 'text-[#86868b]'
                 }`}>{t.takeProfit1} / {t.takeProfit2} / {t.takeProfit3}</div>
                 {(result.takeProfitTargets || []).map((tp) => (
                   <div
                     key={tp.target}
                     className={`p-3 rounded-2xl flex items-center justify-between border ${
                       isLight
-                        ? 'bg-emerald-50/70 border-emerald-200'
+                        ? 'bg-emerald-50/80 border-emerald-300'
                         : 'bg-black/50 border-emerald-500/20'
                     }`}
                   >
@@ -407,13 +511,13 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                       <div className="flex items-center space-x-2">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                           isLight
-                            ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                            ? 'bg-emerald-200 text-emerald-950 border-emerald-400 font-extrabold'
                             : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
                         }`}>
                           TP {tp.target}
                         </span>
                         <span className={`text-sm font-bold ${
-                          isLight ? 'text-slate-900' : 'text-white'
+                          isLight ? 'text-slate-900 font-extrabold' : 'text-white'
                         }`}>{tp.price}</span>
                       </div>
                       <div className={`text-[10px] mt-0.5 ${
@@ -422,10 +526,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                     </div>
                     <div className="text-right">
                       <div className={`text-xs font-black ${
-                        isLight ? 'text-emerald-800' : 'text-emerald-400'
+                        isLight ? 'text-emerald-900 font-extrabold' : 'text-emerald-400'
                       }`}>R:R 1:{tp.riskRewardRatio}</div>
                       <div className={`text-[9px] ${
-                        isLight ? 'text-slate-500 font-medium' : 'text-[#86868b]'
+                        isLight ? 'text-slate-600 font-medium' : 'text-[#86868b]'
                       }`}>{tp.closePercentage}%</div>
                     </div>
                   </div>
@@ -436,7 +540,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
           {/* Risk Management Box */}
           <div className={`mt-5 pt-4 border-t text-xs space-y-1.5 ${
-            isLight ? 'border-slate-200 text-slate-600' : 'border-white/[0.08] text-[#86868b]'
+            isLight ? 'border-slate-200 text-slate-700' : 'border-white/[0.08] text-[#86868b]'
           }`}>
             <div className="flex justify-between">
               <span>{t.suggestedRisk}:</span>
@@ -444,108 +548,204 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             </div>
             <div className="flex justify-between">
               <span>{t.invalidationCondition}:</span>
-              <span className={`font-semibold text-[11px] ${isLight ? 'text-red-700' : 'text-red-400'}`}>{result.riskManagement?.invalidationCondition ?? 'N/A'}</span>
+              <span className={`font-bold text-[11px] ${isLight ? 'text-rose-900 font-black' : 'text-rose-300'}`}>{result.riskManagement?.invalidationCondition ?? 'N/A'}</span>
             </div>
           </div>
         </div>
 
-        {/* Right Col: Visual Chart Screenshot with Overlay Lines */}
-        <div className={`lg:col-span-2 rounded-3xl p-5 flex flex-col justify-between border ${
+        {/* Right Col: Visual Chart Screen with Levels & Multiple View Options */}
+        <div className={`lg:col-span-2 rounded-3xl p-4 sm:p-5 flex flex-col justify-between border ${
           isLight
             ? 'bg-white border-slate-300 shadow-md'
             : 'bg-[#121216] border-white/[0.08] shadow-xl'
         }`}>
-          <div className={`flex items-center justify-between mb-3.5 pb-3 border-b ${
+          {/* Top Bar: View Mode Switcher + Overlay & Fullscreen Controls */}
+          <div className={`flex flex-wrap items-center justify-between gap-2.5 mb-3.5 pb-3 border-b ${
             isLight ? 'border-slate-200' : 'border-white/[0.08]'
           }`}>
-            <div className="flex items-center space-x-2">
-              <Layers className={`w-4 h-4 ${isLight ? 'text-teal-700' : 'text-cyan-400'}`} />
-              <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{t.keyLevels}</h3>
+            {/* View Mode Selector Tabs */}
+            <div className="flex items-center space-x-1.5 overflow-x-auto">
+              {uploadedImages.length > 0 && !imageLoadError && (
+                <button
+                  type="button"
+                  onClick={() => setChartViewMode('snapshot')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
+                    chartViewMode === 'snapshot'
+                      ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-black border-white shadow-xs')
+                      : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] border-white/[0.08]')
+                  }`}
+                  title="Zobrazit původní analyzovaný screenshot s hladinami"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Snímek s hladinami</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setChartViewMode('hd_chart');
+                  if (!hdChartUrl) generateHdChart();
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
+                  chartViewMode === 'hd_chart'
+                    ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-black border-white shadow-xs')
+                    : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] border-white/[0.08]')
+                }`}
+                title="Generovat detailní svíčkový graf s hladinami"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                <span>Kompletní graf</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setChartViewMode('live_tv')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
+                  chartViewMode === 'live_tv'
+                    ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-black border-white shadow-xs')
+                    : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] border-white/[0.08]')
+                }`}
+                title="Otevřít živý interaktivní graf TradingView pro tento symbol"
+              >
+                <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                <span>Živý TradingView</span>
+              </button>
             </div>
 
+            {/* Overlay toggle & Fullscreen Maximize button */}
             <div className="flex items-center space-x-2">
+              {chartViewMode === 'hd_chart' && (
+                <button
+                  type="button"
+                  onClick={generateHdChart}
+                  disabled={isGeneratingHdChart}
+                  className={`p-1.5 rounded-full text-xs transition cursor-pointer border ${
+                    isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border-white/[0.08]'
+                  }`}
+                  title="Překreslit graf s čerstvými daty"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingHdChart ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+
+              {chartViewMode === 'snapshot' && (
+                <button
+                  type="button"
+                  onClick={() => setShowChartOverlay(!showChartOverlay)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
+                    isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
+                      : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border-white/[0.08]'
+                  }`}
+                  title={showChartOverlay ? 'Skrýt hladiny' : 'Zobrazit hladiny'}
+                >
+                  {showChartOverlay ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`} />}
+                  <span>{showChartOverlay ? 'Skrýt hladiny' : 'Zobrazit hladiny'}</span>
+                </button>
+              )}
+
+              {/* Fullscreen Maximize Button */}
               <button
-                onClick={() => setShowChartOverlay(!showChartOverlay)}
-                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1.5 transition cursor-pointer border ${
+                type="button"
+                onClick={() => setIsLightboxOpen(true)}
+                className={`px-3 py-1.5 rounded-full text-xs font-extrabold flex items-center space-x-1.5 transition cursor-pointer shadow-xs border ${
                   isLight
-                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
-                    : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border-white/[0.08]'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-black border-emerald-400'
                 }`}
+                title="Zvětšit graf na celou obrazovku"
               >
-                {showChartOverlay ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`} />}
-                <span>{showChartOverlay ? 'Hide' : 'Show'}</span>
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>Zvětšit graf</span>
               </button>
             </div>
           </div>
 
           {/* Interactive Canvas Screenshot Frame */}
-          <div className={`relative rounded-2xl overflow-hidden border bg-black aspect-video flex items-center justify-center shadow-lg ${
+          <div className={`relative rounded-2xl overflow-hidden border bg-black aspect-video flex items-center justify-center shadow-lg group ${
             isLight ? 'border-slate-300' : 'border-white/[0.08]'
           }`}>
-            {currentImage ? (
-              <div className="relative w-full h-full">
+            {/* 1. SNAPSHOT MODE */}
+            {chartViewMode === 'snapshot' && currentImage && !imageLoadError && (
+              <div
+                className="relative w-full h-full cursor-zoom-in"
+                onClick={() => setIsLightboxOpen(true)}
+                title="Kliknutím zvětšíte graf na celou obrazovku"
+              >
                 <img
                   src={currentImage}
                   alt="Chart analysis"
+                  onError={() => {
+                    setImageLoadError(true);
+                    setChartViewMode('hd_chart');
+                    generateHdChart();
+                  }}
                   className="w-full h-full object-contain"
                 />
+
+                {/* Hover hint */}
+                <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-md text-white border border-white/20 text-[10px] font-bold px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 pointer-events-none z-40">
+                  <Maximize2 className="w-3 h-3 text-emerald-400" />
+                  <span>Kliknutím zvětšit</span>
+                </div>
 
                 {/* Dynamic Price Level Visual Overlay with Risk/Reward Zones */}
                 {showChartOverlay && (() => {
                   const overlay = getOverlayLevels(result);
 
                   return (
-                    <div className="absolute inset-0 pointer-events-none p-2 sm:p-4 bg-black/20 overflow-hidden">
+                    <div className="absolute inset-0 pointer-events-none p-2 sm:p-4 bg-black/15 overflow-hidden">
                       {/* 1. Shaded Risk Zone Box (Red) */}
                       <div
-                        className="absolute left-2 right-2 bg-red-500/15 border-l-4 border-red-500/80 rounded-r shadow-sm transition-all duration-300"
+                        className="absolute left-2 right-2 bg-red-600/20 border-l-4 border-red-500 rounded-r shadow-md transition-all duration-300"
                         style={{
                           top: `${overlay.riskTop}%`,
                           height: `${overlay.riskHeight}%`,
                         }}
                       >
-                        <span className="absolute top-1 left-2 text-[9px] font-extrabold text-red-300 uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded-full border border-red-500/30">
-                          {t.stopLoss} Zone
+                        <span className="absolute top-1 left-2 text-[10px] font-black text-rose-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-red-500/80 shadow-md">
+                          {t.stopLoss} ZÓNA
                         </span>
                       </div>
 
                       {/* 2. Shaded Reward Zone Box (Green) */}
                       <div
-                        className="absolute left-2 right-2 bg-emerald-500/15 border-l-4 border-emerald-500/80 rounded-r shadow-sm transition-all duration-300"
+                        className="absolute left-2 right-2 bg-emerald-500/20 border-l-4 border-emerald-400 rounded-r shadow-md transition-all duration-300"
                         style={{
                           top: `${overlay.rewardTop}%`,
                           height: `${overlay.rewardHeight}%`,
                         }}
                       >
-                        <span className="absolute bottom-1 left-2 text-[9px] font-extrabold text-emerald-300 uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                          Take Profit Target Zone
+                        <span className="absolute bottom-1 left-2 text-[10px] font-black text-emerald-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-emerald-400/80 shadow-md">
+                          TAKE PROFIT CÍLOVÁ ZÓNA
                         </span>
                       </div>
 
-                      {/* 3. Stop Loss Level Line & Badge (Red) */}
+                      {/* 3. Stop Loss Level Line & Badge (High-contrast Red) */}
                       <div
-                        className="absolute left-0 right-0 border-t-2 border-dashed border-red-500 flex items-center justify-between px-2 -translate-y-1/2 z-20 transition-all duration-300"
+                        className="absolute left-0 right-0 border-t-[2.5px] border-dashed border-rose-500 flex items-center justify-between px-2 -translate-y-1/2 z-20 transition-all duration-300"
                         style={{ top: `${overlay.sl.top}%` }}
                       >
-                        <div className="bg-black/90 border border-red-500/80 text-red-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-lg flex items-center space-x-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        <div className="bg-black/95 border-2 border-rose-500 text-rose-100 text-[11px] font-black px-3 py-0.5 rounded-full shadow-2xl flex items-center space-x-1.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                           <span>STOP LOSS: {overlay.sl.priceStr}</span>
                         </div>
-                        <span className="bg-black/90 border border-red-500/80 text-red-300 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
+                        <span className="bg-black/95 border-2 border-rose-500 text-rose-200 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xl">
                           SL
                         </span>
                       </div>
 
                       {/* 4. Entry Zone Level Line & Badge (Cyan) */}
                       <div
-                        className="absolute left-0 right-0 border-t-2 border-solid border-cyan-400 flex items-center justify-between px-2 -translate-y-1/2 z-30 transition-all duration-300"
+                        className="absolute left-0 right-0 border-t-[2.5px] border-solid border-cyan-400 flex items-center justify-between px-2 -translate-y-1/2 z-30 transition-all duration-300"
                         style={{ top: `${overlay.entry.top}%` }}
                       >
-                        <div className="bg-black/90 border border-cyan-400 text-cyan-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-lg flex items-center space-x-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                        <div className="bg-black/95 border-2 border-cyan-400 text-cyan-100 text-[11px] font-black px-3 py-0.5 rounded-full shadow-2xl flex items-center space-x-1.5">
+                          <span className="w-2 h-2 rounded-full bg-cyan-400" />
                           <span>POI / VSTUP: {overlay.entry.priceStr}</span>
                         </div>
-                        <span className="bg-black/90 border border-cyan-400 text-cyan-200 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
+                        <span className="bg-black/95 border-2 border-cyan-400 text-cyan-200 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xl">
                           POI
                         </span>
                       </div>
@@ -554,16 +754,16 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                       {overlay.tps.map((tp) => (
                         <div
                           key={tp.target}
-                          className="absolute left-0 right-0 border-t-2 border-dashed border-emerald-400 flex items-center justify-between px-2 -translate-y-1/2 z-20 transition-all duration-300"
+                          className="absolute left-0 right-0 border-t-[2.5px] border-dashed border-emerald-400 flex items-center justify-between px-2 -translate-y-1/2 z-20 transition-all duration-300"
                           style={{ top: `${tp.top}%` }}
                         >
-                          <div className="bg-black/90 border border-emerald-500/80 text-emerald-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-lg flex items-center space-x-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          <div className="bg-black/95 border-2 border-emerald-400 text-emerald-100 text-[11px] font-black px-3 py-0.5 rounded-full shadow-2xl flex items-center space-x-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
                             <span>
                               TP{tp.target}: {tp.rawPrice} {tp.closePercent ? `(${tp.closePercent}%)` : ''}
                             </span>
                           </div>
-                          <span className="bg-black/90 border border-emerald-500/80 text-emerald-300 text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow">
+                          <span className="bg-black/95 border-2 border-emerald-400 text-emerald-200 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xl">
                             TP{tp.target}
                           </span>
                         </div>
@@ -572,13 +772,65 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   );
                 })()}
               </div>
-            ) : (
-              <div className="text-[#86868b] text-xs">Chart image not available</div>
+            )}
+
+            {/* 2. HD CANDLESTICK GENERATED CHART */}
+            {(chartViewMode === 'hd_chart' || !currentImage || imageLoadError) && chartViewMode !== 'live_tv' && (
+              <div className="relative w-full h-full flex items-center justify-center">
+                {hdChartUrl ? (
+                  <div
+                    className="relative w-full h-full cursor-zoom-in"
+                    onClick={() => setIsLightboxOpen(true)}
+                    title="Kliknutím zvětšíte graf na celou obrazovku"
+                  >
+                    <img
+                      src={hdChartUrl}
+                      alt="Kompletní svíčkový graf s hladinami"
+                      className="w-full h-full object-contain"
+                    />
+                    <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-md text-white border border-white/20 text-[10px] font-bold px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 pointer-events-none z-40">
+                      <Maximize2 className="w-3 h-3 text-emerald-400" />
+                      <span>Kliknutím zvětšit</span>
+                    </div>
+                  </div>
+                ) : isGeneratingHdChart ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center space-y-3">
+                    <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
+                    <div className="text-sm font-bold text-white">Generuji kompletní svíčkový graf s hladinami...</div>
+                    <div className="text-xs text-[#86868b]">Vykresluji svíčky, klouzavé průměry, Stop Loss a TP cíle</div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
+                    <BarChart2 className="w-10 h-10 text-slate-500" />
+                    <div className="text-sm font-bold text-white">Graf je připraven k vykreslení</div>
+                    <button
+                      type="button"
+                      onClick={generateHdChart}
+                      className="px-4 py-2 rounded-full text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-black shadow-md cursor-pointer"
+                    >
+                      Vykreslit kompletní graf
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. LIVE TRADINGVIEW EMBED */}
+            {chartViewMode === 'live_tv' && (
+              <div className="relative w-full h-full">
+                <iframe
+                  title="TradingView Live Chart"
+                  src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_analysis_embed&symbol=${encodeURIComponent(
+                    (result.symbol || 'BINANCE:BTCUSDT').replace(/\s+/g, '')
+                  )}&interval=${encodeURIComponent(result.timeframe || '15')}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=${isLight ? 'light' : 'dark'}&style=1&timezone=exchange`}
+                  className="w-full h-full border-0"
+                />
+              </div>
             )}
           </div>
 
           {/* Multi-image Selector if available */}
-          {uploadedImages.length > 1 && (
+          {uploadedImages.length > 1 && chartViewMode === 'snapshot' && (
             <div className="flex space-x-2 mt-3.5 overflow-x-auto pb-1">
               {uploadedImages.map((img, i) => (
                 <button
@@ -613,10 +865,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             <span
               className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
                 result.drawOnLiquidity.direction === 'UPSIDE_BSL'
-                  ? (isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30')
+                  ? (isLight ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30')
                   : result.drawOnLiquidity.direction === 'DOWNSIDE_SSL'
-                  ? (isLight ? 'bg-red-100 text-red-800 border-red-300' : 'bg-red-500/15 text-red-400 border-red-500/30')
-                  : (isLight ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-white/10 text-white border-white/20')
+                  ? (isLight ? 'bg-rose-100 text-rose-950 border-rose-400 font-black' : 'bg-rose-950/40 text-rose-200 border-rose-500/40')
+                  : (isLight ? 'bg-slate-100 text-slate-800 border-slate-300' : 'bg-white/10 text-white border-white/20')
               }`}
             >
               {result.drawOnLiquidity.direction === 'UPSIDE_BSL'
@@ -648,13 +900,13 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           {result.drawOnLiquidity.prohibitedOpposingTrade && (
             <div className={`flex items-start space-x-2.5 p-3 rounded-2xl text-xs border ${
               isLight
-                ? 'bg-red-50 border-red-200 text-red-900'
-                : 'bg-red-500/10 border-red-500/25 text-red-300'
+                ? 'bg-rose-50 border-2 border-rose-300 text-rose-950 shadow-xs'
+                : 'bg-rose-950/40 border border-rose-500/40 text-rose-200'
             }`}>
-              <AlertOctagon className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-red-600' : 'text-red-400'}`} />
+              <AlertOctagon className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-rose-700' : 'text-rose-400'}`} />
               <div>
-                <span className={`font-bold block ${isLight ? 'text-red-900' : 'text-red-300'}`}>{t.antiTrapRuleLabel}</span>
-                <span className={`text-[11px] leading-relaxed ${isLight ? 'text-red-800' : 'text-red-200/90'}`}>{result.drawOnLiquidity.prohibitedOpposingTrade}</span>
+                <span className={`font-black block ${isLight ? 'text-rose-950' : 'text-rose-200'}`}>{t.antiTrapRuleLabel}</span>
+                <span className={`text-[11px] leading-relaxed font-medium ${isLight ? 'text-rose-900' : 'text-rose-100/90'}`}>{result.drawOnLiquidity.prohibitedOpposingTrade}</span>
               </div>
             </div>
           )}
@@ -738,12 +990,12 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{conf.methodology}</span>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
                       conf.bias === 'BULLISH'
-                        ? (isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30')
+                        ? (isLight ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30')
                         : conf.bias === 'BEARISH'
-                        ? (isLight ? 'bg-red-100 text-red-800 border-red-300' : 'bg-red-500/15 text-red-400 border-red-500/30')
-                        : (isLight ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-white/10 text-white border-white/20')
+                        ? (isLight ? 'bg-rose-100 text-rose-950 border-rose-400' : 'bg-rose-500/20 text-rose-200 border-rose-500/40')
+                        : (isLight ? 'bg-slate-200 text-slate-800 border-slate-300' : 'bg-white/10 text-white border-white/20')
                     }`}
                   >
                     {conf.bias}
@@ -868,20 +1120,20 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
                 <div className={`p-4 rounded-2xl border ${
                   isLight
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-red-950/20 border-red-500/20'
+                    ? 'bg-rose-50 border-2 border-rose-300 shadow-xs'
+                    : 'bg-rose-950/30 border border-rose-500/30'
                 }`}>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider block mb-2 ${
-                    isLight ? 'text-red-800' : 'text-red-400'
+                  <span className={`text-[10px] font-black uppercase tracking-wider block mb-2 ${
+                    isLight ? 'text-rose-950' : 'text-rose-300'
                   }`}>
                     {t.resistanceLevels}
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {(result.keyLevels?.resistance || []).map((lvl, idx) => (
-                      <span key={idx} className={`px-2.5 py-1 font-mono text-xs rounded-full font-bold border ${
+                      <span key={idx} className={`px-2.5 py-1 font-mono text-xs rounded-full font-black border ${
                         isLight
-                          ? 'bg-red-100 text-red-800 border-red-300'
-                          : 'bg-red-500/20 text-red-300 border-red-500/30'
+                          ? 'bg-rose-100 text-rose-950 border-rose-300'
+                          : 'bg-rose-500/20 text-rose-200 border-rose-500/30'
                       }`}>
                         {lvl}
                       </span>
@@ -909,11 +1161,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                     <div className="flex items-center space-x-2">
                       <span className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{cp.pattern}</span>
                       <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
                           cp.signalType === 'Bullish'
-                            ? (isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30')
+                            ? (isLight ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30')
                             : cp.signalType === 'Bearish'
-                            ? (isLight ? 'bg-red-100 text-red-800 border-red-300' : 'bg-red-500/20 text-red-400 border-red-500/30')
+                            ? (isLight ? 'bg-rose-100 text-rose-950 border-rose-400' : 'bg-rose-500/20 text-rose-200 border-rose-500/40')
                             : (isLight ? 'bg-slate-200 text-slate-800 border-slate-300' : 'bg-white/10 text-white border-white/20')
                         }`}
                       >
@@ -969,26 +1221,26 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   className={`p-3.5 rounded-2xl border flex items-center justify-between transition ${
                     item.passed
                       ? (isLight ? 'bg-emerald-50/80 border-emerald-200 text-slate-900' : 'bg-emerald-950/15 border-emerald-500/25 text-[#f5f5f7]')
-                      : (isLight ? 'bg-red-50/80 border-red-200 text-slate-900' : 'bg-red-950/15 border-red-500/25 text-[#f5f5f7]')
+                      : (isLight ? 'bg-rose-50 border-2 border-rose-300 text-slate-900 shadow-xs' : 'bg-rose-950/25 border border-rose-500/35 text-[#f5f5f7]')
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     {item.passed ? (
                       <CheckCircle2 className={`w-5 h-5 flex-shrink-0 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
                     ) : (
-                      <XCircle className={`w-5 h-5 flex-shrink-0 ${isLight ? 'text-red-600' : 'text-red-400'}`} />
+                      <XCircle className={`w-5 h-5 flex-shrink-0 ${isLight ? 'text-rose-700' : 'text-rose-400'}`} />
                     )}
                     <div>
                       <div className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{item.rule}</div>
-                      <div className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>{item.comment}</div>
+                      <div className={`text-[11px] mt-0.5 ${isLight ? (item.passed ? 'text-slate-600' : 'text-rose-950 font-medium') : 'text-[#86868b]'}`}>{item.comment}</div>
                     </div>
                   </div>
 
                   <span
-                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
+                    className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                       item.passed
-                        ? (isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30')
-                        : (isLight ? 'bg-red-100 text-red-800 border-red-300' : 'bg-red-500/20 text-red-400 border-red-500/30')
+                        ? (isLight ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30')
+                        : (isLight ? 'bg-rose-100 text-rose-950 border-rose-400' : 'bg-rose-500/25 text-rose-200 border-rose-500/40')
                     }`}
                   >
                     {item.passed ? t.passed : t.failed}
@@ -999,6 +1251,251 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* FULLSCREEN LIGHTBOX MODAL WITH OVERLAY & ZOOM */}
+      {isLightboxOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex flex-col justify-between select-none animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Detail grafu na celou obrazovku"
+        >
+          {/* Lightbox Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-[#121216]/95 border-b border-white/10 z-50">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-white font-black text-sm tracking-wide">{result.symbol}</span>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-semibold border border-white/10">
+                  {result.timeframe || '15m'}
+                </span>
+                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                  result.signal === 'LONG'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : result.signal === 'SHORT'
+                    ? 'bg-rose-500/20 text-rose-200 border-rose-500/50'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                }`}>
+                  {result.signal}
+                </span>
+              </div>
+
+              {/* View Switcher in Lightbox */}
+              <div className="hidden sm:flex items-center space-x-1.5 ml-4 pl-4 border-l border-white/10">
+                {uploadedImages.length > 0 && !imageLoadError && (
+                  <button
+                    type="button"
+                    onClick={() => setChartViewMode('snapshot')}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
+                      chartViewMode === 'snapshot'
+                        ? 'bg-white text-black border-white'
+                        : 'bg-white/10 text-white/70 hover:text-white border-white/10'
+                    }`}
+                  >
+                    Snímek s hladinami
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChartViewMode('hd_chart');
+                    if (!hdChartUrl) generateHdChart();
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
+                    chartViewMode === 'hd_chart'
+                      ? 'bg-white text-black border-white'
+                      : 'bg-white/10 text-white/70 hover:text-white border-white/10'
+                  }`}
+                >
+                  Kompletní graf
+                </button>
+              </div>
+            </div>
+
+            {/* Lightbox Controls & Close Button */}
+            <div className="flex items-center space-x-2">
+              {chartViewMode === 'snapshot' && (
+                <button
+                  type="button"
+                  onClick={() => setShowChartOverlay(!showChartOverlay)}
+                  className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/15 transition cursor-pointer"
+                  title="Skrýt / Zobrazit hladiny"
+                >
+                  {showChartOverlay ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
+                  <span className="hidden sm:inline">{showChartOverlay ? 'Skrýt hladiny' : 'Zobrazit hladiny'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsZoomScaleToggled(!isZoomScaleToggled)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
+                  isZoomScaleToggled
+                    ? 'bg-emerald-500 text-black border-emerald-400'
+                    : 'bg-white/10 hover:bg-white/20 text-white border-white/15'
+                }`}
+                title="Zvětšit zobrazení"
+              >
+                {isZoomScaleToggled ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{isZoomScaleToggled ? '100%' : '150%'}</span>
+              </button>
+
+              {/* Close Button - Highly prominent */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLightboxOpen(false);
+                  setIsZoomScaleToggled(false);
+                }}
+                className="px-3.5 py-1.5 rounded-full text-xs font-black flex items-center space-x-1.5 bg-white hover:bg-slate-200 text-black shadow-lg transition cursor-pointer"
+                title="Zavřít graf (ESC)"
+              >
+                <X className="w-4 h-4 text-black" />
+                <span>Zavřít (ESC)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Lightbox Center Content with high-resolution scroll/zoom */}
+          <div className="flex-1 relative overflow-auto flex items-center justify-center p-2 sm:p-6 bg-black">
+            <div
+              className={`relative transition-transform duration-200 flex items-center justify-center max-w-full max-h-full ${
+                isZoomScaleToggled ? 'scale-150 transform cursor-zoom-out' : 'cursor-zoom-in'
+              }`}
+              onClick={() => setIsZoomScaleToggled(!isZoomScaleToggled)}
+            >
+              {chartViewMode === 'snapshot' && currentImage && !imageLoadError ? (
+                <div className="relative inline-block max-w-[95vw] max-h-[80vh]">
+                  <img
+                    src={currentImage}
+                    alt="Detail grafu"
+                    className="max-w-[95vw] max-h-[80vh] object-contain rounded-lg shadow-2xl border border-white/10"
+                  />
+
+                  {/* High-contrast Overlay on Lightbox */}
+                  {showChartOverlay && (() => {
+                    const overlay = getOverlayLevels(result);
+                    return (
+                      <div className="absolute inset-0 pointer-events-none p-4 overflow-hidden">
+                        {/* Risk zone */}
+                        <div
+                          className="absolute left-2 right-2 bg-red-600/25 border-l-4 border-rose-500 rounded-r shadow-lg"
+                          style={{ top: `${overlay.riskTop}%`, height: `${overlay.riskHeight}%` }}
+                        >
+                          <span className="absolute top-1 left-2 text-[10px] font-black text-rose-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-rose-500/80 shadow-md">
+                            {t.stopLoss} ZÓNA
+                          </span>
+                        </div>
+
+                        {/* Reward zone */}
+                        <div
+                          className="absolute left-2 right-2 bg-emerald-500/25 border-l-4 border-emerald-400 rounded-r shadow-lg"
+                          style={{ top: `${overlay.rewardTop}%`, height: `${overlay.rewardHeight}%` }}
+                        >
+                          <span className="absolute bottom-1 left-2 text-[10px] font-black text-emerald-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-emerald-400/80 shadow-md">
+                            TAKE PROFIT CÍLOVÁ ZÓNA
+                          </span>
+                        </div>
+
+                        {/* SL Line */}
+                        <div
+                          className="absolute left-0 right-0 border-t-[3px] border-dashed border-rose-500 flex items-center justify-between px-3 -translate-y-1/2 z-20"
+                          style={{ top: `${overlay.sl.top}%` }}
+                        >
+                          <div className="bg-black/95 border-2 border-rose-500 text-rose-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl flex items-center space-x-1.5">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                            <span>STOP LOSS: {overlay.sl.priceStr}</span>
+                          </div>
+                          <span className="bg-black/95 border-2 border-rose-500 text-rose-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl">
+                            SL
+                          </span>
+                        </div>
+
+                        {/* Entry Line */}
+                        <div
+                          className="absolute left-0 right-0 border-t-[3px] border-solid border-cyan-400 flex items-center justify-between px-3 -translate-y-1/2 z-30"
+                          style={{ top: `${overlay.entry.top}%` }}
+                        >
+                          <div className="bg-black/95 border-2 border-cyan-400 text-cyan-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl flex items-center space-x-1.5">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                            <span>POI / VSTUP: {overlay.entry.priceStr}</span>
+                          </div>
+                          <span className="bg-black/95 border-2 border-cyan-400 text-cyan-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl">
+                            POI
+                          </span>
+                        </div>
+
+                        {/* TP Lines */}
+                        {overlay.tps.map((tp) => (
+                          <div
+                            key={tp.target}
+                            className="absolute left-0 right-0 border-t-[3px] border-dashed border-emerald-400 flex items-center justify-between px-3 -translate-y-1/2 z-20"
+                            style={{ top: `${tp.top}%` }}
+                          >
+                            <div className="bg-black/95 border-2 border-emerald-400 text-emerald-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl flex items-center space-x-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                              <span>TP{tp.target}: {tp.rawPrice} {tp.closePercent ? `(${tp.closePercent}%)` : ''}</span>
+                            </div>
+                            <span className="bg-black/95 border-2 border-emerald-400 text-emerald-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl">
+                              TP{tp.target}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : hdChartUrl ? (
+                <div className="relative inline-block max-w-[95vw] max-h-[80vh]">
+                  <img
+                    src={hdChartUrl}
+                    alt="Kompletní svíčkový graf"
+                    className="max-w-[95vw] max-h-[80vh] object-contain rounded-lg shadow-2xl border border-white/10"
+                  />
+                </div>
+              ) : isGeneratingHdChart ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+                  <RefreshCw className="w-10 h-10 text-emerald-400 animate-spin" />
+                  <div className="text-base font-bold text-white">Vykresluji kompletní svíčkový graf s hladinami...</div>
+                </div>
+              ) : (
+                <div className="text-white text-sm">Graf není momentálně k dispozici</div>
+              )}
+            </div>
+          </div>
+
+          {/* Lightbox Footer with Levels & Close OK Button */}
+          <div className="px-4 py-3 bg-[#121216]/95 border-t border-white/10 z-50 flex flex-wrap items-center justify-between gap-3">
+            {/* Quick Levels Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-rose-950/80 border border-rose-500/60 text-rose-200 font-bold">
+                SL: {result.stopLoss?.price ?? 'N/A'}
+              </span>
+              <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/60 text-cyan-200 font-bold">
+                POI: {result.entryZone?.recommended || result.entryZone?.min || 'N/A'}
+              </span>
+              {(result.takeProfitTargets || []).map((tp) => (
+                <span key={tp.target} className="text-[11px] font-mono px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/60 text-emerald-200 font-bold">
+                  TP{tp.target}: {tp.price}
+                </span>
+              ))}
+            </div>
+
+            {/* Big Close Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsLightboxOpen(false);
+                setIsZoomScaleToggled(false);
+              }}
+              className="px-5 py-2 rounded-full text-xs font-black flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-black shadow-xl transition cursor-pointer"
+            >
+              <Check className="w-4 h-4 stroke-[3]" />
+              <span>Rozumím / Zavřít graf</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* SHARE ANALYSIS MODAL */}
       <ShareAnalysisModal

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Upload,
   Camera,
@@ -1109,43 +1110,71 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       )}
 
       {/* 5. ENLARGED IMAGE PREVIEW LIGHTBOX / ZOOM MODAL */}
-      {previewSlotIndex !== null && currentSlots[previewSlotIndex] && (
+      {previewSlotIndex !== null && currentSlots[previewSlotIndex] && typeof document !== 'undefined' && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-3 sm:p-5 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-md flex flex-col justify-between p-2 sm:p-4 pt-3 sm:pt-4 pb-3 sm:pb-4 animate-in fade-in duration-200 overflow-hidden"
           onClick={() => {
             setPreviewSlotIndex(null);
             setIsZoomScaleToggled(false);
           }}
         >
-          {/* Top Bar */}
+          {/* Top Bar Card */}
           <div
-            className="flex flex-wrap items-center justify-between gap-3 bg-[#131318]/95 border border-white/[0.08] rounded-2xl px-4 py-3 shadow-2xl shrink-0"
+            className="w-full bg-[#131318]/95 border border-white/10 rounded-2xl p-2.5 sm:p-3.5 shadow-2xl shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Slot Info */}
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500 text-black shadow-sm">
-                SLOT {currentConfig.slots[previewSlotIndex]?.step || `0${previewSlotIndex + 1}`}
-              </span>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-sm font-bold text-white">
-                    {currentConfig.slots[previewSlotIndex]?.tf || `Slot ${previewSlotIndex + 1}`}
-                  </h3>
-                  <span className="text-xs text-emerald-400 font-medium">
-                    • {currentConfig.slots[previewSlotIndex]?.role}
-                  </span>
+            {/* Row 1: Slot Info & Primary Close / OK buttons */}
+            <div className="flex items-center justify-between w-full sm:w-auto gap-2.5">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <span className="text-xs font-mono font-black px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 shadow-md shrink-0">
+                  SLOT {currentConfig.slots[previewSlotIndex]?.step || `0${previewSlotIndex + 1}`}
+                </span>
+                <div className="truncate">
+                  <div className="flex items-center space-x-2 truncate">
+                    <h3 className="text-sm font-bold text-white truncate">
+                      {currentConfig.slots[previewSlotIndex]?.tf || `Slot ${previewSlotIndex + 1}`}
+                    </h3>
+                    <span className="text-xs text-emerald-400 font-semibold shrink-0">
+                      • {currentConfig.slots[previewSlotIndex]?.role}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#a1a1a6] hidden sm:block truncate">
+                    {currentConfig.slots[previewSlotIndex]?.desc}
+                  </p>
                 </div>
-                <p className="text-[11px] text-[#86868b] hidden sm:block">
-                  {currentConfig.slots[previewSlotIndex]?.desc}
-                </p>
+              </div>
+
+              {/* Mobile Primary Close & OK Action Buttons (Right-aligned, high contrast) */}
+              <div className="flex items-center space-x-2 sm:hidden shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewSlotIndex(null);
+                    setIsZoomScaleToggled(false);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs flex items-center space-x-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>OK</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewSlotIndex(null);
+                    setIsZoomScaleToggled(false);
+                  }}
+                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-white border border-white/20 cursor-pointer"
+                  title={t.closePreviewBtn || 'Zavřít náhled'}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
-            {/* Quick Switch Slot Tabs */}
-            <div className="flex items-center space-x-1.5">
+            {/* Row 2 / Center: Quick Switch Slot Tabs */}
+            <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5 max-w-full">
               {currentConfig.slots.map((s, sIdx) => {
                 const isSlotAvailable = Boolean(currentSlots[sIdx]);
                 const isActive = previewSlotIndex === sIdx;
@@ -1158,34 +1187,34 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                       setPreviewSlotIndex(sIdx);
                       setIsZoomScaleToggled(false);
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 border ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 border whitespace-nowrap active:scale-95 ${
                       isActive
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/30'
-                        : 'bg-white/[0.04] hover:bg-white/[0.08] text-[#a1a1a6] hover:text-white border-white/[0.06]'
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md font-extrabold'
+                        : 'bg-white/[0.06] hover:bg-white/10 text-white/80 hover:text-white border-white/10'
                     }`}
                   >
                     <span>Slot {sIdx + 1}</span>
-                    <span className="text-[10px] opacity-75">({s.tf})</span>
+                    <span className={`text-[10px] ${isActive ? 'text-slate-900 font-bold' : 'opacity-70'}`}>({s.tf})</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-2">
+            {/* Desktop Action Controls + OK / Close Buttons */}
+            <div className="hidden sm:flex items-center space-x-2 shrink-0">
               {/* Zoom 100% / 150% Toggle */}
               <button
                 type="button"
                 onClick={() => setIsZoomScaleToggled((prev) => !prev)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 border active:scale-95 ${
                   isZoomScaleToggled
-                    ? 'bg-emerald-500 text-black border-emerald-400 shadow-md shadow-emerald-500/20'
-                    : 'bg-white/[0.06] hover:bg-white/10 text-white border-white/10'
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
+                    : 'bg-white/[0.08] hover:bg-white/15 text-white border-white/15'
                 }`}
                 title={isZoomScaleToggled ? t.zoomFit : t.zoom150}
               >
                 {isZoomScaleToggled ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                <span className="hidden md:inline">
+                <span>
                   {isZoomScaleToggled ? t.zoomFit || 'Přizpůsobit oknu' : t.zoom150 || 'Přiblížit 150%'}
                 </span>
               </button>
@@ -1198,7 +1227,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                   setPreviewSlotIndex(null);
                   triggerUploadForSlot(target, false);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white text-xs font-medium transition cursor-pointer border border-white/10"
+                className="px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 text-white text-xs font-semibold transition cursor-pointer border border-white/15 active:scale-95"
               >
                 {t.changeSlotImage || 'Změnit'}
               </button>
@@ -1217,20 +1246,33 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                     setPreviewSlotIndex(null);
                   }
                 }}
-                className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs transition cursor-pointer"
+                className="p-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs transition cursor-pointer active:scale-95"
                 title={t.removeSlotImage || 'Odstranit snímek'}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
 
-              {/* Close Button */}
+              {/* Prominent Desktop OK / Zavřít Button */}
               <button
                 type="button"
                 onClick={() => {
                   setPreviewSlotIndex(null);
                   setIsZoomScaleToggled(false);
                 }}
-                className="p-2 rounded-xl bg-white/[0.08] hover:bg-white/20 text-white transition cursor-pointer ml-1"
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs transition flex items-center space-x-1.5 shadow-md shadow-emerald-500/25 cursor-pointer ml-1"
+                title="Potvrdit a zavřít náhled"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>OK / Zavřít</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewSlotIndex(null);
+                  setIsZoomScaleToggled(false);
+                }}
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer border border-white/20 active:scale-95"
                 title={t.closePreviewBtn || 'Zavřít náhled'}
               >
                 <X className="w-4 h-4" />
@@ -1240,7 +1282,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
           {/* Main Enlarged Image Viewport */}
           <div
-            className="flex-1 my-3 sm:my-4 w-full flex items-center justify-center overflow-auto rounded-2xl bg-[#09090c] border border-white/[0.06] relative p-2 select-none shadow-inner"
+            className="flex-1 min-h-0 my-2 w-full flex items-center justify-center overflow-auto rounded-2xl bg-[#09090c] border border-white/10 relative p-2 select-none shadow-inner"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 setPreviewSlotIndex(null);
@@ -1263,7 +1305,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                     }
                   }
                 }}
-                className="absolute left-3 sm:left-6 z-20 p-3 rounded-full bg-black/70 hover:bg-black text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition cursor-pointer shadow-2xl active:scale-95"
+                className="absolute left-2 sm:left-4 z-20 p-2.5 sm:p-3 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 backdrop-blur-md transition cursor-pointer shadow-2xl active:scale-95"
                 title={t.prevSlotBtn || 'Předchozí slot'}
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -1286,7 +1328,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 className={`rounded-xl shadow-2xl transition-all duration-300 ${
                   isZoomScaleToggled
                     ? 'min-w-[135%] sm:min-w-[150%] max-w-none cursor-zoom-out'
-                    : 'max-h-[70vh] sm:max-h-[76vh] w-auto max-w-full object-contain cursor-zoom-in hover:brightness-105'
+                    : 'max-h-full w-auto max-w-full object-contain cursor-zoom-in hover:brightness-105'
                 }`}
                 title={isZoomScaleToggled ? 'Kliknutím zmenšíte náhled' : 'Kliknutím přiblížíte na 150%'}
               />
@@ -1307,7 +1349,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                     }
                   }
                 }}
-                className="absolute right-3 sm:right-6 z-20 p-3 rounded-full bg-black/70 hover:bg-black text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition cursor-pointer shadow-2xl active:scale-95"
+                className="absolute right-2 sm:right-4 z-20 p-2.5 sm:p-3 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 backdrop-blur-md transition cursor-pointer shadow-2xl active:scale-95"
                 title={t.nextSlotBtn || 'Další slot'}
               >
                 <ChevronRight className="w-5 h-5" />
@@ -1315,14 +1357,16 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             )}
           </div>
 
-          {/* Bottom Bar: Instructions & Quick Close */}
+          {/* Bottom Bar: Instructions & Prominent OK / Close Button */}
           <div
-            className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-[#131318]/95 border border-white/[0.08] rounded-xl text-xs text-[#86868b] shrink-0"
+            className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 bg-[#131318]/95 border border-white/10 rounded-xl text-xs text-[#a1a1a6] shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{t.previewModalHint || 'Kliknutím na obrázek přepnete přiblížení 150% • Šipkami ◄ ► můžete přepínat sloty • ESC pro zavření'}</span>
+            <div className="flex items-center space-x-2 truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">
+                {t.previewModalHint || 'Klepnutím na graf přiblížíte • Šipkami ◄ ► přepínáte sloty • ESC pro zavření'}
+              </span>
             </div>
             <button
               type="button"
@@ -1330,12 +1374,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 setPreviewSlotIndex(null);
                 setIsZoomScaleToggled(false);
               }}
-              className="px-3.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/15 text-white font-medium transition cursor-pointer ml-auto"
+              className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm flex items-center space-x-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0 ml-auto"
             >
-              {t.closePreviewBtn || 'Zavřít náhled'}
+              <Check className="w-4 h-4 stroke-[3]" />
+              <span>OK / Zavřít</span>
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );

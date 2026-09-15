@@ -66,6 +66,7 @@ export interface AnalysisResult {
   id: string;
   timestamp: number;
   symbol: string;
+  assetName?: string;
   timeframe: string;
   signal: TradeSignal;
   confidenceScore: number; // 0-100

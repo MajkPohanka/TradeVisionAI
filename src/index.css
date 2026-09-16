@@ -106,10 +106,15 @@ html.theme-light body {
 
 /* Light Mode Header Bar */
 [data-theme="light"] header {
-  background-color: rgba(234, 237, 241, 0.95) !important;
+  background-color: #eaedf1 !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
   box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] #app-header-logo-btn span.brand-title,
+[data-theme="light"] #app-header-logo-btn .brand-dark-text {
+  color: #0f172a !important;
 }
 
 /* Light Mode Navigation and Segment Controls */
@@ -466,7 +471,7 @@ button, .btn, .nav-item, .ui-label {
     transform: translateZ(0);
   }
 
-  /* Mobile Performance: on mobile/iOS screens, disable backdrop-filter to prevent 60fps frame drops and scroll lagging */
+  /* Mobile Performance: on mobile/iOS screens, disable expensive backdrop-filter to prevent 60fps frame drops and scroll lagging */
   @media (max-width: 768px) {
     .apple-glass,
     .apple-glass-subtle,
@@ -478,7 +483,18 @@ button, .btn, .nav-item, .ui-label {
     .backdrop-blur {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
+    }
+
+    [data-theme="dark"] .apple-glass,
+    [data-theme="dark"] .apple-glass-subtle,
+    [data-theme="black"] .apple-glass,
+    [data-theme="black"] .apple-glass-subtle {
       background-color: rgba(18, 18, 22, 0.98) !important;
+    }
+
+    [data-theme="light"] .apple-glass,
+    [data-theme="light"] .apple-glass-subtle {
+      background-color: #f3f5f8 !important;
     }
   }
 

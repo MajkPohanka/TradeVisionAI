@@ -84,10 +84,10 @@ const MARKET_PRESETS: MarketPreset[] = [
   { id: 'dax', name: 'DAX 40 (DE40)', symbol: 'CAPITALCOM:DE40', category: 'index', icon: '🇩🇪' },
   { id: 'oil', name: 'Ropa WTI', symbol: 'TVC:USOIL', category: 'commodity', icon: '🛢️' },
   { id: 'oil_brent', name: 'Ropa Brent', symbol: 'TVC:UKOIL', category: 'commodity', icon: '🌊' },
-  { id: 'btc', name: 'Bitcoin (BTC)', symbol: 'BINANCE:BTCUSDT', category: 'crypto', icon: '⚡' },
-  { id: 'eth', name: 'Ethereum (ETH)', symbol: 'BINANCE:ETHUSDT', category: 'crypto', icon: '🪙' },
-  { id: 'sol', name: 'Solana (SOL)', symbol: 'BINANCE:SOLUSDT', category: 'crypto', icon: '☀️' },
-  { id: 'xrp', name: 'Ripple (XRP)', symbol: 'BINANCE:XRPUSDT', category: 'crypto', icon: '💧' },
+  { id: 'btc', name: 'Bitcoin (BTC)', symbol: 'BINANCE:BTCUSDT', category: 'crypto', icon: '₿' },
+  { id: 'eth', name: 'Ethereum (ETH)', symbol: 'BINANCE:ETHUSDT', category: 'crypto', icon: 'Ξ' },
+  { id: 'sol', name: 'Solana (SOL)', symbol: 'BINANCE:SOLUSDT', category: 'crypto', icon: '◎' },
+  { id: 'xrp', name: 'Ripple (XRP)', symbol: 'BINANCE:XRPUSDT', category: 'crypto', icon: '✕' },
   { id: 'eurusd', name: 'EUR/USD', symbol: 'FX:EURUSD', category: 'forex', icon: '💶' },
   { id: 'gbpusd', name: 'GBP/USD', symbol: 'FX:GBPUSD', category: 'forex', icon: '💷' },
   { id: 'usdjpy', name: 'USD/JPY', symbol: 'FX:USDJPY', category: 'forex', icon: '🇯🇵' },
@@ -1088,7 +1088,12 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             : 'bg-[#0d0d11] border-white/[0.06]'
         }`}>
           {/* Presets Bar */}
-          <div className="flex items-center space-x-1 overflow-x-auto py-0.5 max-w-full scrollbar-none">
+          <div
+            onWheel={(e) => {
+              if (e.deltaY) e.currentTarget.scrollLeft += e.deltaY;
+            }}
+            className="flex items-center space-x-1 overflow-x-auto py-0.5 max-w-full scrollbar-none"
+          >
             {MARKET_PRESETS.map((preset) => {
               const isSelected = symbol === preset.symbol;
               const label = preset.id === 'gold'

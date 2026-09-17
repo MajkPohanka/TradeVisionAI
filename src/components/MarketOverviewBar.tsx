@@ -44,17 +44,87 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
 
   // Animation & Drag Refs
   const trackRef = useRef<HTMLDivElement>(null);
+  const trackContainerRef = useRef<HTMLDivElement>(null);
   const set1Ref = useRef<HTMLDivElement>(null);
   const offsetRef = useRef<number>(0);
   const singleSetWidthRef = useRef<number>(0);
   const targetNudgeRef = useRef<number>(0);
   const animFrameIdRef = useRef<number | null>(null);
+  const touchStartXRef = useRef<number>(0);
 
   const isHoveredRef = useRef<boolean>(false);
   const isInteractingRef = useRef<boolean>(false);
   const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   isHoveredRef.current = isHovered;
+
+  // Touchpad (two-finger scroll) & mouse wheel horizontal scrolling support
+  useEffect(() => {
+    const container = trackContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 0.5) return;
+
+      e.preventDefault();
+
+      offsetRef.current += delta * 1.25;
+
+      const w = singleSetWidthRef.current;
+      if (w > 0) {
+        while (offsetRef.current >= w) offsetRef.current -= w;
+        while (offsetRef.current < 0) offsetRef.current += w;
+      }
+
+      if (trackRef.current) {
+        trackRef.current.style.transform = `translate3d(-${offsetRef.current.toFixed(2)}px, 0, 0)`;
+      }
+
+      isInteractingRef.current = true;
+      if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+      interactionTimeoutRef.current = setTimeout(() => {
+        isInteractingRef.current = false;
+      }, 2500);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      touchStartXRef.current = e.touches[0].clientX;
+      isInteractingRef.current = true;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const diffX = touchStartXRef.current - e.touches[0].clientX;
+      touchStartXRef.current = e.touches[0].clientX;
+      offsetRef.current += diffX * 1.2;
+
+      const w = singleSetWidthRef.current;
+      if (w > 0) {
+        while (offsetRef.current >= w) offsetRef.current -= w;
+        while (offsetRef.current < 0) offsetRef.current += w;
+      }
+
+      if (trackRef.current) {
+        trackRef.current.style.transform = `translate3d(-${offsetRef.current.toFixed(2)}px, 0, 0)`;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+    interactionTimeoutRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 2500);
+  };
 
   // Fetch market data from server endpoint
   const fetchMarketData = useCallback(async () => {
@@ -266,6 +336,81 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
     return asset.name;
   };
 
+  const renderAssetIcon = (asset: MarketAssetData) => {
+    const sym = (asset.symbol || asset.id || asset.name || '').toUpperCase();
+
+    if (
+      asset.category === 'crypto' ||
+      sym.includes('BTC') ||
+      sym.includes('ETH') ||
+      sym.includes('SOL') ||
+      sym.includes('XRP') ||
+      sym.includes('DOGE') ||
+      sym.includes('ADA') ||
+      sym.includes('BNB') ||
+      sym.includes('AVAX')
+    ) {
+      if (sym.includes('BTC')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-[#f7931a] text-white font-black inline-flex items-center justify-center text-[11px] shrink-0 shadow-2xs select-none">
+            ₿
+          </span>
+        );
+      }
+      if (sym.includes('ETH')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#3c3c3d] via-[#627eea] to-[#8a92b2] text-white font-black inline-flex items-center justify-center text-[11px] shrink-0 shadow-2xs select-none">
+            Ξ
+          </span>
+        );
+      }
+      if (sym.includes('SOL')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#9945FF] via-[#7000FF] to-[#14F195] text-white font-black inline-flex items-center justify-center text-[10px] shrink-0 shadow-2xs select-none">
+            ◎
+          </span>
+        );
+      }
+      if (sym.includes('XRP')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-gradient-to-br from-[#23292f] via-[#00aae4] to-[#008cb7] text-white font-black inline-flex items-center justify-center text-[9px] shrink-0 shadow-2xs select-none">
+            ✕
+          </span>
+        );
+      }
+      if (sym.includes('DOGE')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-[#c2a633] text-white font-black inline-flex items-center justify-center text-[11px] shrink-0 shadow-2xs select-none">
+            Ð
+          </span>
+        );
+      }
+      if (sym.includes('ADA')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-[#0033ad] text-white font-black inline-flex items-center justify-center text-[11px] shrink-0 shadow-2xs select-none">
+            ₳
+          </span>
+        );
+      }
+      if (sym.includes('BNB')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-[#F3BA2F] text-black font-black inline-flex items-center justify-center text-[9px] shrink-0 shadow-2xs select-none">
+            ❖
+          </span>
+        );
+      }
+      if (sym.includes('AVAX')) {
+        return (
+          <span className="w-5 h-5 rounded-full bg-[#E84142] text-white font-black inline-flex items-center justify-center text-[8px] shrink-0 shadow-2xs select-none">
+            ▲
+          </span>
+        );
+      }
+    }
+
+    return <span className="text-base select-none shrink-0">{asset.icon}</span>;
+  };
+
   // Render single asset card
   const renderAssetCard = (asset: MarketAssetData, key: string) => {
     const isPos = asset.changePercent >= 0;
@@ -290,7 +435,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
         }`}
       >
         {/* Icon */}
-        <span className="text-base select-none">{asset.icon}</span>
+        {renderAssetIcon(asset)}
 
         {/* Info & Price */}
         <div className="flex flex-col">
@@ -515,8 +660,12 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
           </div>
 
           {viewMode === 'ticker' ? (
-            /* GPU-Accelerated Smooth Ribbon View */
+            /* GPU-Accelerated Smooth Ribbon View with Two-Finger Touchpad & Mouse Wheel Scroll */
             <div
+              ref={trackContainerRef}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               className="relative group select-none overflow-hidden"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
@@ -613,7 +762,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
-                        <span className="text-base select-none">{asset.icon}</span>
+                        {renderAssetIcon(asset)}
                         <div>
                           <div className={`text-xs font-bold truncate max-w-[120px] ${isLight ? 'text-slate-900' : 'text-white'}`}>
                             {getAssetName(asset)}

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { LanguageOption, HoldingPeriod, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
-import { renderTradingViewChartSnapshot } from '../utils/chartSnapshotRenderer';
+import { renderTradingViewChartSnapshot, formatTimeframeLabel } from '../utils/chartSnapshotRenderer';
 import { getSampleBTCChartDataUrl } from '../utils/sampleChart';
 
 function isCanvasValidChart(canvas: HTMLCanvasElement): boolean {
@@ -98,10 +98,145 @@ const TIMEFRAMES = [
   { label: '1D', value: 'D', role: 'Macro' },
   { label: '4H', value: '240', role: 'HTF' },
   { label: '1H', value: '60', role: 'HTF/MTF' },
+  { label: '30m', value: '30', role: 'MTF' },
   { label: '15m', value: '15', role: 'MTF' },
   { label: '5m', value: '5', role: 'LTF' },
   { label: '1m', value: '1', role: 'Trigger' },
 ];
+
+function isTimeframeCandidate(val: any): string | null {
+  if (val === null || val === undefined) return null;
+  const s = String(val).trim();
+  if (!s || s.length > 10 || s.startsWith('{') || s.startsWith('[')) return null;
+  const upper = s.toUpperCase();
+  if (/^(?:\d{1,4}|[1-9]\d*[mhdMHD]?|D|W|M|1D|1W|1M|DAILY|WEEKLY|MONTHLY)$/i.test(upper)) {
+    return s;
+  }
+  return null;
+}
+
+function normalizeIncomingInterval(raw: string): string {
+  if (!raw) return '15';
+  const clean = raw.toString().trim();
+  const upper = clean.toUpperCase();
+
+  // Exact 1m
+  if (clean === '1' || clean === '1m' || upper === '1MIN' || upper === '1MINUTE') return '1';
+  // 3m / 5m
+  if (clean === '3' || clean === '3m' || clean === '5' || clean === '5m' || upper === '3MIN' || upper === '5MIN' || upper === '5MINUTE') return '5';
+  // 15m
+  if (clean === '15' || clean === '15m' || upper === '15MIN' || upper === '15MINUTE') return '15';
+  // 30m
+  if (clean === '30' || clean === '30m' || upper === '30MIN' || upper === '30MINUTE') return '30';
+  // 1h (60)
+  if (clean === '60' || clean === '60m' || upper === '1H' || upper === '1HOUR' || upper === '60MIN') return '60';
+  // 2h / 3h
+  if (clean === '120' || upper === '2H' || clean === '180' || upper === '3H') return '60';
+  // 4h (240)
+  if (clean === '240' || clean === '240m' || upper === '4H' || upper === '4HOUR') return '240';
+  // Daily (D, 1D, DAILY, 24H, 1DAY)
+  if (upper === 'D' || upper === '1D' || upper === 'DAILY' || upper === '24H' || upper === '1DAY' || upper === 'W' || upper === '1W' || upper === 'M') {
+    return 'D';
+  }
+
+  return clean;
+}
+
+function extractTvMessageData(msg: any): { interval?: string; symbol?: string } | null {
+  if (!msg) return null;
+
+  // Direct primitive check
+  const directTf = isTimeframeCandidate(msg);
+  if (directTf) {
+    return { interval: directTf };
+  }
+
+  let parsed = msg;
+
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+      const parsedDirectTf = isTimeframeCandidate(parsed);
+      if (parsedDirectTf) {
+        return { interval: parsedDirectTf };
+      }
+    } catch {
+      const intervalMatch =
+        parsed.match(/"(?:resolution|interval|timeframe|period|res|tf|time_frame)":\s*"([^"]+)"/i) ||
+        parsed.match(/"(?:resolution|interval|timeframe|period|res|tf|time_frame)":\s*(\d+)/i) ||
+        parsed.match(/(?:change-resolution|set-resolution|onIntervalChanged|resolution_change|timeframe)[\s\S]*?"(?:data|value|res|resolution)":\s*"([^"]+)"/i) ||
+        parsed.match(/(?:change-resolution|set-resolution|onIntervalChanged|resolution_change|timeframe)[\s\S]*?"(?:data|value|res|resolution)":\s*(\d+)/i);
+
+      const symbolMatch = parsed.match(/"(?:symbol|ticker)":\s*"([^"]+)"/i);
+
+      if (intervalMatch || symbolMatch) {
+        return {
+          interval: intervalMatch ? (intervalMatch[1] || intervalMatch[2]) : undefined,
+          symbol: symbolMatch ? symbolMatch[1] : undefined,
+        };
+      }
+      return null;
+    }
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) return null;
+
+  let foundInterval: string | undefined = undefined;
+  let foundSymbol: string | undefined = undefined;
+
+  const CANDLE_KEYS = ['resolution', 'interval', 'timeframe', 'period', 'res', 'tf', 'time_frame'];
+
+  const traverse = (obj: any, depth = 0) => {
+    if (!obj || typeof obj !== 'object' || depth > 5) return;
+
+    for (const key of Object.keys(obj)) {
+      const kLower = key.toLowerCase();
+      if (!foundInterval && CANDLE_KEYS.includes(kLower)) {
+        const candidate = isTimeframeCandidate(obj[key]);
+        if (candidate) {
+          foundInterval = candidate;
+        }
+      }
+
+      if (!foundSymbol && ['symbol', 'ticker'].includes(kLower)) {
+        const val = obj[key];
+        if (typeof val === 'string' && val.length > 1 && !val.startsWith('{')) {
+          foundSymbol = val;
+        }
+      }
+    }
+
+    const eventName = String(obj.name || obj.event || obj.type || obj.action || '').toLowerCase();
+    if (!foundInterval && (eventName.includes('resolution') || eventName.includes('timeframe') || eventName.includes('interval'))) {
+      if (!eventName.includes('range')) {
+        const candidate =
+          isTimeframeCandidate(obj.data) ||
+          isTimeframeCandidate(obj.value) ||
+          isTimeframeCandidate(obj.val) ||
+          isTimeframeCandidate(obj.payload) ||
+          isTimeframeCandidate(obj.resolution) ||
+          isTimeframeCandidate(obj.timeframe);
+        if (candidate) {
+          foundInterval = candidate;
+        }
+      }
+    }
+
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (typeof val === 'object' && val !== null) {
+        traverse(val, depth + 1);
+      }
+    }
+  };
+
+  traverse(parsed);
+
+  if (foundInterval || foundSymbol) {
+    return { interval: foundInterval, symbol: foundSymbol };
+  }
+  return null;
+}
 
 export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   language = 'cs',
@@ -120,6 +255,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const tvTheme = isLightTheme ? 'light' : 'dark';
   const tvBgColor = isLightTheme ? '#eef1f5' : theme === 'black' ? '#000000' : '#0d0d11';
   const tvGridColor = isLightTheme ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)';
+  const tvLocale = language === 'cs' ? 'cs' : language === 'es' ? 'es' : 'en';
 
   const [symbol, setSymbol] = useState<string>('OANDA:XAUUSD');
   const [customSymbolInput, setCustomSymbolInput] = useState<string>('');
@@ -132,6 +268,71 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const chartFrameContainerRef = useRef<HTMLDivElement>(null);
   const widgetInstanceRef = useRef<any>(null);
   const tvContainerId = 'tradingview_live_chart_embed_box';
+
+  const intervalRef = useRef<string>(interval);
+  const symbolRef = useRef<string>(symbol);
+  const lastUserBarClickTimeRef = useRef<number>(0);
+  const lastTopBarResolutionRef = useRef<string>('');
+  const mountedChartKeyRef = useRef<string>('');
+
+  useEffect(() => {
+    intervalRef.current = interval;
+  }, [interval]);
+
+  useEffect(() => {
+    symbolRef.current = symbol;
+  }, [symbol]);
+
+  // Bi-directional Timeframe & Symbol Sync: Listen for timeframe changes originating inside TradingView chart widget
+  useEffect(() => {
+    const handleWindowMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (!data) return;
+
+        const extracted = extractTvMessageData(data);
+        if (extracted?.interval) {
+          const norm = normalizeIncomingInterval(extracted.interval);
+          if (norm && norm !== intervalRef.current) {
+            // Filter out echoes of old resolutions within 1.2s of a top bar click
+            if (Date.now() - lastUserBarClickTimeRef.current < 1200 && norm !== lastTopBarResolutionRef.current) {
+              return;
+            }
+            intervalRef.current = norm;
+            // Mark mounted key so useEffect does not reload the iframe since the change originated inside the iframe
+            mountedChartKeyRef.current = `${symbolRef.current}_${norm}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+            setInterval(norm);
+          }
+        }
+        if (extracted?.symbol && extracted.symbol !== symbolRef.current) {
+          symbolRef.current = extracted.symbol;
+          mountedChartKeyRef.current = `${extracted.symbol}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+          setSymbol(extracted.symbol);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('message', handleWindowMessage);
+    return () => {
+      window.removeEventListener('message', handleWindowMessage);
+    };
+  }, [tvTheme, tvLocale, tvBgColor]);
+
+  const handleSetIntervalFromTopBar = (newVal: string) => {
+    const norm = normalizeIncomingInterval(newVal);
+    lastUserBarClickTimeRef.current = Date.now();
+    lastTopBarResolutionRef.current = norm;
+    intervalRef.current = norm;
+
+    if (widgetInstanceRef.current && typeof widgetInstanceRef.current.chart === 'function') {
+      try {
+        widgetInstanceRef.current.chart().setResolution(norm);
+      } catch {}
+    }
+
+    // Explicitly update React state so useEffect re-mounts chart with new interval
+    setInterval(norm);
+  };
 
   // Sync external symbol if requested (e.g. when clicking on top Market Overview bar)
   useEffect(() => {
@@ -230,8 +431,6 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     }, 4200);
   }, []);
 
-  const tvLocale = language === 'cs' ? 'cs' : language === 'es' ? 'es' : 'en';
-
   // Timeframe labels depending on holding period with complete translation support
   const slotLabels = useMemo(() => {
     const trendWord = t.tvRoleTrend || 'Trend';
@@ -300,6 +499,13 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   useEffect(() => {
     if (!isExpanded) return;
 
+    const currentChartKey = `${symbol}_${interval}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+    if (mountedChartKeyRef.current === currentChartKey) {
+      return;
+    }
+
+    mountedChartKeyRef.current = currentChartKey;
+
     let isMounted = true;
 
     const mountTradingViewWidget = () => {
@@ -329,6 +535,31 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             backgroundColor: tvBgColor,
             gridColor: tvGridColor,
           });
+
+          widget.onChartReady?.(() => {
+            try {
+              const chart = widget.chart?.();
+              if (chart?.onIntervalChanged) {
+                chart.onIntervalChanged().subscribe(null, (newInterval: string) => {
+                  const norm = normalizeIncomingInterval(newInterval);
+                  if (norm && norm !== intervalRef.current) {
+                    intervalRef.current = norm;
+                    setInterval(norm);
+                  }
+                });
+              }
+              if (chart?.onSymbolChanged) {
+                chart.onSymbolChanged().subscribe(null, (newSymbolObj: any) => {
+                  const sym = typeof newSymbolObj === 'string' ? newSymbolObj : newSymbolObj?.name || newSymbolObj?.ticker;
+                  if (sym && sym !== symbolRef.current) {
+                    symbolRef.current = sym;
+                    setSymbol(sym);
+                  }
+                });
+              }
+            } catch {}
+          });
+
           widgetInstanceRef.current = widget;
           return;
         } catch (err) {
@@ -371,7 +602,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [symbol, interval, tvLocale, isExpanded, chartUrl, tvTheme, tvBgColor, tvGridColor]);
+  }, [symbol, interval, tvLocale, isExpanded, tvTheme, tvBgColor, tvGridColor]);
 
   const handleApplyCustomSymbol = (e: React.FormEvent) => {
     e.preventDefault();
@@ -489,9 +720,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
         if (res.ok) {
           const chartData = await res.json();
           if (chartData && chartData.success && Array.isArray(chartData.candles) && chartData.candles.length > 0) {
+            const displayTf = formatTimeframeLabel(chartData.timeframe || interval);
             const dataUrl = renderTradingViewChartSnapshot({
               symbol: chartData.symbol || cleanSymbolName,
-              timeframe: chartData.timeframe || interval,
+              timeframe: displayTf,
               displayName: chartData.displayName || cleanSymbolName,
               candles: chartData.candles,
               precision: chartData.precision ?? 2,
@@ -504,8 +736,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             onInsertImageToSlot(dataUrl, targetSlot);
             showToast(
               language === 'cs'
-                ? `✓ Graf ${cleanSymbolName} (${interval}m) byl úspěšně vyfocen a vložen do ${targetLabel}!`
-                : `✓ Chart ${cleanSymbolName} (${interval}m) captured and inserted into ${targetLabel}!`,
+                ? `✓ Graf ${cleanSymbolName} (${displayTf}) byl úspěšně vyfocen a vložen do ${targetLabel}!`
+                : `✓ Chart ${cleanSymbolName} (${displayTf}) captured and inserted into ${targetLabel}!`,
               'success'
             );
             scrollToSlot(targetSlot);
@@ -928,12 +1160,12 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 {t.tvTimeframeLabel || 'Timeframe:'}
               </span>
               {TIMEFRAMES.map((tf) => {
-                const isTfSelected = interval === tf.value;
+                const isTfSelected = normalizeIncomingInterval(interval) === normalizeIncomingInterval(tf.value);
                 return (
                   <button
                     key={tf.value}
                     type="button"
-                    onClick={() => setInterval(tf.value)}
+                    onClick={() => handleSetIntervalFromTopBar(tf.value)}
                     className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition cursor-pointer ${
                       isTfSelected
                         ? isLight
@@ -972,10 +1204,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                     : `Capture current chart and insert into available slot (Slot ${getTargetSlotIndex() + 1})`
                 }
               >
-                {isCapturing ? (
+                {isCapturing && (
                   <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin shrink-0" />
-                ) : (
-                  <Sparkles className="w-4 h-4 text-black shrink-0" />
                 )}
                 <span>
                   {isCapturing
@@ -1023,10 +1253,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
-            <span className={`text-[10px] font-mono px-2 py-1 rounded-md border ${
+            <span className={`text-[11px] font-mono font-bold px-2.5 py-1 rounded-md border ${
               isLight
-                ? 'bg-white text-slate-700 border-slate-300 shadow-xs'
-                : 'text-[#86868b] bg-white/[0.04] border-white/[0.06]'
+                ? 'bg-emerald-100 text-emerald-950 border-emerald-300 shadow-2xs font-extrabold'
+                : 'text-emerald-200 bg-emerald-500/20 border-emerald-500/40'
             }`}>
               {language === 'cs' ? 'Rychlé vložení: Ctrl + V' : 'Quick paste: Ctrl + V'}
             </span>

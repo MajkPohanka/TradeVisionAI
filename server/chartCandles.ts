@@ -302,6 +302,19 @@ function generateSimulatedCandles(basePrice: number, count = 65): Candle[] {
   return candles;
 }
 
+function formatTimeframeLabel(tf: string): string {
+  if (!tf) return '15m';
+  const clean = tf.toString().trim().toUpperCase();
+  if (clean === '240' || clean === '240M' || clean === '4H' || clean === '4HOUR' || clean === '4HOURS') return '4H';
+  if (clean === '60' || clean === '60M' || clean === '1H' || clean === '1HOUR' || clean === '1HOURS') return '1H';
+  if (clean === '15' || clean === '15M') return '15m';
+  if (clean === '5' || clean === '5M') return '5m';
+  if (clean === '1' || clean === '1M') return '1m';
+  if (clean === 'D' || clean === '1D' || clean === 'DAILY') return '1D';
+  if (clean === 'W' || clean === '1W' || clean === 'WEEKLY') return '1W';
+  return clean;
+}
+
 export async function getChartCandles(symbol: string, timeframe: string): Promise<ChartCandleResponse> {
   const cacheKey = `${symbol.toUpperCase().trim()}_${timeframe.toLowerCase().trim()}`;
   const now = Date.now();
@@ -357,7 +370,7 @@ export async function getChartCandles(symbol: string, timeframe: string): Promis
   const response: ChartCandleResponse = {
     success: true,
     symbol: resolved.query,
-    timeframe: timeframe.toUpperCase(),
+    timeframe: formatTimeframeLabel(timeframe),
     displayName: resolved.displayName,
     currentPrice: parseFloat(currentPrice.toFixed(resolved.precision)),
     priceChangePercent: parseFloat(priceChangePercent.toFixed(2)),

@@ -74,6 +74,19 @@ function generateFallbackCandles(basePrice = 4300, count = 65): CandleData[] {
   return list;
 }
 
+export function formatTimeframeLabel(tf: string): string {
+  if (!tf) return '15m';
+  const clean = tf.toString().trim().toUpperCase();
+  if (clean === '240' || clean === '240M' || clean === '4H' || clean === '4HOUR' || clean === '4HOURS') return '4H';
+  if (clean === '60' || clean === '60M' || clean === '1H' || clean === '1HOUR' || clean === '1HOURS') return '1H';
+  if (clean === '15' || clean === '15M') return '15m';
+  if (clean === '5' || clean === '5M') return '5m';
+  if (clean === '1' || clean === '1M') return '1m';
+  if (clean === 'D' || clean === '1D' || clean === 'DAILY') return '1D';
+  if (clean === 'W' || clean === '1W' || clean === 'WEEKLY') return '1W';
+  return clean;
+}
+
 export function renderTradingViewChartSnapshot(options: RenderChartOptions): string {
   const {
     symbol,
@@ -90,6 +103,7 @@ export function renderTradingViewChartSnapshot(options: RenderChartOptions): str
   } = options;
 
   const isLight = theme === 'light';
+  const formattedTf = formatTimeframeLabel(timeframe);
 
   // 0. Sanitize input candles
   let candles: CandleData[] = (rawCandles || [])
@@ -191,7 +205,7 @@ export function renderTradingViewChartSnapshot(options: RenderChartOptions): str
   ctx.font = 'bold 54px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${symbol} · ${timeframe}`, width / 2 - 30, height / 2 + 10);
+  ctx.fillText(`${symbol} · ${formattedTf}`, width / 2 - 30, height / 2 + 10);
   ctx.restore();
 
   // 4. Draw Horizontal Grid Lines & Price Labels on right axis
@@ -568,15 +582,18 @@ export function renderTradingViewChartSnapshot(options: RenderChartOptions): str
   // Timeframe Badge
   const titleWidth = ctx.measureText(displayTitle).width;
   const tfX = padLeft + titleWidth + 10;
+  ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace';
+  const tfTextWidth = ctx.measureText(formattedTf).width;
+  const tfBadgeWidth = Math.max(38, tfTextWidth + 12);
+
   ctx.fillStyle = isLight ? 'rgba(37, 99, 235, 0.12)' : 'rgba(255, 255, 255, 0.08)';
   ctx.beginPath();
-  ctx.roundRect ? ctx.roundRect(tfX, 12, 38, 20, 4) : ctx.fillRect(tfX, 12, 38, 20);
+  ctx.roundRect ? ctx.roundRect(tfX, 12, tfBadgeWidth, 20, 4) : ctx.fillRect(tfX, 12, tfBadgeWidth, 20);
   ctx.fill();
 
   ctx.fillStyle = isLight ? '#1d4ed8' : '#2962ff';
-  ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(timeframe, tfX + 19, 22);
+  ctx.fillText(formattedTf, tfX + tfBadgeWidth / 2, 22);
 
   // OHLC Metrics
   const firstCandle = candles[0];

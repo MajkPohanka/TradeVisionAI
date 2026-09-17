@@ -134,19 +134,23 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
 
         {/* Content Body */}
         <div className={`p-4 sm:p-6 overflow-y-auto space-y-6 text-sm leading-relaxed custom-scrollbar ${
-          isLight ? 'text-slate-700' : 'text-[#c7c7cc]'
+          isLight ? 'text-slate-800' : 'text-[#c7c7cc]'
         }`}>
           
           {/* SECTION 1: DISCLAIMER */}
           {activeSection === 'disclaimer' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className={`p-4 rounded-2xl border flex items-start space-x-3 ${
+                isLight
+                  ? 'bg-amber-100/90 border-amber-300 text-slate-900 shadow-xs'
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+              }`}>
+                <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${isLight ? 'text-amber-800' : 'text-amber-400'}`} />
                 <div className="text-xs sm:text-sm space-y-1">
-                  <p className="font-bold text-amber-300">
+                  <p className={`font-bold ${isLight ? 'text-amber-950 font-extrabold' : 'text-amber-300'}`}>
                     {isCs ? 'KRITICKÉ UPOZORNĚNÍ NA VYSOKÉ FINANČNÍ RIZIKO' : isEs ? 'AVISO CRÍTICO SOBRE ALTO RIESGO FINANCIERO' : 'CRITICAL FINANCIAL RISK WARNING'}
                   </p>
-                  <p className="text-amber-200/90">
+                  <p className={isLight ? 'text-slate-900 font-medium' : 'text-amber-200/90'}>
                     {isCs 
                       ? 'Obchodování s finančními instrumenty (Forex, kryptoměny, indexy, komodity, CFD, akcie), zejména s využitím finanční páky, zahrnuje extrémní míru rizika a většinou vede ke ztrátě části nebo veškerého investovaného kapitálu (obvykle 70-85 % retailových obchodníků prodělává).'
                       : isEs
@@ -157,10 +161,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-base font-semibold text-white">
+                <h3 className={`text-base font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {isCs ? 'Absolutní zřeknutí se odpovědnosti za finanční ztráty' : isEs ? 'Exención total de responsabilidad por pérdidas' : 'Full Disclaimer of Financial Liability'}
                 </h3>
-                <p>
+                <p className={isLight ? 'text-slate-800' : ''}>
                   {isCs ? (
                     <>
                       Platforma <strong>TRADEOY.com</strong>, její provozovatelé, vývojáři, partneři ani spolupracující subjekty <strong>nenesou žádnou právní, finanční ani morální odpovědnost</strong> za jakékoliv přímé, nepřímé, náhodné či následné finanční ztráty, ušlý zisk, margin cally ani neúspěch v prop-tradingových výzvách (evaluacích), vzniklé na základě použití této aplikace, AI analýz, predikcí, kalkulací Stop Loss/Take Profit či komentářů AI Mentora.
@@ -176,10 +180,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                   )}
                 </p>
 
-                <h3 className="text-base font-semibold text-white pt-2">
+                <h3 className={`text-base font-semibold pt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {isCs ? 'Nejsme investiční poradce ani broker (MiFID II / ZPKT)' : isEs ? 'No somos asesores financieros ni intermediarios (MiFID II)' : 'Not Financial Advice / Not a Broker (MiFID II)'}
                 </h3>
-                <p>
+                <p className={isLight ? 'text-slate-800' : ''}>
                   {isCs ? (
                     <>
                       TRADEOY.com <strong>není licencovaným investičním poradcem, makléřem, brokerem ani správcem aktiv</strong> ve smyslu zákona o podnikání na kapitálovém trhu č. 256/2004 Sb. (ČNB), evropské směrnice MiFID II (2014/65/EU) ani předpisů americké SEC a CFTC. Veškeré vygenerované signály (BUY / SELL / WAIT) jsou výhradně matematicko-statistickými modely pro studijní a výukové porovnání grafických formací. Každé investiční a obchodní rozhodnutí činí uživatel zcela samostatně a na vlastní riziko.
@@ -201,10 +205,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
           {/* SECTION 2: EDUCATIONAL PURPOSE & USER RESPONSIBILITY */}
           {activeSection === 'terms' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <h3 className="text-base font-semibold text-white">
+              <h3 className={`text-base font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {isCs ? 'Výhradně výukový a simulační charakter' : isEs ? 'Carácter exclusivamente educativo y de simulación' : 'Educational & Analytical Purpose Only'}
               </h3>
-              <p>
+              <p className={isLight ? 'text-slate-800' : ''}>
                 {isCs ? (
                   <>
                     Aplikace TRADEOY.com je softwarový nástroj pro technickou analýzu a studium metodik Price Action, SMC (Smart Money Concepts), Wyckoffovy metody a matematických poměrů Risk-to-Reward. Slouží k tréninku čtení grafů a zpětnému testování (backtestingu) v demo / simulovaném prostředí.
@@ -220,12 +224,16 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 )}
               </p>
 
-              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
-                <div className="flex items-center space-x-2 text-white font-medium text-xs sm:text-sm">
-                  <UserCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+              <div className={`p-4 rounded-2xl border space-y-2 ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#1c1c1e] border-white/[0.08]'
+              }`}>
+                <div className={`flex items-center space-x-2 font-medium text-xs sm:text-sm ${
+                  isLight ? 'text-slate-900 font-bold' : 'text-white'
+                }`}>
+                  <UserCheck className={`w-4 h-4 shrink-0 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
                   <span>{isCs ? 'Nulová exekuce & Samostatný úsudek uživatele' : isEs ? 'Cero ejecución y juicio independiente' : 'Zero Execution & User Independence'}</span>
                 </div>
-                <p className="text-xs text-[#a1a1a6]">
+                <p className={`text-xs ${isLight ? 'text-slate-700 font-normal' : 'text-[#a1a1a6]'}`}>
                   {isCs 
                     ? 'Platforma nemá žádný přístup k vašim brokerským účtům ani možnost otevírat či uzavírat obchody. Všechny obchodní pokyny zadává uživatel výhradně osobně u svého brokera na základě vlastního nezávislého rozhodnutí.'
                     : isEs
@@ -234,12 +242,16 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
-                <div className="flex items-center space-x-2 text-white font-medium text-xs sm:text-sm">
-                  <Cpu className="w-4 h-4 text-blue-400 shrink-0" />
+              <div className={`p-4 rounded-2xl border space-y-2 ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#1c1c1e] border-white/[0.08]'
+              }`}>
+                <div className={`flex items-center space-x-2 font-medium text-xs sm:text-sm ${
+                  isLight ? 'text-slate-900 font-bold' : 'text-white'
+                }`}>
+                  <Cpu className={`w-4 h-4 shrink-0 ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
                   <span>{isCs ? 'AI technologie a algoritmické limity (Halucinace)' : isEs ? 'Limitaciones de IA y alucinaciones' : 'AI Limitations & Model Hallucinations'}</span>
                 </div>
-                <p className="text-xs text-[#a1a1a6]">
+                <p className={`text-xs ${isLight ? 'text-slate-700 font-normal' : 'text-[#a1a1a6]'}`}>
                   {isCs 
                     ? 'Analýzy jsou zpracovávány pokročilými neuronovými sítěmi (LLM). Uživatel bere na vědomí, že AI modely mohou generovat nepřesné, opožděné nebo chybné výstupy (halucinace). Výstupy AI nesmí být považovány za nezvratná fakta a musí být vždy kriticky ověřeny.'
                     : isEs
@@ -249,12 +261,16 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
               </div>
 
               {/* SLA & Availability Disclaimer */}
-              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-amber-500/20 space-y-2">
-                <div className="flex items-center space-x-2 text-amber-300 font-medium text-xs sm:text-sm">
-                  <Activity className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className={`p-4 rounded-2xl border space-y-2 ${
+                isLight ? 'bg-emerald-50/90 border-emerald-300 shadow-xs' : 'bg-[#1c1c1e] border-amber-500/20'
+              }`}>
+                <div className={`flex items-center space-x-2 font-medium text-xs sm:text-sm ${
+                  isLight ? 'text-emerald-950 font-extrabold' : 'text-amber-300'
+                }`}>
+                  <Activity className={`w-4 h-4 shrink-0 ${isLight ? 'text-emerald-700' : 'text-amber-400'}`} />
                   <span>{isCs ? 'Dostupnost služby, technické odstávky a SLA (50 %)' : isEs ? 'Disponibilidad del Servicio y SLA (50%)' : 'Service Availability, Maintenance & SLA (50%)'}</span>
                 </div>
-                <p className="text-xs text-[#a1a1a6] leading-relaxed">
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-900 font-medium' : 'text-[#a1a1a6]'}`}>
                   {isCs 
                     ? 'Provozovatel usiluje o maximální stabilitu rozhraní, avšak s ohledem na závislost na externích neuronových sítích (Google Gemini API), cloudových klastrech a internetových přenosech je služba poskytována striktně na bázi „JAK JE“ (AS IS) a „JAK JE DOSTUPNÁ“ (AS AVAILABLE). Provozovatel NEGARANTUJE nepřetržitou 100% dostupnost ani nulovou odezvu; smluvní cílová dostupnost (SLA) činí minimálně 50 % provozního času. Provozovatel si výslovně vyhrazuje právo na plánované i neplánované technické odstávky, navýšení výpočetních kapacit, bezpečnostní záplaty a dočasná pozastavení z důvodu limitů externích poskytovatelů bez vzniku nároku na jakoukoliv finanční kompenzaci či náhradu škody. Nespotřebované kredity zůstávají zachovány na licenčním klíči.'
                     : isEs
@@ -263,10 +279,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 </p>
               </div>
 
-              <h3 className="text-base font-semibold text-white pt-2">
+              <h3 className={`text-base font-semibold pt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {isCs ? 'Duševní vlastnictví' : isEs ? 'Propiedad Intelectual' : 'Intellectual Property'}
               </h3>
-              <p className="text-xs text-[#a1a1a6]">
+              <p className={`text-xs ${isLight ? 'text-slate-700' : 'text-[#a1a1a6]'}`}>
                 {isCs 
                   ? 'Veškerý kód, algoritmy, designové prvky a vizuální rozhraní TRADEOY.com jsou chráněny autorským právem. Je zakázáno neoprávněné kopírování, reverzní inženýrství nebo zneužití pro nekalou soutěž.'
                   : isEs
@@ -279,10 +295,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
           {/* SECTION 3: PAYMENTS & CREDITS */}
           {activeSection === 'payments' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <h3 className="text-base font-semibold text-white">
+              <h3 className={`text-base font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {isCs ? 'Platební podmínky, Kredity & Reklamace' : isEs ? 'Condiciones de Pago, Créditos y Reembolsos' : 'Payment Terms, Credits & Refund Policy'}
               </h3>
-              <p>
+              <p className={isLight ? 'text-slate-800' : ''}>
                 {isCs ? (
                   <>
                     Nákupem kreditních balíčků na TRADEOY.com uživatel získává virtuální přístupové jednotky (kredity) umožňující spouštění pokročilých výpočetních modelů neuronových sítí a analýz grafů.
@@ -299,12 +315,16 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-1.5">
-                  <div className="flex items-center space-x-2 text-white font-medium text-xs">
-                    <CreditCard className="w-4 h-4 text-cyan-400" />
+                <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
+                  isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#1c1c1e] border-white/[0.08]'
+                }`}>
+                  <div className={`flex items-center space-x-2 font-medium text-xs ${
+                    isLight ? 'text-slate-900 font-bold' : 'text-white'
+                  }`}>
+                    <CreditCard className={`w-4 h-4 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
                     <span>{isCs ? 'Zabezpečení plateb (Stripe)' : isEs ? 'Seguridad Stripe' : 'Secure Stripe Checkout'}</span>
                   </div>
-                  <p className="text-[11px] text-[#86868b]">
+                  <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>
                     {isCs 
                       ? 'Platby jsou zpracovávány prostřednictvím certifikované platební brány Stripe s 256-bitovým šifrováním. Naše servery neukládají čísla platebních karet.'
                       : isEs
@@ -313,12 +333,16 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-1.5">
-                  <div className="flex items-center space-x-2 text-white font-medium text-xs">
-                    <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
+                  isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#1c1c1e] border-white/[0.08]'
+                }`}>
+                  <div className={`flex items-center space-x-2 font-medium text-xs ${
+                    isLight ? 'text-slate-900 font-bold' : 'text-white'
+                  }`}>
+                    <ShieldAlert className={`w-4 h-4 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
                     <span>{isCs ? 'Politika nevratnosti (No Refunds)' : isEs ? 'Política de no reembolso' : 'Digital Content & No Refund Policy'}</span>
                   </div>
-                  <p className="text-[11px] text-[#86868b]">
+                  <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>
                     {isCs 
                       ? 'Vzhledem k povaze okamžitého digitálního plnění a alokace cloudového výpočetního výkonu jsou veškeré zakoupené kredity po doručení a spotřebování nevratné.'
                       : isEs
@@ -328,7 +352,11 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300">
+              <div className={`p-3 rounded-xl border text-xs ${
+                isLight 
+                  ? 'bg-sky-100 border-sky-300 text-slate-900 font-medium shadow-xs' 
+                  : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300'
+              }`}>
                 💡 {isCs ? 'Kredity nemají expirační lhůtu a zůstávají na vašem účtu/licenčním klíči až do jejich využití. Provozovatel negarantuje žádný finanční zisk ani návratnost investic.' : isEs ? 'Los créditos no caducan. El operador no garantiza rentabilidad financiera alguna.' : 'Credits do not expire. The operator provides zero guarantees of monetary gain or ROI.'}
               </div>
             </div>
@@ -337,10 +365,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
           {/* SECTION 4: PRIVACY */}
           {activeSection === 'privacy' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <h3 className="text-base font-semibold text-white">
+              <h3 className={`text-base font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {isCs ? 'Zásady ochrany osobních údajů a screenshotů (GDPR)' : isEs ? 'Política de Privacidad y Capturas (RGPD)' : 'Privacy & Data Security Policy (GDPR)'}
               </h3>
-              <p>
+              <p className={isLight ? 'text-slate-800' : ''}>
                 {isCs ? (
                   <>
                     Respektujeme vaše soukromí v plném souladu s nařízením GDPR. Nahrané screenshoty grafů a anonymizované výpisy jsou zpracovávány výhradně v reálném čase za účelem vygenerování technické analýzy a nejsou poskytovány třetím stranám k marketingovým účelům.
@@ -356,11 +384,13 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 )}
               </p>
 
-              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
-                <div className="text-xs font-semibold text-white">
+              <div className={`p-4 rounded-2xl border space-y-2 ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#1c1c1e] border-white/[0.08]'
+              }`}>
+                <div className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {isCs ? 'Kontakt pro právní dotazy a podporu:' : isEs ? 'Contacto legal y soporte:' : 'Legal & Support Contact:'}
                 </div>
-                <div className="text-xs text-emerald-400 font-mono">
+                <div className={`text-xs font-mono ${isLight ? 'text-emerald-700 font-bold' : 'text-emerald-400'}`}>
                   support@tradeoy.com
                 </div>
               </div>
@@ -370,17 +400,19 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
           {/* SECTION 5: JURISDICTION & LIMITATION OF LIABILITY */}
           {activeSection === 'jurisdiction' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <Scale className="w-4 h-4 text-amber-400" />
+              <h3 className={`text-base font-semibold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <Scale className={`w-4 h-4 ${isLight ? 'text-emerald-700' : 'text-amber-400'}`} />
                 {isCs ? 'Rozhodné právo, soudní příslušnost & limitace náhrady škody' : isEs ? 'Ley aplicable, jurisdicción y límite de indemnización' : 'Governing Law, Exclusive Jurisdiction & Limitation of Liability'}
               </h3>
 
-              <div className="p-4 rounded-2xl bg-[#1c1c1e] border border-white/[0.08] space-y-2">
-                <div className="text-xs font-semibold text-white flex items-center gap-2">
-                  <Gavel className="w-4 h-4 text-amber-400" />
+              <div className={`p-4 rounded-2xl border space-y-2 ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#1c1c1e] border-white/[0.08]'
+              }`}>
+                <div className={`text-xs font-semibold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <Gavel className={`w-4 h-4 ${isLight ? 'text-emerald-700' : 'text-amber-400'}`} />
                   <span>{isCs ? 'Výlučná jurisdikce České republiky' : isEs ? 'Jurisdicción exclusiva de la República Checa' : 'Exclusive Jurisdiction of the Czech Republic'}</span>
                 </div>
-                <p className="text-xs text-[#a1a1a6] leading-relaxed">
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-700' : 'text-[#a1a1a6]'}`}>
                   {isCs 
                     ? 'Veškeré právní vztahy, smlouvy, spory a nároky vzniklé z používání platformy TRADEOY.com se řídí výlučně právním řádem České republiky (člen Evropské unie), s vyloučením kolizních norem a Úmluvy OSN o mezinárodní koupi zboží (CISG). K řešení jakýchkoliv sporů je věcně a místně příslušný výhradně obecný soud v České republice podle sídla provozovatele.'
                     : isEs
@@ -389,12 +421,20 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-2">
-                <div className="text-xs font-semibold text-amber-300 flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-amber-400" />
+              <div className={`p-4 rounded-2xl border space-y-2 ${
+                isLight
+                  ? 'bg-emerald-50/90 border-emerald-300 shadow-xs'
+                  : 'bg-amber-500/10 border-amber-500/25 text-amber-100/90'
+              }`}>
+                <div className={`text-xs font-bold flex items-center gap-2 ${
+                  isLight ? 'text-emerald-950 font-extrabold' : 'text-amber-300'
+                }`}>
+                  <ShieldAlert className={`w-4 h-4 ${isLight ? 'text-emerald-700' : 'text-amber-400'}`} />
                   <span>{isCs ? 'Smluvní zastropování výše odpovědnosti (Limitation of Liability)' : isEs ? 'Límite máximo de indemnización' : 'Contractual Limitation of Liability'}</span>
                 </div>
-                <p className="text-xs text-amber-100/90 leading-relaxed">
+                <p className={`text-xs leading-relaxed ${
+                  isLight ? 'text-slate-900 font-medium' : 'text-amber-100/90'
+                }`}>
                   {isCs 
                     ? 'Pokud by i přes veškerá vyloučení odpovědnosti byla soudem pravomocně shledána jakákoliv odpovědnost provozovatele, strany výslovně sjednávají, že celková maximální souhrnná výše jakékoliv náhrady škody je striktně omezena částkou, kterou uživatel prokazatelně uhradil provozovateli za přístup ke službě za bezprostředně předcházejících 30 kalendářních dnů, a v případě bezplatného užívání je limitována částkou 0 Kč (nula EUR).'
                     : isEs
@@ -403,7 +443,9 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, languag
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-[#86868b]">
+              <div className={`p-3 rounded-xl border text-xs ${
+                isLight ? 'bg-slate-100 border-slate-200 text-slate-800 font-medium' : 'bg-white/[0.04] border-white/[0.08] text-[#86868b]'
+              }`}>
                 {isCs 
                   ? 'Používáním platformy TRADEOY.com vyjadřuje uživatel bezvýhradný a informovaný souhlas s těmito podmínkami v plném rozsahu.'
                   : isEs

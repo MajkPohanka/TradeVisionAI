@@ -568,9 +568,15 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             </span>
             <span>•</span>
             {/* Decent, high-visibility keyboard shortcut badge */}
-            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-mono font-bold">
-              <span>Ctrl+V / ⌘+V</span>
-              <span className="font-sans font-normal text-[10px] text-emerald-400/80 hidden sm:inline">{t.pasteScreenshotHint}</span>
+            <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold border transition-colors ${
+              isLight
+                ? 'bg-emerald-100 border-emerald-300 text-emerald-950 shadow-2xs'
+                : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200 shadow-sm'
+            }`}>
+              <span className={isLight ? 'text-emerald-950 font-extrabold' : 'text-emerald-200'}>Ctrl+V / ⌘+V</span>
+              <span className={`font-sans font-medium text-[10px] hidden sm:inline ${
+                isLight ? 'text-emerald-900' : 'text-emerald-300/90'
+              }`}>{t.pasteScreenshotHint}</span>
             </span>
           </div>
 
@@ -822,10 +828,10 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                       </button>
                     </div>
                   ) : isSelected ? (
-                    <span className={`text-[10px] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full border animate-pulse ${
+                    <span className={`text-[10px] font-extrabold flex items-center gap-1 px-2.5 py-0.5 rounded-full border animate-pulse ${
                       isLight
-                        ? 'text-emerald-900 bg-emerald-200/80 border-emerald-400 font-bold'
-                        : 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40'
+                        ? 'text-emerald-950 bg-emerald-200 border-emerald-400 shadow-2xs'
+                        : 'text-emerald-200 bg-emerald-500/25 border-emerald-500/50'
                     }`}>
                       {t.slotStatusActiveTarget} (Ctrl+V / ⌘+V)
                     </span>
@@ -992,10 +998,10 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <div className={`px-4 py-2.5 border-t text-[11px] flex items-center justify-between transition-colors ${
                 isLight
                   ? isSelected
-                    ? 'bg-emerald-100/50 border-emerald-200 text-emerald-900 font-medium'
-                    : 'bg-slate-100/80 border-slate-200 text-slate-600'
+                    ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
+                    : 'bg-slate-100/80 border-slate-200 text-slate-700 font-medium'
                   : isSelected
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200 font-bold'
                   : 'bg-black/20 border-white/[0.04] text-[#86868b]'
               }`}>
                 <span>{isSelected ? t.pressPasteHere.replace('{key}', 'Ctrl+V / ⌘+V') : t.slotRolePurpose.replace('{role}', slot.role)}</span>
@@ -1066,12 +1072,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <span>{t.analyzingBtn}</span>
             </>
           ) : (
-            <>
-              <Sparkles className={`w-5 h-5 sm:w-6 sm:h-6 shrink-0 ${
-                isLight ? 'text-white fill-white' : 'text-black fill-black'
-              }`} />
-              <span className="uppercase tracking-wider">{t.analyzeBtn}</span>
-            </>
+            <span className="uppercase tracking-wider">{t.analyzeBtn}</span>
           )}
         </button>
       </div>

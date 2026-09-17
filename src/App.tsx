@@ -308,6 +308,23 @@ export default function App() {
       return;
     }
 
+    // Check credits & license before attempting analysis
+    const isVip = currentLicense?.tier === 'vip_unlimited' || 
+      ['TRADEOY-VIP-UNLIMITED-ALPHA', 'TRADEOY-VIP-FRIENDS-2026', 'TRADEOY-VIP-ELITE-MASTER', 'TRADEOY-VIP-FOUNDER-PASS', 'TRADEOY-VIP-PRO-TRADER'].includes((currentLicense?.key || '').trim().toUpperCase());
+
+    if (!isVip && (!currentLicense?.key || (currentLicense?.credits ?? 0) <= 0)) {
+      setIsPaywallTriggered(true);
+      setIsCreditsModalOpen(true);
+      setError(
+        settings.language === 'cs'
+          ? 'Nemáte dostatek kreditů pro spuštění AI analýzy. Zakupte si balíček nebo si aktivujte zkušební kredity zdarma.'
+          : settings.language === 'es'
+          ? 'No tiene suficientes créditos para ejecutar el análisis de IA. Compre un paquete o active créditos de prueba.'
+          : 'Insufficient credits for AI analysis. Please top up credits or claim free trial credits.'
+      );
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -317,7 +334,7 @@ export default function App() {
         activeImages.map((img) => compressImageForAnalysis(img))
       );
 
-      const activeLicenseKey = currentLicense?.key || 'TRADEOY-VIP-1000';
+      const activeLicenseKey = currentLicense?.key || '';
 
       const response = await fetch('/api/analyze-chart', {
         method: 'POST',
@@ -600,33 +617,57 @@ export default function App() {
 
                 if (isAuthNotice) {
                   return (
-                    <div className="p-4 sm:p-5 rounded-2xl bg-[#17120a] border border-amber-500/40 text-amber-200 shadow-xl space-y-3 animate-fadeIn">
+                    <div className={`p-4 sm:p-5 rounded-2xl border shadow-xl space-y-3 animate-fadeIn ${
+                      theme === 'light'
+                        ? 'bg-amber-100/90 border-amber-300 text-slate-900'
+                        : 'bg-[#17120a] border-amber-500/40 text-amber-200'
+                    }`}>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div className="flex items-start space-x-3.5">
-                          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                            <KeyRound className="w-5 h-5 text-amber-400" />
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border ${
+                            theme === 'light'
+                              ? 'bg-amber-200/80 border-amber-400 text-amber-900'
+                              : 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                          }`}>
+                            <KeyRound className="w-5 h-5" />
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-amber-300 text-sm">
+                              <span className={`font-bold text-sm ${
+                                theme === 'light' ? 'text-amber-950 font-extrabold' : 'text-amber-300'
+                              }`}>
                                 {settings.language === 'cs'
                                   ? 'Vyžadována konfigurace Google Gemini API klíče'
                                   : settings.language === 'es'
                                   ? 'Configuración requerida de la clave API de Gemini'
                                   : 'Google Gemini API Key Configuration Required'}
                               </span>
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                theme === 'light'
+                                  ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                                  : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                              }`}>
                                 ✓ {settings.language === 'cs' ? 'Kredit 100% zachován' : 'Credit 100% preserved'}
                               </span>
                             </div>
-                            <p className="text-xs text-amber-200/90 leading-relaxed">
+                            <p className={`text-xs leading-relaxed ${
+                              theme === 'light' ? 'text-slate-900 font-medium' : 'text-amber-200/90'
+                            }`}>
                               {error}
                             </p>
-                            <div className="text-[11px] text-amber-300/80 bg-black/40 p-2.5 rounded-lg border border-amber-500/20">
-                              <span className="font-semibold text-amber-300">
+                            <div className={`text-[11px] p-2.5 rounded-lg border ${
+                              theme === 'light'
+                                ? 'bg-white/80 border-amber-300 text-slate-900'
+                                : 'bg-black/40 border-amber-500/20 text-amber-300/80'
+                            }`}>
+                              <span className={`font-semibold ${
+                                theme === 'light' ? 'text-slate-900' : 'text-amber-300'
+                              }`}>
                                 {settings.language === 'cs' ? 'Jak nastavit platný klíč:' : 'How to configure a valid key:'}
                               </span>
-                              <ol className="list-decimal list-inside mt-1 space-y-0.5 text-amber-200/80">
+                              <ol className={`list-decimal list-inside mt-1 space-y-0.5 ${
+                                theme === 'light' ? 'text-slate-800 font-medium' : 'text-amber-200/80'
+                              }`}>
                                 <li>
                                   {settings.language === 'cs'
                                     ? 'Vygenerujte bezplatný API klíč v Google AI Studio (aistudio.google.com/app/apikey).'

@@ -1255,40 +1255,48 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
       {/* FULLSCREEN LIGHTBOX MODAL WITH OVERLAY & ZOOM */}
       {isLightboxOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex flex-col justify-between select-none animate-fadeIn"
+          className={`fixed inset-0 z-[99999] backdrop-blur-md flex flex-col justify-between select-none animate-fadeIn ${
+            isLight ? 'bg-slate-200/95 text-slate-900' : 'bg-black/95 text-white'
+          }`}
           role="dialog"
           aria-modal="true"
           aria-label="Detail grafu na celou obrazovku"
         >
           {/* Lightbox Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#121216]/95 border-b border-white/10 z-50">
+          <div className={`flex items-center justify-between px-4 py-3 z-50 border-b ${
+            isLight ? 'bg-white/95 border-slate-300 text-slate-900' : 'bg-[#121216]/95 border-white/10 text-white'
+          }`}>
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <span className="text-white font-black text-sm tracking-wide">{result.symbol}</span>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-semibold border border-white/10">
+                <span className={`font-black text-sm tracking-wide ${isLight ? 'text-slate-900' : 'text-white'}`}>{result.symbol}</span>
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full font-semibold border ${
+                  isLight ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-white/10 text-slate-300 border-white/10'
+                }`}>
                   {result.timeframe || '15m'}
                 </span>
                 <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
                   result.signal === 'LONG'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
                     : result.signal === 'SHORT'
-                    ? 'bg-rose-500/20 text-rose-200 border-rose-500/50'
-                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    ? 'bg-rose-500/20 text-rose-700 dark:text-rose-200 border-rose-500/50'
+                    : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40'
                 }`}>
                   {result.signal}
                 </span>
               </div>
 
               {/* View Switcher in Lightbox */}
-              <div className="hidden sm:flex items-center space-x-1.5 ml-4 pl-4 border-l border-white/10">
+              <div className={`hidden sm:flex items-center space-x-1.5 ml-4 pl-4 border-l ${
+                isLight ? 'border-slate-300' : 'border-white/10'
+              }`}>
                 {uploadedImages.length > 0 && !imageLoadError && (
                   <button
                     type="button"
                     onClick={() => setChartViewMode('snapshot')}
                     className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
                       chartViewMode === 'snapshot'
-                        ? 'bg-white text-black border-white'
-                        : 'bg-white/10 text-white/70 hover:text-white border-white/10'
+                        ? (isLight ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-black border-white')
+                        : (isLight ? 'bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300' : 'bg-white/10 text-white/70 hover:text-white border-white/10')
                     }`}
                   >
                     Snímek s hladinami
@@ -1302,8 +1310,8 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   }}
                   className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
                     chartViewMode === 'hd_chart'
-                      ? 'bg-white text-black border-white'
-                      : 'bg-white/10 text-white/70 hover:text-white border-white/10'
+                      ? (isLight ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-black border-white')
+                      : (isLight ? 'bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300' : 'bg-white/10 text-white/70 hover:text-white border-white/10')
                   }`}
                 >
                   Kompletní graf
@@ -1317,10 +1325,14 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowChartOverlay(!showChartOverlay)}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/15 transition cursor-pointer"
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
+                    isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                      : 'bg-white/10 hover:bg-white/20 text-white border-white/15'
+                  }`}
                   title="Skrýt / Zobrazit hladiny"
                 >
-                  {showChartOverlay ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
+                  {showChartOverlay ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className="w-3.5 h-3.5 text-emerald-500" />}
                   <span className="hidden sm:inline">{showChartOverlay ? 'Skrýt hladiny' : 'Zobrazit hladiny'}</span>
                 </button>
               )}
@@ -1331,7 +1343,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
                   isZoomScaleToggled
                     ? 'bg-emerald-500 text-black border-emerald-400'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/15'
+                    : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300' : 'bg-white/10 hover:bg-white/20 text-white border-white/15')
                 }`}
                 title="Zvětšit zobrazení"
               >
@@ -1346,17 +1358,23 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   setIsLightboxOpen(false);
                   setIsZoomScaleToggled(false);
                 }}
-                className="px-3.5 py-1.5 rounded-full text-xs font-black flex items-center space-x-1.5 bg-white hover:bg-slate-200 text-black shadow-lg transition cursor-pointer"
+                className={`px-3.5 py-1.5 rounded-full text-xs font-black flex items-center space-x-1.5 shadow-lg transition cursor-pointer ${
+                  isLight
+                    ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                    : 'bg-white hover:bg-slate-200 text-black'
+                }`}
                 title="Zavřít graf (ESC)"
               >
-                <X className="w-4 h-4 text-black" />
+                <X className="w-4 h-4" />
                 <span>Zavřít (ESC)</span>
               </button>
             </div>
           </div>
 
           {/* Lightbox Center Content with high-resolution scroll/zoom */}
-          <div className="flex-1 relative overflow-auto flex items-center justify-center p-2 sm:p-6 bg-black">
+          <div className={`flex-1 relative overflow-auto flex items-center justify-center p-2 sm:p-6 ${
+            isLight ? 'bg-slate-100/90' : 'bg-black'
+          }`}>
             <div
               className={`relative transition-transform duration-200 flex items-center justify-center max-w-full max-h-full ${
                 isZoomScaleToggled ? 'scale-150 transform cursor-zoom-out' : 'cursor-zoom-in'

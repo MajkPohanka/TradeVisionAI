@@ -46,6 +46,8 @@ interface ChartUploaderProps {
   holdingPeriod?: HoldingPeriod;
   onOpenSettings?: () => void;
   theme?: AppTheme;
+  error?: string | null;
+  onOpenCreditsModal?: () => void;
 }
 
 export const ChartUploader: React.FC<ChartUploaderProps> = ({
@@ -59,6 +61,8 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   holdingPeriod = 'intraday',
   onOpenSettings,
   theme = 'light',
+  error,
+  onOpenCreditsModal,
 }) => {
   const isLight = theme === 'light';
   const t = getTranslation(language as LanguageOption);
@@ -626,106 +630,135 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         className="hidden"
       />
 
-      {/* 1. Page Header & Workflow Context */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2.5 text-xs text-[#86868b] font-medium mb-1.5 flex-wrap gap-y-1">
-            <span className="uppercase tracking-wider">{t.tradingWorkflow}</span>
-            <span>•</span>
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <HoldingIcon className="w-3.5 h-3.5" />
-              {currentConfig.periodTitle}
-            </span>
-            <span>•</span>
-            {/* Decent, high-visibility keyboard shortcut badge */}
-            <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold border transition-colors ${
-              isLight
-                ? 'bg-emerald-100 border-emerald-300 text-emerald-950 shadow-2xs'
-                : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200 shadow-sm'
-            }`}>
-              <span className={isLight ? 'text-emerald-950 font-extrabold' : 'text-emerald-200'}>Ctrl+V / ⌘+V</span>
-              <span className={`font-sans font-medium text-[10px] hidden sm:inline ${
-                isLight ? 'text-emerald-900' : 'text-emerald-300/90'
-              }`}>{t.pasteScreenshotHint}</span>
-            </span>
+      {/* 1. Page Header & Synchronized Workflow Control Header */}
+      <div className="space-y-3.5 pb-2">
+        {/* Top Synchronized Bar: Eyebrow + Title on Left | Action Toolbar on Right */}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3.5">
+          
+          {/* Left Block: Eyebrow (TRADING POSTUP • Intraday) & Main Title */}
+          <div>
+            {/* Eyebrow Breadcrumb Row */}
+            <div className="flex items-center space-x-2 text-xs font-medium text-[#86868b] mb-1.5 flex-wrap">
+              <span className="uppercase tracking-wider font-semibold text-[11px] shrink-0">{t.tradingWorkflow}</span>
+              <span className="shrink-0">•</span>
+              {/* Static Rounded Pill Badge for Intraday mode */}
+              <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 ${
+                isLight
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs'
+                  : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-xs'
+              }`}>
+                <HoldingIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>{currentConfig.periodTitle}</span>
+              </span>
+            </div>
+
+            {/* Main Title */}
+            <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {t.uploaderTitle}
+            </h1>
           </div>
 
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            {t.uploaderTitle}
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>
-            {t.uploaderSubtitle}
-          </p>
+          {/* Right Block: Action Toolbar Buttons (Matching h-9/h-10 uniform rounded style) */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {/* Ctrl+V / ⌘+V Shortcut Button */}
+            <div className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-bold border transition-colors flex items-center space-x-2 shrink-0 ${
+              isLight
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-2xs'
+                : 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300 shadow-sm'
+            }`}>
+              <span className="font-mono font-black text-xs">Ctrl+V / ⌘+V</span>
+              <span className={`font-sans font-medium text-[11px] hidden xl:inline ${
+                isLight ? 'text-emerald-900' : 'text-emerald-300/90'
+              }`}>{t.pasteScreenshotHint}</span>
+            </div>
+
+            {/* Živý TradingView */}
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('live-tradingview-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap border flex items-center space-x-2 shrink-0 ${
+                isLight
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+                  : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/25'
+              }`}
+              title={language === 'cs' ? 'Přejít na živý TradingView graf' : language === 'es' ? 'Ir al gráfico en vivo' : 'Jump to live chart'}
+            >
+              <TrendingUp className={`w-4 h-4 shrink-0 ${isLight ? 'text-white' : 'text-emerald-400'}`} />
+              <span>{language === 'cs' ? 'Živý TradingView' : language === 'es' ? 'TradingView en Vivo' : 'Live TradingView'}</span>
+            </button>
+
+            {/* Nastavení analýzy */}
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap flex items-center space-x-2 shrink-0 ${
+                  isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                    : 'bg-[#18181c] hover:bg-[#222226] text-white border-white/10'
+                }`}
+                title={t.analysisSettingsTooltip}
+              >
+                <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span>{t.analysisSettingsBtn}</span>
+              </button>
+            )}
+
+            {/* Návod pro Timeframy */}
+            <button
+              type="button"
+              onClick={() => setShowGuide(!showGuide)}
+              className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 whitespace-nowrap flex items-center space-x-2 shrink-0 ${
+                showGuide
+                  ? isLight
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
+                    : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                  : isLight
+                  ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                  : 'bg-[#18181c] text-[#a1a1a6] border-white/10 hover:text-white hover:bg-[#222226]'
+              }`}
+            >
+              <HelpCircle className={`w-4 h-4 shrink-0 ${isLight ? 'text-emerald-600' : 'text-cyan-400'}`} />
+              <span>{t.timeframeGuideBtn}</span>
+              {showGuide ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
+            </button>
+
+            {/* Reset button */}
+            {(hasAnyImages || hasAnalysisResult) && (
+              <button
+                type="button"
+                onClick={() => setShowConfirmResetModal(true)}
+                className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap border flex items-center space-x-2 shrink-0 ${
+                  isLight
+                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-red-300 border-red-500/25'
+                }`}
+                title={t.clearAndNewAnalysis}
+              >
+                <RotateCcw className="w-4 h-4 text-red-500 shrink-0" />
+                <span>{t.clearAndNewAnalysis}</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Secondary & Advanced Action Toolbar - Perfectly aligned single-line row */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById('live-tradingview-section');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap border ${
-              isLight
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
-                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/25'
-            }`}
-            title={language === 'cs' ? 'Přejít na živý TradingView graf' : language === 'es' ? 'Ir al gráfico en vivo' : 'Jump to live chart'}
-          >
-            <TrendingUp className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-white' : 'text-emerald-400'}`} />
-            <span>{language === 'cs' ? 'Živý TradingView' : language === 'es' ? 'TradingView en Vivo' : 'Live TradingView'}</span>
-          </button>
-
-          {onOpenSettings && (
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap ${
-                isLight
-                  ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs'
-                  : 'bg-[#18181c] hover:bg-[#222226] text-white border-white/10'
-              }`}
-              title={t.analysisSettingsTooltip}
-            >
-              <Sliders className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <span>{t.analysisSettingsBtn}</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setShowGuide(!showGuide)}
-            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 whitespace-nowrap ${
-              showGuide
-                ? isLight
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
-                  : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
-                : isLight
-                ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs'
-                : 'bg-[#18181c] text-[#a1a1a6] border-white/10 hover:text-white hover:bg-[#222226]'
-            }`}
-          >
-            <HelpCircle className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-emerald-600' : 'text-cyan-400'}`} />
-            <span>{t.timeframeGuideBtn}</span>
-            {showGuide ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
-          </button>
-
-          {(hasAnyImages || hasAnalysisResult) && (
-            <button
-              type="button"
-              onClick={() => setShowConfirmResetModal(true)}
-              className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-sm whitespace-nowrap border ${
-                isLight
-                  ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
-                  : 'bg-red-500/10 hover:bg-red-500/20 text-red-300 border-red-500/25'
-              }`}
-              title={t.clearAndNewAnalysis}
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <span>{t.clearAndNewAnalysis}</span>
-            </button>
-          )}
+        {/* Second Synchronized Row: Full-width instruction banner card */}
+        <div className={`p-3 sm:p-3.5 rounded-2xl border text-xs sm:text-sm leading-relaxed flex items-center space-x-3 transition-all ${
+          isLight
+            ? 'bg-slate-50 border-slate-200/90 text-slate-700 shadow-2xs'
+            : 'bg-[#121216] border-white/10 text-[#a1a1a6] shadow-sm'
+        }`}>
+          <div className={`p-2 rounded-xl shrink-0 ${
+            isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+          }`}>
+            <Upload className="w-4 h-4" />
+          </div>
+          <p className="font-medium text-xs sm:text-sm leading-normal flex-1">
+            {t.uploaderSubtitle}
+          </p>
         </div>
       </div>
 
@@ -1206,6 +1239,66 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             <div className="flex items-center justify-between text-[11px] opacity-75 pt-0.5">
               <span>{language === 'cs' ? 'Předpokládaná doba: 3 - 6 sekund' : language === 'es' ? 'Tiempo estimado: 3 - 6 seg' : 'Estimated time: 3 - 6 sec'}</span>
               <span>Top-Down Multi-Timeframe AI</span>
+            </div>
+          </div>
+        )}
+
+        {/* ERROR & INSUFFICIENT CREDITS ALERT CARD (PLACED DIRECTLY BELOW BUTTON) */}
+        {error && !isLoading && (
+          <div className={`p-4 sm:p-5 rounded-xl sm:rounded-2xl border shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in slide-in-from-top-2 duration-200 ${
+            error.includes('kredit') || error.includes('credit') || error.includes('crédit')
+              ? (isLight
+                  ? 'bg-rose-50 border-rose-300 text-rose-950 shadow-rose-500/10'
+                  : 'bg-rose-950/40 border-rose-500/50 text-rose-100 shadow-rose-950/40')
+              : (isLight
+                  ? 'bg-amber-50 border-amber-300 text-amber-950 shadow-amber-500/10'
+                  : 'bg-amber-950/40 border-amber-500/50 text-amber-100 shadow-amber-950/40')
+          }`}>
+            <div className="flex items-start space-x-3.5 flex-1">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border ${
+                error.includes('kredit') || error.includes('credit')
+                  ? (isLight ? 'bg-rose-100 border-rose-300 text-rose-700' : 'bg-rose-500/20 border-rose-500/40 text-rose-300')
+                  : (isLight ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-500/20 border-amber-500/40 text-amber-300')
+              }`}>
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="font-extrabold text-xs sm:text-sm tracking-tight flex items-center gap-2">
+                  <span>{error}</span>
+                </div>
+                <p className="text-[11px] sm:text-xs opacity-85 leading-relaxed">
+                  {error.includes('kredit') || error.includes('credit')
+                    ? (language === 'cs' ? 'Dopĺňte kredity zakoupením balíčku nebo zadáním VIP klíče pro neomezený přístup.' : 'Top up credits by purchasing a package or enter a VIP key for unlimited access.')
+                    : (language === 'cs' ? 'Zkontrolujte nahraný graf a klikněte na zkusit znovu.' : 'Check uploaded chart image and click retry.')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+              {(error.includes('kredit') || error.includes('credit')) && onOpenCreditsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenCreditsModal}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition cursor-pointer active:scale-95 shadow-md flex items-center justify-center space-x-1.5 whitespace-nowrap"
+                >
+                  <Zap className="w-3.5 h-3.5 fill-current" />
+                  <span>{language === 'cs' ? 'Doplnit kredity / VIP klíč' : 'Top up / VIP Key'}</span>
+                </button>
+              )}
+              {uploadedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={onAnalyze}
+                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 border flex items-center justify-center space-x-1.5 whitespace-nowrap ${
+                    isLight
+                      ? 'bg-slate-200 hover:bg-slate-300 text-slate-900 border-slate-300'
+                      : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                  }`}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{language === 'cs' ? 'Zkusit znovu' : 'Retry'}</span>
+                </button>
+              )}
             </div>
           </div>
         )}

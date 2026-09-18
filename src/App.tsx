@@ -553,6 +553,11 @@ export default function App() {
                 holdingPeriod={settings.holdingPeriod}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
                 theme={theme}
+                error={error}
+                onOpenCreditsModal={() => {
+                  setIsPaywallTriggered(true);
+                  setIsCreditsModalOpen(true);
+                }}
               />
 
               {/* Real-Time Live TradingView Chart & Snapshot Station */}
@@ -752,23 +757,7 @@ export default function App() {
                   );
                 }
 
-                return (
-                  <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
-                    <div className="flex items-center space-x-3">
-                      <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-                      <span className="font-medium">{error}</span>
-                    </div>
-                    {images.some(Boolean) && (
-                      <button
-                        onClick={handleAnalyzeChart}
-                        disabled={isLoading}
-                        className="px-4 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-semibold transition border border-red-500/30 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
-                      >
-                        <span>Zkusit znovu analýzu</span>
-                      </button>
-                    )}
-                  </div>
-                );
+                return null;
               })()}
 
               {/* Analysis Results View */}

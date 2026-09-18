@@ -435,6 +435,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               showToast(
                 language === 'cs'
                   ? `✓ Trh přepnut na: ${label}`
+                  : language === 'es'
+                  ? `✓ Mercado cambiado a: ${label}`
                   : `✓ Market switched to: ${label}`,
                 'info'
               );
@@ -459,10 +461,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     if (widgetInstanceRef.current && typeof widgetInstanceRef.current.chart === 'function') {
       try {
         widgetInstanceRef.current.chart().setResolution(norm);
+        mountedChartKeyRef.current = `${symbolRef.current}_${norm}_${tvTheme}_${tvLocale}_${tvBgColor}`;
       } catch {}
     }
 
-    // Explicitly update React state so useEffect re-mounts chart with new interval
+    // Explicitly update React state so useEffect re-mounts chart with new interval if widget missing
     setInterval(norm);
   };
 
@@ -671,6 +674,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                   const norm = normalizeIncomingInterval(newInterval);
                   if (norm && norm !== intervalRef.current) {
                     intervalRef.current = norm;
+                    mountedChartKeyRef.current = `${symbolRef.current}_${norm}_${tvTheme}_${tvLocale}_${tvBgColor}`;
                     setInterval(norm);
                   }
                 });
@@ -678,9 +682,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               if (chart?.onSymbolChanged) {
                 chart.onSymbolChanged().subscribe(null, (newSymbolObj: any) => {
                   const sym = typeof newSymbolObj === 'string' ? newSymbolObj : newSymbolObj?.name || newSymbolObj?.ticker;
-                  if (sym && sym !== symbolRef.current) {
-                    symbolRef.current = sym;
-                    setSymbol(sym);
+                  if (sym) {
+                    const normSym = normalizeUserSymbol(sym);
+                    if (normSym && normSym !== symbolRef.current) {
+                      symbolRef.current = normSym;
+                      mountedChartKeyRef.current = `${normSym}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+                      setSymbol(normSym);
+                      onSymbolChange?.(normSym);
+                    }
                   }
                 });
               }
@@ -1350,6 +1359,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                     title={
                       language === 'cs'
                         ? `Vyfotit aktuální graf ${currentSym} (${currentTf}) a vložit do volného pole (Slot ${getTargetSlotIndex() + 1})`
+                        : language === 'es'
+                        ? `Capturar gráfico actual ${currentSym} (${currentTf}) e insertar en ranura disponible (Ranura ${getTargetSlotIndex() + 1})`
                         : `Capture current chart ${currentSym} (${currentTf}) and insert into available slot (Slot ${getTargetSlotIndex() + 1})`
                     }
                   >
@@ -1358,9 +1369,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                     )}
                     <span>
                       {isCapturing
-                        ? (language === 'cs' ? 'Fotografuji graf...' : 'Capturing chart...')
+                        ? (language === 'cs' ? 'Fotografuji graf...' : language === 'es' ? 'Capturando gráfico...' : 'Capturing chart...')
                         : (language === 'cs'
                             ? `Vyfotit ${currentSym} (${currentTf}) do Slotu ${getTargetSlotIndex() + 1}`
+                            : language === 'es'
+                            ? `Capturar ${currentSym} (${currentTf}) en Ranura ${getTargetSlotIndex() + 1}`
                             : `Capture ${currentSym} (${currentTf}) to Slot ${getTargetSlotIndex() + 1}`)}
                     </span>
                   </button>

@@ -99,12 +99,18 @@ export function formatTimeframeLabel(tf: string): string {
   if (!tf) return '15m';
   const clean = tf.toString().trim().toUpperCase();
   if (clean === '240' || clean === '240M' || clean === '4H' || clean === '4HOUR' || clean === '4HOURS') return '4H';
+  if (clean === '180' || clean === '180M' || clean === '3H') return '3H';
+  if (clean === '120' || clean === '120M' || clean === '2H') return '2H';
   if (clean === '60' || clean === '60M' || clean === '1H' || clean === '1HOUR' || clean === '1HOURS') return '1H';
+  if (clean === '45' || clean === '45M') return '45m';
+  if (clean === '30' || clean === '30M') return '30m';
   if (clean === '15' || clean === '15M') return '15m';
   if (clean === '5' || clean === '5M') return '5m';
+  if (clean === '3' || clean === '3M') return '3m';
   if (clean === '1' || clean === '1M') return '1m';
-  if (clean === 'D' || clean === '1D' || clean === 'DAILY') return '1D';
+  if (clean === 'D' || clean === '1D' || clean === 'DAILY' || clean === '24H') return '1D';
   if (clean === 'W' || clean === '1W' || clean === 'WEEKLY') return '1W';
+  if (clean === 'M' || clean === 'MN' || clean === '1MN' || clean === 'MONTHLY') return '1M';
   return clean;
 }
 

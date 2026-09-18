@@ -157,7 +157,9 @@ const BLACKLISTED_TV_WORDS = new Set([
   'SAVE_IMAGE', 'WIDGET', 'LOAD', 'LOADED', 'READY', 'LAYOUT', 'UNDEFINED', 'NULL',
   'OBJECT', 'SYMBOL', 'TICKER', 'NAME', 'VALUE', 'TRUE', 'FALSE', 'CANDLE', 'BAR',
   'SERIES', 'OVERLAY', 'PANE_0', 'PANE_1', 'PANE_2', 'MAIN_PANE', 'ADVANCED_CHART',
-  'PRICE_SCALE', 'TIME_SCALE'
+  'PRICE_SCALE', 'TIME_SCALE', 'WIDGETREADY', 'WIDGET_READY', 'CHARTREADY', 'CHART_READY',
+  'INIT', 'INITIALIZED', 'LOADING', 'ERROR', 'SUCCESS', 'CONTENT', 'MESSAGE', 'EVENT',
+  'STATE', 'UPDATE', 'CHANGE', 'VIEW', 'ACTION', 'DATAFEED', 'HISTORY', 'QUOTES'
 ]);
 
 function isSymbolCandidate(val: any): string | null {
@@ -166,10 +168,21 @@ function isSymbolCandidate(val: any): string | null {
   if (!s || s.length < 2 || s.length > 32 || s.startsWith('{') || s.startsWith('[') || s.startsWith('data:')) return null;
   const upper = s.toUpperCase().replace(/\s+/g, '');
   if (BLACKLISTED_TV_WORDS.has(upper)) return null;
-  if (/^[A-Z0-9^=_\-\/\.]{2,14}(?::[A-Z0-9^=_\-\/\.]{2,18})?$/i.test(s)) {
+  
+  if (upper.includes(':')) {
     return s;
   }
-  return null;
+
+  // Without a colon, require it to look like a strict crypto/forex/commodity ticker (e.g. BTCUSDT, EURUSD, XAUUSD)
+  const isLikelyTicker = /^[A-Z0-9^=_\-\/\.]{2,12}$/.test(upper);
+  if (!isLikelyTicker) return null;
+
+  // Reject pure alphabetic words longer than 5 chars that are likely UI messages
+  if (/^[A-Z]+$/.test(upper) && upper.length > 5 && !['GOLD', 'SILVER', 'BITCOIN', 'ETHEREUM', 'SOLANA', 'RIPPLE', 'NASDAQ'].includes(upper)) {
+    return null;
+  }
+
+  return s;
 }
 
 function isTimeframeCandidate(val: any): string | null {
@@ -409,20 +422,23 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           }
         }
         if (extracted?.symbol) {
-          const normSym = normalizeUserSymbol(extracted.symbol);
-          if (normSym && normSym !== symbolRef.current) {
-            symbolRef.current = normSym;
-            mountedChartKeyRef.current = `${normSym}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
-            setSymbol(normSym);
-            onSymbolChange?.(normSym);
-            const matchingPreset = MARKET_PRESETS.find((p) => p.symbol === normSym);
-            const label = matchingPreset ? matchingPreset.name : normSym.replace(/^[A-Z0-9]+:/, '');
-            showToast(
-              language === 'cs'
-                ? `✓ Trh přepnut na: ${label}`
-                : `✓ Market switched to: ${label}`,
-              'info'
-            );
+          const rawSym = String(extracted.symbol).trim();
+          if (rawSym.includes(':') || MARKET_PRESETS.some(p => p.symbol.toUpperCase() === rawSym.toUpperCase() || p.id.toUpperCase() === rawSym.toUpperCase())) {
+            const normSym = normalizeUserSymbol(rawSym);
+            if (normSym && normSym !== symbolRef.current) {
+              symbolRef.current = normSym;
+              mountedChartKeyRef.current = `${normSym}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+              setSymbol(normSym);
+              onSymbolChange?.(normSym);
+              const matchingPreset = MARKET_PRESETS.find((p) => p.symbol === normSym);
+              const label = matchingPreset ? matchingPreset.name : normSym.replace(/^[A-Z0-9]+:/, '');
+              showToast(
+                language === 'cs'
+                  ? `✓ Trh přepnut na: ${label}`
+                  : `✓ Market switched to: ${label}`,
+                'info'
+              );
+            }
           }
         }
       } catch {}

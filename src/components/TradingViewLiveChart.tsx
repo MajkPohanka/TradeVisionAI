@@ -151,6 +151,27 @@ const TIMEFRAMES = [
   { label: '1m', value: '1', role: 'Trigger' },
 ];
 
+const BLACKLISTED_TV_WORDS = new Set([
+  'COMPARE', 'DRAWING_TOOLS', 'DRAWING_TOOLBAR', 'HEADER', 'FOOTER', 'PANE', 'CHART',
+  'STUDIES', 'INDICATORS', 'EVENTS', 'RESOLUTION', 'INTERVAL', 'TIMEZONE', 'FULLSCREEN',
+  'SAVE_IMAGE', 'WIDGET', 'LOAD', 'LOADED', 'READY', 'LAYOUT', 'UNDEFINED', 'NULL',
+  'OBJECT', 'SYMBOL', 'TICKER', 'NAME', 'VALUE', 'TRUE', 'FALSE', 'CANDLE', 'BAR',
+  'SERIES', 'OVERLAY', 'PANE_0', 'PANE_1', 'PANE_2', 'MAIN_PANE', 'ADVANCED_CHART',
+  'PRICE_SCALE', 'TIME_SCALE'
+]);
+
+function isSymbolCandidate(val: any): string | null {
+  if (val === null || val === undefined) return null;
+  const s = String(val).trim();
+  if (!s || s.length < 2 || s.length > 32 || s.startsWith('{') || s.startsWith('[') || s.startsWith('data:')) return null;
+  const upper = s.toUpperCase().replace(/\s+/g, '');
+  if (BLACKLISTED_TV_WORDS.has(upper)) return null;
+  if (/^[A-Z0-9^=_\-\/\.]{2,14}(?::[A-Z0-9^=_\-\/\.]{2,18})?$/i.test(s)) {
+    return s;
+  }
+  return null;
+}
+
 function isTimeframeCandidate(val: any): string | null {
   if (val === null || val === undefined) return null;
   const s = String(val).trim();
@@ -214,12 +235,16 @@ function extractTvMessageData(msg: any): { interval?: string; symbol?: string } 
         parsed.match(/(?:change-resolution|set-resolution|onIntervalChanged|resolution_change|timeframe)[\s\S]*?"(?:data|value|res|resolution)":\s*"([^"]+)"/i) ||
         parsed.match(/(?:change-resolution|set-resolution|onIntervalChanged|resolution_change|timeframe)[\s\S]*?"(?:data|value|res|resolution)":\s*(\d+)/i);
 
-      const symbolMatch = parsed.match(/"(?:symbol|ticker)":\s*"([^"]+)"/i);
+      const symbolMatch =
+        parsed.match(/"(?:symbol|ticker|pro_name|short_name|pro_symbol)":\s*"([^"]+)"/i) ||
+        parsed.match(/(?:set-symbol|change-symbol|onSymbolChanged|symbol_change)[\s\S]*?"(?:data|value|symbol|ticker)":\s*"([^"]+)"/i);
 
-      if (intervalMatch || symbolMatch) {
+      const symCandidate = symbolMatch ? isSymbolCandidate(symbolMatch[1]) : null;
+
+      if (intervalMatch || symCandidate) {
         return {
           interval: intervalMatch ? (intervalMatch[1] || intervalMatch[2]) : undefined,
-          symbol: symbolMatch ? symbolMatch[1] : undefined,
+          symbol: symCandidate || undefined,
         };
       }
       return null;
@@ -232,6 +257,7 @@ function extractTvMessageData(msg: any): { interval?: string; symbol?: string } 
   let foundSymbol: string | undefined = undefined;
 
   const CANDLE_KEYS = ['resolution', 'interval', 'timeframe', 'period', 'res', 'tf', 'time_frame'];
+  const SYMBOL_KEYS = ['symbol', 'ticker', 'pro_name', 'short_name', 'pro_symbol', 'name'];
 
   const traverse = (obj: any, depth = 0) => {
     if (!obj || typeof obj !== 'object' || depth > 5) return;
@@ -245,10 +271,10 @@ function extractTvMessageData(msg: any): { interval?: string; symbol?: string } 
         }
       }
 
-      if (!foundSymbol && ['symbol', 'ticker'].includes(kLower)) {
-        const val = obj[key];
-        if (typeof val === 'string' && val.length > 1 && !val.startsWith('{')) {
-          foundSymbol = val;
+      if (!foundSymbol && SYMBOL_KEYS.includes(kLower)) {
+        const candidate = isSymbolCandidate(obj[key]);
+        if (candidate) {
+          foundSymbol = candidate;
         }
       }
     }
@@ -266,6 +292,19 @@ function extractTvMessageData(msg: any): { interval?: string; symbol?: string } 
         if (candidate) {
           foundInterval = candidate;
         }
+      }
+    }
+
+    if (!foundSymbol && (eventName.includes('symbol') || eventName.includes('ticker'))) {
+      const candidate =
+        isSymbolCandidate(obj.data) ||
+        isSymbolCandidate(obj.value) ||
+        isSymbolCandidate(obj.val) ||
+        isSymbolCandidate(obj.payload) ||
+        isSymbolCandidate(obj.symbol) ||
+        isSymbolCandidate(obj.ticker);
+      if (candidate) {
+        foundSymbol = candidate;
       }
     }
 
@@ -305,7 +344,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const tvGridColor = isLightTheme ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)';
   const tvLocale = language === 'cs' ? 'cs' : language === 'es' ? 'es' : 'en';
 
-  const [symbol, setSymbol] = useState<string>('OANDA:XAUUSD');
+  const [symbol, setSymbol] = useState<string>(() => externalSymbol || 'OANDA:XAUUSD');
   const [customSymbolInput, setCustomSymbolInput] = useState<string>('');
   const [interval, setInterval] = useState<string>('15');
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
@@ -323,6 +362,23 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   const lastTopBarResolutionRef = useRef<string>('');
   const mountedChartKeyRef = useRef<string>('');
 
+  // Helper for displaying auto-dismissing toast notifications
+  const showToast = useCallback((text: string, type: 'success' | 'info' | 'warning' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => {
+      setToastMessage((prev) => (prev?.text === text ? null : prev));
+    }, 3200);
+  }, []);
+
+  const updateSymbol = useCallback((newSymbol: string, propagate = true) => {
+    const norm = normalizeUserSymbol(newSymbol);
+    symbolRef.current = norm;
+    setSymbol(norm);
+    if (propagate) {
+      onSymbolChange?.(norm);
+    }
+  }, [onSymbolChange]);
+
   useEffect(() => {
     intervalRef.current = interval;
   }, [interval]);
@@ -332,7 +388,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     onSymbolChange?.(symbol);
   }, [symbol, onSymbolChange]);
 
-  // Bi-directional Timeframe & Symbol Sync: Listen for timeframe changes originating inside TradingView chart widget
+  // Bi-directional Timeframe & Symbol Sync: Listen for timeframe & symbol changes originating inside TradingView chart widget
   useEffect(() => {
     const handleWindowMessage = (event: MessageEvent) => {
       try {
@@ -348,15 +404,26 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               return;
             }
             intervalRef.current = norm;
-            // Mark mounted key so useEffect does not reload the iframe since the change originated inside the iframe
             mountedChartKeyRef.current = `${symbolRef.current}_${norm}_${tvTheme}_${tvLocale}_${tvBgColor}`;
             setInterval(norm);
           }
         }
-        if (extracted?.symbol && extracted.symbol !== symbolRef.current) {
-          symbolRef.current = extracted.symbol;
-          mountedChartKeyRef.current = `${extracted.symbol}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
-          setSymbol(extracted.symbol);
+        if (extracted?.symbol) {
+          const normSym = normalizeUserSymbol(extracted.symbol);
+          if (normSym && normSym !== symbolRef.current) {
+            symbolRef.current = normSym;
+            mountedChartKeyRef.current = `${normSym}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+            setSymbol(normSym);
+            onSymbolChange?.(normSym);
+            const matchingPreset = MARKET_PRESETS.find((p) => p.symbol === normSym);
+            const label = matchingPreset ? matchingPreset.name : normSym.replace(/^[A-Z0-9]+:/, '');
+            showToast(
+              language === 'cs'
+                ? `✓ Trh přepnut na: ${label}`
+                : `✓ Market switched to: ${label}`,
+              'info'
+            );
+          }
         }
       } catch {}
     };
@@ -365,7 +432,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     return () => {
       window.removeEventListener('message', handleWindowMessage);
     };
-  }, [tvTheme, tvLocale, tvBgColor]);
+  }, [tvTheme, tvLocale, tvBgColor, language, showToast, onSymbolChange]);
 
   const handleSetIntervalFromTopBar = (newVal: string) => {
     const norm = normalizeIncomingInterval(newVal);
@@ -385,8 +452,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
   // Sync external symbol if requested (e.g. when clicking on top Market Overview bar)
   useEffect(() => {
-    if (externalSymbol) {
-      setSymbol(externalSymbol);
+    if (externalSymbol && externalSymbol !== symbolRef.current) {
+      const norm = normalizeUserSymbol(externalSymbol);
+      symbolRef.current = norm;
+      setSymbol(norm);
       setIsExpanded(true);
 
       // Trigger visual glow highlight
@@ -394,8 +463,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       const highlightTimer = setTimeout(() => setIsHighlighted(false), 2800);
 
       // Visual feedback toast
-      const matchingPreset = MARKET_PRESETS.find((p) => p.symbol === externalSymbol);
-      const label = matchingPreset ? matchingPreset.name : externalSymbol.replace(/^[A-Z0-9]+:/, '');
+      const matchingPreset = MARKET_PRESETS.find((p) => p.symbol === norm);
+      const label = matchingPreset ? matchingPreset.name : norm.replace(/^[A-Z0-9]+:/, '');
       showToast(
         language === 'cs'
           ? `✓ Graf načten: ${label}`
@@ -415,7 +484,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
       return () => clearTimeout(highlightTimer);
     }
-  }, [externalSymbol, focusTrigger]);
+  }, [externalSymbol, focusTrigger, language, showToast]);
 
   // Global paste handler to directly capture any copied chart screenshot into the first free slot
   useEffect(() => {
@@ -472,13 +541,6 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   // Hidden file input for direct slot uploading
   const slotFileInputRef = useRef<HTMLInputElement>(null);
   const targetSlotRef = useRef<number>(0);
-
-  const showToast = useCallback((text: string, type: 'success' | 'info' | 'warning' = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => {
-      setToastMessage((prev) => (prev?.text === text ? null : prev));
-    }, 4200);
-  }, []);
 
   // Timeframe labels depending on holding period with complete translation support
   const slotLabels = useMemo(() => {
@@ -658,7 +720,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     const clean = customSymbolInput.trim();
     if (!clean) return;
     const normalized = normalizeUserSymbol(clean);
-    setSymbol(normalized);
+    updateSymbol(normalized, true);
     setCustomSymbolInput('');
     const displayName = normalized.replace(/^[A-Z0-9]+:/, '');
     showToast(
@@ -756,9 +818,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     if (isCapturing) return;
     setIsCapturing(true);
 
+    const activeSymbol = symbolRef.current || symbol;
+    const activeInterval = intervalRef.current || interval;
     const targetSlot = getTargetSlotIndex();
     const targetLabel = `Slot ${targetSlot + 1}`;
-    const cleanSymbolName = symbol.replace(/^[A-Z0-9]+:/, '');
+    const cleanSymbolName = activeSymbol.replace(/^[A-Z0-9]+:/, '');
 
     try {
       // 1. PRIMARY ENGINE: Real-time candlestick data fetch + high-def chart snapshot rendering (1280x720)
@@ -766,14 +830,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
         const res = await fetch('/api/chart-candles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol, timeframe: interval }),
+          body: JSON.stringify({ symbol: activeSymbol, timeframe: activeInterval }),
         });
         if (res.ok) {
           const chartData = await res.json();
           if (chartData && chartData.success && Array.isArray(chartData.candles) && chartData.candles.length > 0) {
-            const displayTf = formatTimeframeLabel(chartData.timeframe || interval);
+            const displayTf = formatTimeframeLabel(chartData.timeframe || activeInterval);
             const dataUrl = renderTradingViewChartSnapshot({
-              symbol: chartData.symbol || cleanSymbolName,
+              symbol: chartData.canonicalSymbol || chartData.symbol || cleanSymbolName,
               timeframe: displayTf,
               displayName: chartData.displayName || cleanSymbolName,
               candles: chartData.candles,
@@ -1154,7 +1218,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             className="flex items-center space-x-1 overflow-x-auto py-0.5 max-w-full scrollbar-none"
           >
             {MARKET_PRESETS.map((preset) => {
-              const isSelected = symbol === preset.symbol;
+              const isSelected = (symbolRef.current || symbol) === preset.symbol;
               const label = preset.id === 'gold'
                 ? (t.tvPresetGold || 'Zlato')
                 : preset.id === 'oil'
@@ -1165,7 +1229,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => setSymbol(preset.symbol)}
+                  onClick={() => updateSymbol(preset.symbol, true)}
                   className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center space-x-1.5 border ${
                     isSelected
                       ? isLight
@@ -1224,7 +1288,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                 {t.tvTimeframeLabel || 'Timeframe:'}
               </span>
               {TIMEFRAMES.map((tf) => {
-                const isTfSelected = normalizeIncomingInterval(interval) === normalizeIncomingInterval(tf.value);
+                const currentActiveInterval = intervalRef.current || interval;
+                const isTfSelected = normalizeIncomingInterval(currentActiveInterval) === normalizeIncomingInterval(tf.value);
                 return (
                   <button
                     key={tf.value}
@@ -1256,29 +1321,35 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               }}
               onDrop={handleDropOnSnapshot}
             >
-              <button
-                type="button"
-                id="capture-live-chart-btn"
-                onClick={handleCaptureCurrentChart}
-                disabled={isCapturing}
-                className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-md shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
-                title={
-                  language === 'cs'
-                    ? `Vyfotit aktuální graf a vložit do volného pole (Slot ${getTargetSlotIndex() + 1})`
-                    : `Capture current chart and insert into available slot (Slot ${getTargetSlotIndex() + 1})`
-                }
-              >
-                {isCapturing && (
-                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin shrink-0" />
-                )}
-                <span>
-                  {isCapturing
-                    ? (language === 'cs' ? 'Fotografuji graf...' : 'Capturing chart...')
-                    : (language === 'cs'
-                        ? `Vyfotit aktuální graf (do Slotu ${getTargetSlotIndex() + 1})`
-                        : `Capture Current Chart (to Slot ${getTargetSlotIndex() + 1})`)}
-                </span>
-              </button>
+              {(() => {
+                const currentSym = (symbolRef.current || symbol).replace(/^[A-Z0-9]+:/, '');
+                const currentTf = formatTimeframeLabel(intervalRef.current || interval);
+                return (
+                  <button
+                    type="button"
+                    id="capture-live-chart-btn"
+                    onClick={handleCaptureCurrentChart}
+                    disabled={isCapturing}
+                    className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-md shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
+                    title={
+                      language === 'cs'
+                        ? `Vyfotit aktuální graf ${currentSym} (${currentTf}) a vložit do volného pole (Slot ${getTargetSlotIndex() + 1})`
+                        : `Capture current chart ${currentSym} (${currentTf}) and insert into available slot (Slot ${getTargetSlotIndex() + 1})`
+                    }
+                  >
+                    {isCapturing && (
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin shrink-0" />
+                    )}
+                    <span>
+                      {isCapturing
+                        ? (language === 'cs' ? 'Fotografuji graf...' : 'Capturing chart...')
+                        : (language === 'cs'
+                            ? `Vyfotit ${currentSym} (${currentTf}) do Slotu ${getTargetSlotIndex() + 1}`
+                            : `Capture ${currentSym} (${currentTf}) to Slot ${getTargetSlotIndex() + 1}`)}
+                    </span>
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

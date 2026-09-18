@@ -18,15 +18,18 @@ export interface ChartCandleResponse {
   candles: Candle[];
 }
 
-// Map user symbols to Yahoo / Binance queries
-function resolveSymbolQuery(symbol: string): {
+interface ResolvedSymbol {
   source: 'binance' | 'yahoo';
   query: string;
+  canonicalSymbol: string;
   displayName: string;
   precision: number;
   basePrice: number;
-} {
-  let raw = symbol.trim().toUpperCase();
+}
+
+// Map user symbols to Yahoo / Binance queries
+function resolveSymbolQuery(symbol: string): ResolvedSymbol {
+  let raw = (symbol || '').trim().toUpperCase();
   if (raw.includes(':')) {
     raw = raw.split(':')[1];
   }
@@ -42,10 +45,11 @@ function resolveSymbolQuery(symbol: string): {
   }
 
   // 1. Gold (XAUUSD) - use Binance PAXGUSDT for ultra-fast, 100% live spot gold candles with zero rate limiting
-  if (clean === 'XAUUSD' || clean === 'GOLD' || clean === 'XAU' || clean === 'GCF' || clean === 'GC=F') {
+  if (clean === 'XAUUSD' || clean === 'GOLD' || clean === 'XAU' || clean === 'GCF' || clean === 'GC=F' || clean === 'ZLATO') {
     return {
       source: 'binance',
       query: 'PAXGUSDT',
+      canonicalSymbol: 'XAUUSD',
       displayName: 'XAU / USD (Zlato / Gold)',
       precision: 2,
       basePrice: 4400,
@@ -53,81 +57,81 @@ function resolveSymbolQuery(symbol: string): {
   }
 
   // 2. Crypto on Binance
-  const cryptoMap: Record<string, { query: string; name: string; precision: number; base: number }> = {
-    BTC: { query: 'BTCUSDT', name: 'BTC / USD (Bitcoin)', precision: 2, base: 78500 },
-    BTCUSD: { query: 'BTCUSDT', name: 'BTC / USD (Bitcoin)', precision: 2, base: 78500 },
-    BTCUSDT: { query: 'BTCUSDT', name: 'BTC / USD (Bitcoin)', precision: 2, base: 78500 },
-    ETH: { query: 'ETHUSDT', name: 'ETH / USD (Ethereum)', precision: 2, base: 2680 },
-    ETHUSD: { query: 'ETHUSDT', name: 'ETH / USD (Ethereum)', precision: 2, base: 2680 },
-    ETHUSDT: { query: 'ETHUSDT', name: 'ETH / USD (Ethereum)', precision: 2, base: 2680 },
-    SOL: { query: 'SOLUSDT', name: 'SOL / USD (Solana)', precision: 2, base: 195 },
-    SOLUSD: { query: 'SOLUSDT', name: 'SOL / USD (Solana)', precision: 2, base: 195 },
-    SOLUSDT: { query: 'SOLUSDT', name: 'SOL / USD (Solana)', precision: 2, base: 195 },
-    XRP: { query: 'XRPUSDT', name: 'XRP / USD (Ripple)', precision: 4, base: 1.48 },
-    XRPUSD: { query: 'XRPUSD', name: 'XRP / USD (Ripple)', precision: 4, base: 1.48 },
-    XRPUSDT: { query: 'XRPUSDT', name: 'XRP / USD (Ripple)', precision: 4, base: 1.48 },
-    BNB: { query: 'BNBUSDT', name: 'BNB / USD', precision: 2, base: 650 },
-    BNBUSDT: { query: 'BNBUSDT', name: 'BNB / USD', precision: 2, base: 650 },
-    DOGE: { query: 'DOGEUSDT', name: 'DOGE / USD', precision: 4, base: 0.22 },
-    DOGEUSDT: { query: 'DOGEUSDT', name: 'DOGE / USD', precision: 4, base: 0.22 },
+  const cryptoMap: Record<string, { query: string; canonical: string; name: string; precision: number; base: number }> = {
+    BTC: { query: 'BTCUSDT', canonical: 'BTCUSDT', name: 'BTC / USD (Bitcoin)', precision: 2, base: 78500 },
+    BTCUSD: { query: 'BTCUSDT', canonical: 'BTCUSDT', name: 'BTC / USD (Bitcoin)', precision: 2, base: 78500 },
+    BTCUSDT: { query: 'BTCUSDT', canonical: 'BTCUSDT', name: 'BTC / USD (Bitcoin)', precision: 2, base: 78500 },
+    ETH: { query: 'ETHUSDT', canonical: 'ETHUSDT', name: 'ETH / USD (Ethereum)', precision: 2, base: 2680 },
+    ETHUSD: { query: 'ETHUSDT', canonical: 'ETHUSDT', name: 'ETH / USD (Ethereum)', precision: 2, base: 2680 },
+    ETHUSDT: { query: 'ETHUSDT', canonical: 'ETHUSDT', name: 'ETH / USD (Ethereum)', precision: 2, base: 2680 },
+    SOL: { query: 'SOLUSDT', canonical: 'SOLUSDT', name: 'SOL / USD (Solana)', precision: 2, base: 195 },
+    SOLUSD: { query: 'SOLUSDT', canonical: 'SOLUSDT', name: 'SOL / USD (Solana)', precision: 2, base: 195 },
+    SOLUSDT: { query: 'SOLUSDT', canonical: 'SOLUSDT', name: 'SOL / USD (Solana)', precision: 2, base: 195 },
+    XRP: { query: 'XRPUSDT', canonical: 'XRPUSDT', name: 'XRP / USD (Ripple)', precision: 4, base: 1.48 },
+    XRPUSD: { query: 'XRPUSDT', canonical: 'XRPUSDT', name: 'XRP / USD (Ripple)', precision: 4, base: 1.48 },
+    XRPUSDT: { query: 'XRPUSDT', canonical: 'XRPUSDT', name: 'XRP / USD (Ripple)', precision: 4, base: 1.48 },
+    BNB: { query: 'BNBUSDT', canonical: 'BNBUSDT', name: 'BNB / USD', precision: 2, base: 650 },
+    BNBUSDT: { query: 'BNBUSDT', canonical: 'BNBUSDT', name: 'BNB / USD', precision: 2, base: 650 },
+    DOGE: { query: 'DOGEUSDT', canonical: 'DOGEUSDT', name: 'DOGE / USD', precision: 4, base: 0.22 },
+    DOGEUSDT: { query: 'DOGEUSDT', canonical: 'DOGEUSDT', name: 'DOGE / USD', precision: 4, base: 0.22 },
   };
 
   if (cryptoMap[clean]) {
     const c = cryptoMap[clean];
-    return { source: 'binance', query: c.query, displayName: c.name, precision: c.precision, basePrice: c.base };
+    return { source: 'binance', query: c.query, canonicalSymbol: c.canonical, displayName: c.name, precision: c.precision, basePrice: c.base };
   }
 
   // 3. Commodities / Indices / Forex on Yahoo
-  const yahooMap: Record<string, { query: string; name: string; precision: number; base: number }> = {
+  const yahooMap: Record<string, { query: string; canonical: string; name: string; precision: number; base: number }> = {
     // Silver
-    XAGUSD: { query: 'SI=F', name: 'XAG / USD (Stříbro / Silver)', precision: 3, base: 66.5 },
-    SILVER: { query: 'SI=F', name: 'XAG / USD (Stříbro / Silver)', precision: 3, base: 66.5 },
-    'SI=F': { query: 'SI=F', name: 'Silver Futures', precision: 3, base: 66.5 },
+    XAGUSD: { query: 'SI=F', canonical: 'XAGUSD', name: 'XAG / USD (Stříbro / Silver)', precision: 3, base: 66.5 },
+    SILVER: { query: 'SI=F', canonical: 'XAGUSD', name: 'XAG / USD (Stříbro / Silver)', precision: 3, base: 66.5 },
+    'SI=F': { query: 'SI=F', canonical: 'XAGUSD', name: 'Silver Futures', precision: 3, base: 66.5 },
 
     // Oil
-    USOIL: { query: 'CL=F', name: 'WTI Crude Oil', precision: 2, base: 93.5 },
-    OIL: { query: 'CL=F', name: 'WTI Crude Oil', precision: 2, base: 93.5 },
-    BRENT: { query: 'BZ=F', name: 'Brent Crude Oil', precision: 2, base: 98.0 },
-    UKOIL: { query: 'BZ=F', name: 'Brent Crude Oil', precision: 2, base: 98.0 },
-    'CL=F': { query: 'CL=F', name: 'Crude Oil Futures', precision: 2, base: 93.5 },
-    'BZ=F': { query: 'BZ=F', name: 'Brent Crude Futures', precision: 2, base: 98.0 },
+    USOIL: { query: 'CL=F', canonical: 'USOIL', name: 'WTI Crude Oil', precision: 2, base: 93.5 },
+    OIL: { query: 'CL=F', canonical: 'USOIL', name: 'WTI Crude Oil', precision: 2, base: 93.5 },
+    BRENT: { query: 'BZ=F', canonical: 'UKOIL', name: 'Brent Crude Oil', precision: 2, base: 98.0 },
+    UKOIL: { query: 'BZ=F', canonical: 'UKOIL', name: 'Brent Crude Oil', precision: 2, base: 98.0 },
+    'CL=F': { query: 'CL=F', canonical: 'USOIL', name: 'Crude Oil Futures', precision: 2, base: 93.5 },
+    'BZ=F': { query: 'BZ=F', canonical: 'UKOIL', name: 'Brent Crude Futures', precision: 2, base: 98.0 },
 
     // Indices
-    SPX: { query: '^GSPC', name: 'S&P 500 Index', precision: 2, base: 7720 },
-    SPX500: { query: '^GSPC', name: 'S&P 500 Index', precision: 2, base: 7720 },
-    US500: { query: '^GSPC', name: 'S&P 500 (US500)', precision: 2, base: 7720 },
-    '^GSPC': { query: '^GSPC', name: 'S&P 500 Index', precision: 2, base: 7720 },
-    NDX: { query: '^NDX', name: 'Nasdaq 100 Index', precision: 2, base: 29500 },
-    US100: { query: '^NDX', name: 'Nasdaq 100 (US100)', precision: 2, base: 29500 },
-    '^NDX': { query: '^NDX', name: 'Nasdaq 100 Index', precision: 2, base: 29500 },
-    DJI: { query: '^DJI', name: 'Dow Jones Industrial (US30)', precision: 2, base: 53400 },
-    US30: { query: '^DJI', name: 'Dow Jones (US30)', precision: 2, base: 53400 },
-    '^DJI': { query: '^DJI', name: 'Dow Jones Industrial Average', precision: 2, base: 53400 },
-    DAX: { query: '^GDAXI', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
-    DE40: { query: '^GDAXI', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
-    GER40: { query: '^GDAXI', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
-    '^GDAXI': { query: '^GDAXI', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
+    SPX: { query: '^GSPC', canonical: 'US500', name: 'S&P 500 Index', precision: 2, base: 7720 },
+    SPX500: { query: '^GSPC', canonical: 'US500', name: 'S&P 500 Index', precision: 2, base: 7720 },
+    US500: { query: '^GSPC', canonical: 'US500', name: 'S&P 500 (US500)', precision: 2, base: 7720 },
+    '^GSPC': { query: '^GSPC', canonical: 'US500', name: 'S&P 500 Index', precision: 2, base: 7720 },
+    NDX: { query: '^NDX', canonical: 'US100', name: 'Nasdaq 100 Index', precision: 2, base: 29500 },
+    US100: { query: '^NDX', canonical: 'US100', name: 'Nasdaq 100 (US100)', precision: 2, base: 29500 },
+    '^NDX': { query: '^NDX', canonical: 'US100', name: 'Nasdaq 100 Index', precision: 2, base: 29500 },
+    DJI: { query: '^DJI', canonical: 'US30', name: 'Dow Jones Industrial (US30)', precision: 2, base: 53400 },
+    US30: { query: '^DJI', canonical: 'US30', name: 'Dow Jones (US30)', precision: 2, base: 53400 },
+    '^DJI': { query: '^DJI', canonical: 'US30', name: 'Dow Jones Industrial Average', precision: 2, base: 53400 },
+    DAX: { query: '^GDAXI', canonical: 'DE40', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
+    DE40: { query: '^GDAXI', canonical: 'DE40', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
+    GER40: { query: '^GDAXI', canonical: 'DE40', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
+    '^GDAXI': { query: '^GDAXI', canonical: 'DE40', name: 'DAX 40 (Germany)', precision: 2, base: 25900 },
 
     // Forex
-    EURUSD: { query: 'EURUSD=X', name: 'EUR / USD', precision: 5, base: 1.162 },
-    GBPUSD: { query: 'GBPUSD=X', name: 'GBP / USD', precision: 5, base: 1.355 },
-    USDJPY: { query: 'USDJPY=X', name: 'USD / JPY', precision: 3, base: 154.0 },
-    AUDUSD: { query: 'AUDUSD=X', name: 'AUD / USD', precision: 5, base: 0.652 },
-    USDCAD: { query: 'USDCAD=X', name: 'USD / CAD', precision: 5, base: 1.412 },
-    USDCHF: { query: 'USDCHF=X', name: 'USD / CHF', precision: 5, base: 0.885 },
+    EURUSD: { query: 'EURUSD=X', canonical: 'EURUSD', name: 'EUR / USD', precision: 5, base: 1.162 },
+    GBPUSD: { query: 'GBPUSD=X', canonical: 'GBPUSD', name: 'GBP / USD', precision: 5, base: 1.355 },
+    USDJPY: { query: 'USDJPY=X', canonical: 'USDJPY', name: 'USD / JPY', precision: 3, base: 154.0 },
+    AUDUSD: { query: 'AUDUSD=X', canonical: 'AUDUSD', name: 'AUD / USD', precision: 5, base: 0.652 },
+    USDCAD: { query: 'USDCAD=X', canonical: 'USDCAD', name: 'USD / CAD', precision: 5, base: 1.412 },
+    USDCHF: { query: 'USDCHF=X', canonical: 'USDCHF', name: 'USD / CHF', precision: 5, base: 0.885 },
   };
 
   if (yahooMap[clean]) {
     const y = yahooMap[clean];
-    return { source: 'yahoo', query: y.query, displayName: y.name, precision: y.precision, basePrice: y.base };
+    return { source: 'yahoo', query: y.query, canonicalSymbol: y.canonical, displayName: y.name, precision: y.precision, basePrice: y.base };
   }
 
   // Fallback: If it contains USDT or looks like crypto, use Binance; else Yahoo
   if (clean.endsWith('USDT') || clean.endsWith('BUSD')) {
-    return { source: 'binance', query: clean, displayName: clean, precision: 2, basePrice: 100 };
+    return { source: 'binance', query: clean, canonicalSymbol: clean, displayName: clean, precision: 2, basePrice: 100 };
   }
 
-  return { source: 'yahoo', query: clean, displayName: clean, precision: 2, basePrice: 150 };
+  return { source: 'yahoo', query: clean, canonicalSymbol: clean, displayName: clean, precision: 2, basePrice: 150 };
 }
 
 // Map user timeframe strings (e.g. 5m, 15m, 1h, 4h, D, 1d, or "H1 + M15 + M5") to API intervals
@@ -374,7 +378,7 @@ export async function getChartCandles(symbol: string, timeframe: string): Promis
 
   const response: ChartCandleResponse = {
     success: true,
-    symbol: resolved.query,
+    symbol: resolved.canonicalSymbol || resolved.query,
     timeframe: formatTimeframeLabel(timeframe),
     displayName: resolved.displayName,
     currentPrice: parseFloat(currentPrice.toFixed(resolved.precision)),

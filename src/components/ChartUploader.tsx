@@ -632,34 +632,27 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
 
       {/* 1. Page Header & Synchronized Workflow Control Header */}
       <div className="space-y-3.5 pb-2">
-        {/* Top Synchronized Bar: Eyebrow + Title on Left | Action Toolbar on Right */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3.5">
+        {/* Top Synchronized Bar: Title + Badges + Action Buttons cleanly aligned without overflow */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4 w-full">
           
-          {/* Left Block: Eyebrow (TRADING POSTUP • Intraday) & Main Title */}
-          <div>
-            {/* Eyebrow Breadcrumb Row */}
-            <div className="flex items-center space-x-2 text-xs font-medium text-[#86868b] mb-1.5 flex-wrap">
-              <span className="uppercase tracking-wider font-semibold text-[11px] shrink-0">{t.tradingWorkflow}</span>
-              <span className="shrink-0">•</span>
-              {/* Static Rounded Pill Badge for Intraday mode */}
-              <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 ${
-                isLight
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs'
-                  : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-xs'
-              }`}>
-                <HoldingIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>{currentConfig.periodTitle}</span>
-              </span>
-            </div>
-
-            {/* Main Title */}
-            <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          {/* Left Block: Title and Holding Period Badge in ONE single horizontal line */}
+          <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
+            <h1 className={`text-xl sm:text-2xl font-black tracking-tight whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {t.uploaderTitle}
             </h1>
+
+            <span className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border shrink-0 whitespace-nowrap ${
+              isLight
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs'
+                : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-xs'
+            }`}>
+              <HoldingIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>{currentConfig.periodTitle}</span>
+            </span>
           </div>
 
-          {/* Right Block: Action Toolbar Buttons (Matching h-9/h-10 uniform rounded style) */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {/* Right Block: Action Toolbar Buttons (Flush right alignment with cards below, no horizontal overflow) */}
+          <div className="flex items-center gap-2 flex-wrap justify-start xl:justify-end w-full xl:w-auto">
             {/* Ctrl+V / ⌘+V Shortcut Button */}
             <div className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-bold border transition-colors flex items-center space-x-2 shrink-0 ${
               isLight
@@ -667,7 +660,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 : 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300 shadow-sm'
             }`}>
               <span className="font-mono font-black text-xs">Ctrl+V / ⌘+V</span>
-              <span className={`font-sans font-medium text-[11px] hidden xl:inline ${
+              <span className={`font-sans font-medium text-[11px] hidden 2xl:inline ${
                 isLight ? 'text-emerald-900' : 'text-emerald-300/90'
               }`}>{t.pasteScreenshotHint}</span>
             </div>
@@ -723,7 +716,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             >
               <HelpCircle className={`w-4 h-4 shrink-0 ${isLight ? 'text-emerald-600' : 'text-cyan-400'}`} />
               <span>{t.timeframeGuideBtn}</span>
-              {showGuide ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
+              {showGuide ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
             </button>
 
             {/* Reset button */}

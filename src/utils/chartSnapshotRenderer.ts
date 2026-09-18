@@ -51,6 +51,27 @@ function calculateEMA(data: number[], period: number): (number | null)[] {
   return emaArray;
 }
 
+export function getDefaultBasePriceForSymbol(symbol: string): { price: number; precision: number } {
+  const sym = (symbol || '').toUpperCase();
+  if (sym.includes('BTC') || sym.includes('BITCOIN')) return { price: 78020.0, precision: 2 };
+  if (sym.includes('ETH') || sym.includes('ETHEREUM')) return { price: 2498.0, precision: 2 };
+  if (sym.includes('SOL')) return { price: 195.5, precision: 2 };
+  if (sym.includes('XRP')) return { price: 1.485, precision: 4 };
+  if (sym.includes('XAU') || sym.includes('GOLD') || sym.includes('ZLATO') || sym.includes('ORO')) return { price: 4371.1, precision: 2 };
+  if (sym.includes('XAG') || sym.includes('SILVER') || sym.includes('STRIB') || sym.includes('PLATA')) return { price: 66.62, precision: 2 };
+  if (sym.includes('UKOIL') || sym.includes('BRENT')) return { price: 104.32, precision: 2 };
+  if (sym.includes('USOIL') || sym.includes('WTI') || sym.includes('OIL') || sym.includes('ROPA') || sym.includes('CL')) return { price: 97.30, precision: 2 };
+  if (sym.includes('US500') || sym.includes('SP500') || sym.includes('SPX')) return { price: 7637.5, precision: 2 };
+  if (sym.includes('US100') || sym.includes('NAS') || sym.includes('NDX')) return { price: 29446.0, precision: 2 };
+  if (sym.includes('US30') || sym.includes('DOW') || sym.includes('DJI')) return { price: 53420.0, precision: 1 };
+  if (sym.includes('DE40') || sym.includes('GER40') || sym.includes('DAX')) return { price: 25416.0, precision: 1 };
+  if (sym.includes('EURUSD') || sym.includes('EUR/USD')) return { price: 1.08765, precision: 5 };
+  if (sym.includes('GBPUSD') || sym.includes('GBP/USD')) return { price: 1.33450, precision: 5 };
+  if (sym.includes('USDJPY') || sym.includes('USD/JPY')) return { price: 154.25, precision: 3 };
+  if (sym.includes('USDCHF') || sym.includes('USD/CHF')) return { price: 0.88450, precision: 5 };
+  return { price: 4371.1, precision: 2 };
+}
+
 // Generate realistic simulated candles if input is empty or invalid
 function generateFallbackCandles(basePrice = 4300, count = 65): CandleData[] {
   const list: CandleData[] = [];
@@ -126,10 +147,11 @@ export function renderTradingViewChartSnapshot(options: RenderChartOptions): str
     );
 
   if (candles.length === 0) {
+    const symbolDefault = getDefaultBasePriceForSymbol(symbol || displayName || '');
     const fallbackBase =
       overlayLevels?.entryPrice && !isNaN(overlayLevels.entryPrice) && overlayLevels.entryPrice > 0
         ? overlayLevels.entryPrice
-        : 4300;
+        : symbolDefault.price;
     candles = generateFallbackCandles(fallbackBase, 65);
   }
 

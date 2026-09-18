@@ -812,33 +812,137 @@ const FALLBACK_ASSET_PROFILES: Record<string, AssetFallbackProfile> = {
     resistance: [25800.00, 26050.00],
     keyPivot: 25550.00,
   },
+  dow: {
+    symbol: 'US 30',
+    nameCs: 'Dow Jones (US30)',
+    nameEn: 'Dow Jones (US30)',
+    nameEs: 'Dow Jones (US30)',
+    currency: 'USD',
+    entryRecommended: 53420.00,
+    entryMin: 53300.00,
+    entryMax: 53500.00,
+    slPrice: 52950.00,
+    slDistPercent: 0.88,
+    tp1Price: 53900.00,
+    tp2Price: 54450.00,
+    tp3Price: 55200.00,
+    targetZoneStr: '54 450.00 - 55 200.00 USD (All-Time Highs)',
+    support: [52950.00, 53200.00],
+    resistance: [54450.00, 55200.00],
+    keyPivot: 53600.00,
+  },
+  sol: {
+    symbol: 'SOL/USD',
+    nameCs: 'Solana (SOL/USD)',
+    nameEn: 'Solana (SOL/USD)',
+    nameEs: 'Solana (SOL/USD)',
+    currency: 'USD',
+    entryRecommended: 195.50,
+    entryMin: 193.00,
+    entryMax: 197.00,
+    slPrice: 188.00,
+    slDistPercent: 3.83,
+    tp1Price: 205.00,
+    tp2Price: 218.00,
+    tp3Price: 235.00,
+    targetZoneStr: '218.00 - 235.00 USD (Higher Timeframe Resistance)',
+    support: [188.00, 192.00],
+    resistance: [218.00, 235.00],
+    keyPivot: 200.00,
+  },
+  xrp: {
+    symbol: 'XRP/USD',
+    nameCs: 'Ripple (XRP/USD)',
+    nameEn: 'Ripple (XRP/USD)',
+    nameEs: 'Ripple (XRP/USD)',
+    currency: 'USD',
+    entryRecommended: 1.4850,
+    entryMin: 1.4600,
+    entryMax: 1.4950,
+    slPrice: 1.4200,
+    slDistPercent: 4.37,
+    tp1Price: 1.5600,
+    tp2Price: 1.6800,
+    tp3Price: 1.8200,
+    targetZoneStr: '1.6800 - 1.8200 USD (Major Liquidity Pool)',
+    support: [1.4200, 1.4500],
+    resistance: [1.6800, 1.8200],
+    keyPivot: 1.5000,
+  },
+  usdjpy: {
+    symbol: 'USD/JPY',
+    nameCs: 'Dolar / Jen (USD/JPY)',
+    nameEn: 'USD / Japanese Yen (USD/JPY)',
+    nameEs: 'USD / Yen Japonés (USD/JPY)',
+    currency: 'JPY',
+    entryRecommended: 154.250,
+    entryMin: 154.000,
+    entryMax: 154.450,
+    slPrice: 153.600,
+    slDistPercent: 0.42,
+    tp1Price: 155.100,
+    tp2Price: 155.850,
+    tp3Price: 156.900,
+    targetZoneStr: '155.850 - 156.900 JPY (Equal Highs)',
+    support: [153.600, 153.950],
+    resistance: [155.850, 156.900],
+    keyPivot: 154.500,
+  },
+  usdchf: {
+    symbol: 'USD/CHF',
+    nameCs: 'Dolar / Švýcarský Frank (USD/CHF)',
+    nameEn: 'USD / Swiss Franc (USD/CHF)',
+    nameEs: 'USD / Franco Suizo (USD/CHF)',
+    currency: 'CHF',
+    entryRecommended: 0.88450,
+    entryMin: 0.88300,
+    entryMax: 0.88600,
+    slPrice: 0.88100,
+    slDistPercent: 0.39,
+    tp1Price: 0.88900,
+    tp2Price: 0.89400,
+    tp3Price: 0.90100,
+    targetZoneStr: '0.89400 - 0.90100 CHF (Imbalance Fill)',
+    support: [0.88100, 0.88250],
+    resistance: [0.89400, 0.90100],
+    keyPivot: 0.88700,
+  },
 };
 
 function detectFallbackAssetProfile(settings: any, images: string[] = []): AssetFallbackProfile {
-  const query = `${settings?.symbol || ''} ${settings?.asset || ''} ${settings?.name || ''}`.toLowerCase();
+  const query = `${settings?.symbol || ''} ${settings?.asset || ''} ${settings?.name || ''} ${settings?.ticker || ''}`.toLowerCase();
 
   // Search by explicit settings
+  if (query.includes('btc') || query.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
+  if (query.includes('eth') || query.includes('ethereum')) return FALLBACK_ASSET_PROFILES.eth;
+  if (query.includes('sol') || query.includes('solana')) return FALLBACK_ASSET_PROFILES.sol;
+  if (query.includes('xrp') || query.includes('ripple')) return FALLBACK_ASSET_PROFILES.xrp;
   if (query.includes('gold') || query.includes('xau') || query.includes('zlato') || query.includes('oro')) return FALLBACK_ASSET_PROFILES.gold;
   if (query.includes('silver') || query.includes('xag') || query.includes('stříbr') || query.includes('plata')) return FALLBACK_ASSET_PROFILES.silver;
   if (query.includes('brent') || query.includes('ukoil')) return FALLBACK_ASSET_PROFILES.oil_brent;
   if (query.includes('wti') || query.includes('usoil') || query.includes('oil') || query.includes('ropa') || query.includes('petróleo')) return FALLBACK_ASSET_PROFILES.oil_wti;
-  if (query.includes('btc') || query.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
-  if (query.includes('eth') || query.includes('ethereum')) return FALLBACK_ASSET_PROFILES.eth;
   if (query.includes('sp500') || query.includes('us500') || query.includes('spx')) return FALLBACK_ASSET_PROFILES.sp500;
   if (query.includes('nasdaq') || query.includes('us100') || query.includes('ndx')) return FALLBACK_ASSET_PROFILES.nasdaq;
+  if (query.includes('dow') || query.includes('us30') || query.includes('dji')) return FALLBACK_ASSET_PROFILES.dow;
   if (query.includes('dax') || query.includes('ger40') || query.includes('de40')) return FALLBACK_ASSET_PROFILES.dax;
   if (query.includes('gbp')) return FALLBACK_ASSET_PROFILES.gbpusd;
+  if (query.includes('jpy') || query.includes('usdjpy')) return FALLBACK_ASSET_PROFILES.usdjpy;
+  if (query.includes('chf') || query.includes('usdchf')) return FALLBACK_ASSET_PROFILES.usdchf;
   if (query.includes('eur')) return FALLBACK_ASSET_PROFILES.eurusd;
 
-  // Inspect image strings or default to Gold
+  // Inspect image strings or default to BTC if query is empty
   const combinedImageSnippet = images.slice(0, 3).join(' ').toLowerCase();
+  if (combinedImageSnippet.includes('btc') || combinedImageSnippet.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
+  if (combinedImageSnippet.includes('eth') || combinedImageSnippet.includes('ethereum')) return FALLBACK_ASSET_PROFILES.eth;
   if (combinedImageSnippet.includes('xau') || combinedImageSnippet.includes('gold') || combinedImageSnippet.includes('zlato')) return FALLBACK_ASSET_PROFILES.gold;
   if (combinedImageSnippet.includes('xag') || combinedImageSnippet.includes('silver') || combinedImageSnippet.includes('stříbr')) return FALLBACK_ASSET_PROFILES.silver;
   if (combinedImageSnippet.includes('ukoil') || combinedImageSnippet.includes('brent')) return FALLBACK_ASSET_PROFILES.oil_brent;
   if (combinedImageSnippet.includes('usoil') || combinedImageSnippet.includes('crude')) return FALLBACK_ASSET_PROFILES.oil_wti;
-  if (combinedImageSnippet.includes('btc') || combinedImageSnippet.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
+  if (combinedImageSnippet.includes('us100') || combinedImageSnippet.includes('nasdaq')) return FALLBACK_ASSET_PROFILES.nasdaq;
+  if (combinedImageSnippet.includes('us500') || combinedImageSnippet.includes('sp500')) return FALLBACK_ASSET_PROFILES.sp500;
+  if (combinedImageSnippet.includes('eur')) return FALLBACK_ASSET_PROFILES.eurusd;
 
-  return FALLBACK_ASSET_PROFILES.gold;
+  return FALLBACK_ASSET_PROFILES.btc;
 }
 
 function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): any {
@@ -1756,7 +1860,13 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
       });
     }
 
-    const { images, settings, licenseKey, timeframe: reqTimeframe } = validation.data;
+    const { images, settings: inputSettings, licenseKey, timeframe: reqTimeframe, symbol: topSymbol, asset: topAsset } = validation.data;
+    const settings = {
+      ...inputSettings,
+      symbol: topSymbol || inputSettings?.symbol,
+      asset: topAsset || inputSettings?.asset,
+    };
+    const userSelectedSymbol = topSymbol || inputSettings?.symbol || inputSettings?.asset || '';
 
     // 1. Credit & License Verification - Strict validation without auto-grant
     const activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
@@ -1795,7 +1905,7 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
 
     // Fast-path: If the API key is not valid or has failed auth, seamlessly use TRADEOY Institutional Engine directly
     if (!isGeminiKeyValidFormat(effectiveGeminiKey)) {
-      console.info('[analyze-chart] Gemini API key is unconfigured or invalid format. Using TRADEOY Institutional Engine directly.');
+      console.info('[analyze-chart] Gemini API key is unconfigured or invalid format. Using TRADEOY Institutional Engine directly for symbol:', userSelectedSymbol || 'default');
       const fallbackData = generateInstitutionalFallbackAnalysis(settings, images, reqTimeframe || (settings as any)?.timeframe);
       return res.json({
         success: true,
@@ -1890,10 +2000,11 @@ User Preferences & Execution Constraints:
 ${langPrompt}`;
 
     const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
+${userSelectedSymbol ? `TARGET ASSET / SYMBOL CONTEXT: The user is currently analyzing "${userSelectedSymbol}". If the uploaded chart corresponds to or shows this asset (or related pair like BTC/USD, BTCUSDT), ensure the returned "symbol" reflects this asset accurately and all prices match the chart price scale!` : ''}
 CRITICAL ASSET, TIMEFRAME & PRICE OCR INSTRUCTION:
-- Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image.
+- Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image. If the user context is provided above ("${userSelectedSymbol || ''}"), prioritize that asset.
 - Timeframe Detection: Check EACH uploaded chart image individually for its specific timeframe label in the top bar and background watermark (e.g., 4H / 1H / 15m / 5m / 1m / Daily). If 3 charts were uploaded (e.g., HTF 1H, MTF 15M, LTF 5M), list the exact sequence corresponding to each image in top-down sequential order: e.g. "H1 + M15 + M5" or "4H + 15M + 5M". NEVER output reverse order (like "M5 + M15") and NEVER omit any uploaded chart timeframe! Always output in top-down sequential order matching the uploaded charts (HTF + MTF + LTF).
-- Price Scale: Look at the exact vertical right-hand price scale and horizontal price levels (e.g. 4480.00). All numbers in entryZone, stopLoss, and takeProfit MUST match this exact numerical range.
+- Price Scale: Look at the exact vertical right-hand price scale and horizontal price levels (e.g. 4480.00 or 78000.00). All numbers in entryZone, stopLoss, and takeProfit MUST match this exact numerical range.
 
 Return STRICTLY a JSON object conforming to this exact schema (no markdown outside JSON):
 
@@ -2082,7 +2193,12 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
     const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
 
-    const reqSettings = req.body?.settings || {};
+    const rawSettings = req.body?.settings || {};
+    const reqSettings = {
+      ...rawSettings,
+      symbol: req.body?.symbol || rawSettings?.symbol,
+      asset: req.body?.asset || rawSettings?.asset,
+    };
     const reqImages = Array.isArray(req.body?.images) ? req.body.images : [];
     const reqKey = (req.body?.licenseKey || '').trim().toUpperCase();
     const reqTimeframe = req.body?.timeframe || reqSettings?.timeframe;

@@ -22,14 +22,25 @@ export const AnalyzeChartSchema = z.object({
     .min(1, 'Nahrajte alespoň 1 obrázek grafu.')
     .max(4, 'Můžete nahrát maximálně 4 časové rámce grafu najednou.'),
   timeframe: z.string().max(100).optional(),
+  symbol: z.string().max(100).optional(),
+  asset: z.string().max(100).optional(),
   settings: z
     .object({
       language: z.enum(['cs', 'en', 'es', 'de', 'sk']).optional(),
       tradingStyle: z.string().max(60).optional(),
+      holdingPeriod: z.string().max(60).optional(),
+      riskTolerance: z.string().max(60).optional(),
       riskRewardRatio: z.string().max(30).optional(),
       confidenceThreshold: z.number().min(0).max(100).optional(),
       accountType: z.string().max(50).optional(),
       accountSizeUsd: z.number().nonnegative().optional(),
+      symbol: z.string().max(100).optional(),
+      asset: z.string().max(100).optional(),
+      strategies: z.array(z.string()).optional(),
+      strategy: z.string().optional(),
+      customMentorPrompt: z.string().max(2000).optional(),
+      customApiKey: z.string().optional(),
+      geminiApiKey: z.string().optional(),
       customRules: z
         .union([
           z.string().max(5000),

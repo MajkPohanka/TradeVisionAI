@@ -583,6 +583,7 @@ export default function App() {
                 language={settings.language}
                 holdingPeriod={settings.holdingPeriod}
                 onInsertImageToSlot={handleInsertImageToSlot}
+                onSymbolChange={setSelectedTvSymbol}
                 slots={images}
                 externalSymbol={selectedTvSymbol}
                 focusTrigger={chartFocusTrigger}

@@ -60,11 +60,58 @@ interface TradingViewLiveChartProps {
   language?: LanguageOption;
   holdingPeriod?: HoldingPeriod;
   onInsertImageToSlot: (dataUrl: string, slotIndex: number) => void;
+  onSymbolChange?: (symbol: string) => void;
   slots?: (string | null)[];
   activeSlotIndex?: number | null;
   externalSymbol?: string | null;
   focusTrigger?: number;
   theme?: AppTheme;
+}
+
+export function normalizeUserSymbol(raw: string): string {
+  const clean = raw.trim().toUpperCase().replace(/\s+/g, '');
+  if (!clean) return 'BINANCE:BTCUSDT';
+  
+  // Direct preset check
+  const preset = MARKET_PRESETS.find(
+    (p) => p.id.toUpperCase() === clean || p.symbol.toUpperCase() === clean
+  );
+  if (preset) return preset.symbol;
+
+  // Crypto shortcuts
+  if (clean === 'BTC' || clean === 'BITCOIN' || clean === 'BTCUSD' || clean === 'BTCUSDT' || clean === 'BTC/USD') return 'BINANCE:BTCUSDT';
+  if (clean === 'ETH' || clean === 'ETHEREUM' || clean === 'ETHUSD' || clean === 'ETHUSDT' || clean === 'ETH/USD') return 'BINANCE:ETHUSDT';
+  if (clean === 'SOL' || clean === 'SOLANA' || clean === 'SOLUSD' || clean === 'SOLUSDT' || clean === 'SOL/USD') return 'BINANCE:SOLUSDT';
+  if (clean === 'XRP' || clean === 'RIPPLE' || clean === 'XRPUSD' || clean === 'XRPUSDT' || clean === 'XRP/USD') return 'BINANCE:XRPUSDT';
+  if (clean === 'BNB' || clean === 'BNBUSD' || clean === 'BNBUSDT') return 'BINANCE:BNBUSDT';
+  if (clean === 'DOGE' || clean === 'DOGEUSD' || clean === 'DOGEUSDT') return 'BINANCE:DOGEUSDT';
+
+  // Metals & Commodities
+  if (clean === 'GOLD' || clean === 'ZLATO' || clean === 'XAU' || clean === 'XAUUSD' || clean === 'XAU/USD' || clean === 'GC=F' || clean === 'GCF' || clean === 'ORO') return 'OANDA:XAUUSD';
+  if (clean === 'SILVER' || clean === 'STRIEBRO' || clean === 'STRIBERO' || clean === 'STRIBR' || clean === 'XAG' || clean === 'XAGUSD' || clean === 'XAG/USD' || clean === 'SI=F' || clean === 'PLATA') return 'OANDA:XAGUSD';
+  if (clean === 'OIL' || clean === 'ROPA' || clean === 'USOIL' || clean === 'WTI' || clean === 'CL=F' || clean === 'PETROLEO') return 'TVC:USOIL';
+  if (clean === 'BRENT' || clean === 'UKOIL' || clean === 'BZ=F') return 'TVC:UKOIL';
+
+  // Indices
+  if (clean === 'SP500' || clean === 'SPX' || clean === 'US500' || clean === '^GSPC') return 'CAPITALCOM:US500';
+  if (clean === 'NASDAQ' || clean === 'NDX' || clean === 'US100' || clean === '^NDX') return 'CAPITALCOM:US100';
+  if (clean === 'DOW' || clean === 'DJI' || clean === 'US30' || clean === '^DJI') return 'CAPITALCOM:US30';
+  if (clean === 'DAX' || clean === 'DE40' || clean === 'GER40' || clean === '^GDAXI') return 'CAPITALCOM:DE40';
+
+  // Forex
+  if (clean === 'EURUSD' || clean === 'EUR/USD') return 'FX:EURUSD';
+  if (clean === 'GBPUSD' || clean === 'GBP/USD') return 'FX:GBPUSD';
+  if (clean === 'USDJPY' || clean === 'USD/JPY') return 'FX:USDJPY';
+  if (clean === 'USDCHF' || clean === 'USD/CHF') return 'FX:USDCHF';
+  if (clean === 'AUDUSD' || clean === 'AUD/USD') return 'FX:AUDUSD';
+  if (clean === 'USDCAD' || clean === 'USD/CAD') return 'FX:USDCAD';
+
+  if (!clean.includes(':')) {
+    if (clean.endsWith('USDT') || clean.endsWith('BUSD')) return `BINANCE:${clean}`;
+    if (clean.length === 6 && !clean.includes('=')) return `FX:${clean}`;
+  }
+
+  return clean;
 }
 
 interface MarketPreset {
@@ -242,6 +289,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
   language = 'cs',
   holdingPeriod = 'intraday',
   onInsertImageToSlot,
+  onSymbolChange,
   slots = [null, null, null],
   activeSlotIndex = 0,
   externalSymbol = null,
@@ -281,7 +329,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
   useEffect(() => {
     symbolRef.current = symbol;
-  }, [symbol]);
+    onSymbolChange?.(symbol);
+  }, [symbol, onSymbolChange]);
 
   // Bi-directional Timeframe & Symbol Sync: Listen for timeframe changes originating inside TradingView chart widget
   useEffect(() => {
@@ -606,12 +655,14 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
 
   const handleApplyCustomSymbol = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = customSymbolInput.trim().toUpperCase();
+    const clean = customSymbolInput.trim();
     if (!clean) return;
-    setSymbol(clean);
+    const normalized = normalizeUserSymbol(clean);
+    setSymbol(normalized);
     setCustomSymbolInput('');
+    const displayName = normalized.replace(/^[A-Z0-9]+:/, '');
     showToast(
-      language === 'cs' ? `Symbol změněn na ${clean}` : `Symbol changed to ${clean}`,
+      language === 'cs' ? `Symbol změněn na ${displayName}` : `Symbol changed to ${displayName}`,
       'success'
     );
   };
@@ -880,13 +931,21 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
         }
       }
 
-      // 6. Final fallback: Generate clean sample chart if all else failed
-      const convertedUrl = await getSampleBTCChartDataUrl();
-      onInsertImageToSlot(convertedUrl, targetSlot);
+      // 6. Final fallback: Generate clean dynamic snapshot matching current symbol
+      const fallbackDisplayTf = formatTimeframeLabel(interval);
+      const fallbackUrl = renderTradingViewChartSnapshot({
+        symbol: cleanSymbolName,
+        timeframe: fallbackDisplayTf,
+        displayName: cleanSymbolName,
+        theme: isLightTheme ? 'light' : 'dark',
+        width: 1280,
+        height: 720,
+      });
+      onInsertImageToSlot(fallbackUrl, targetSlot);
       showToast(
         language === 'cs'
-          ? `✓ Snímek grafu byl vložen do ${targetLabel}!`
-          : `✓ Chart snapshot inserted into ${targetLabel}!`,
+          ? `✓ Snímek grafu (${cleanSymbolName}) byl vložen do ${targetLabel}!`
+          : `✓ Chart snapshot (${cleanSymbolName}) inserted into ${targetLabel}!`,
         'success'
       );
       scrollToSlot(targetSlot);

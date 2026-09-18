@@ -21,6 +21,7 @@ export const AnalyzeChartSchema = z.object({
     })
     .min(1, 'Nahrajte alespoň 1 obrázek grafu.')
     .max(4, 'Můžete nahrát maximálně 4 časové rámce grafu najednou.'),
+  timeframe: z.string().max(100).optional(),
   settings: z
     .object({
       language: z.enum(['cs', 'en', 'es', 'de', 'sk']).optional(),

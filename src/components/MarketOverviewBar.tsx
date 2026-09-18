@@ -333,6 +333,7 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
 
   const getAssetName = (asset: MarketAssetData) => {
     if (language === 'cs') return asset.nameCs || asset.name;
+    if (language === 'es') return asset.nameEs || asset.name;
     return asset.name;
   };
 

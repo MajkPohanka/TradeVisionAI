@@ -10,6 +10,7 @@ import { PasswordGate } from './components/PasswordGate';
 import { AnalysisResult, StrategySettings, LicenseStatus, AppTheme } from './types';
 import { getTranslation } from './utils/translations';
 import { getInitialTheme, applyThemeToDocument } from './utils/theme';
+import { getSlotTimeframeSequence, sortTimeframeSequence } from './utils/timeframeHelper';
 import { AlertTriangle, Scale, RefreshCw, ChevronRight, ShieldAlert, Activity, KeyRound, TrendingUp } from 'lucide-react';
 
 // Code-split heavy secondary components to ensure lightning-fast initial mobile render
@@ -335,6 +336,7 @@ export default function App() {
       );
 
       const activeLicenseKey = currentLicense?.key || '';
+      const slotTimeframe = getSlotTimeframeSequence(settings.holdingPeriod, images);
 
       const response = await fetch('/api/analyze-chart', {
         method: 'POST',
@@ -343,7 +345,11 @@ export default function App() {
         },
         body: JSON.stringify({
           images: optimizedImages,
-          settings: settings,
+          settings: {
+            ...settings,
+            timeframe: slotTimeframe,
+          },
+          timeframe: slotTimeframe,
           licenseKey: activeLicenseKey,
         }),
       });
@@ -404,8 +410,15 @@ export default function App() {
         });
       }
 
+      // Ensure timeframe is strictly ordered top-down sequentially matching the uploaded charts (HTF + MTF + LTF)
+      const rawTf = data.data?.timeframe;
+      const finalTimeframe = (rawTf && rawTf !== 'M5 + M15' && rawTf !== 'M15 + H1')
+        ? sortTimeframeSequence(rawTf)
+        : slotTimeframe;
+
       const fullResult: AnalysisResult = {
         ...data.data,
+        timeframe: finalTimeframe || slotTimeframe,
         isFallbackEngine: data.data?.isFallbackEngine ?? data.isFallbackEngine,
         authNotice: data.data?.authNotice ?? data.authNotice,
         id: data.data.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),

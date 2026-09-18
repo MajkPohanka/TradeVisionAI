@@ -28,6 +28,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { AnalysisResult, LanguageOption } from '../types';
 import { getTranslation } from '../utils/translations';
+import { sortTimeframeSequence } from '../utils/timeframeHelper';
 
 interface ShareAnalysisModalProps {
   result: AnalysisResult;
@@ -69,7 +70,7 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
           setShareResult(data.translatedResult);
         }
       } catch (e) {
-        console.error('Error translating share result:', e);
+        console.warn('[ShareModal] Translation unavailable, keeping current language:', e);
       } finally {
         setIsTranslatingShare(false);
       }
@@ -92,6 +93,20 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
   const isLong = currentRes.signal === 'LONG';
   const isShort = currentRes.signal === 'SHORT';
 
+  const displayTimeframe = ((): string => {
+    const tf = (currentRes.timeframe || '').trim();
+    if (tf === 'M5 + M15') {
+      if (currentRes.uploadedImages && currentRes.uploadedImages.length >= 3) {
+        return 'H1 + M15 + M5';
+      }
+      return 'M15 + M5';
+    }
+    if (tf === 'M15 + H1') {
+      return 'H1 + M15';
+    }
+    return sortTimeframeSequence(tf) || tf || 'Intraday';
+  })();
+
   const signalText = isLong
     ? t.longBuySignal
     : isShort
@@ -101,7 +116,7 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
   // 1. Full Comprehensive Text Report for complete export/sharing
   const formattedFullText = `🏛️ *TRADEOY.com - ${t.institutionalAnalysis}*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 *${currentRes.symbol || 'CHART'}* | Timeframe: *${currentRes.timeframe || 'Intraday'}*
+📌 *${currentRes.symbol || 'CHART'}* | Timeframe: *${displayTimeframe}*
 🕒 ${new Date(currentRes.timestamp).toLocaleDateString()} ${new Date(currentRes.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 
 🧭 *${t.recommendedDirection}:* ${signalText}
@@ -160,7 +175,7 @@ ${currentRes.biasReasoning}
 
   // 2. Compact quick summary text for instant chats
   const formattedCompactText = `📊 *TRADEOY.com - ${t.institutionalAnalysis}*
-Symbol: *${currentRes.symbol || 'GRAF'}* (${currentRes.timeframe || 'Intraday'})
+Symbol: *${currentRes.symbol || 'GRAF'}* (${displayTimeframe})
 ${t.recommendedDirection}: *${signalText}*
 ${t.confidenceAI}: *${currentRes.confidenceScore}%* | ${t.riskRewardRatioLabel}: *${currentRes.overallRiskRewardRatio || '1:2.5'}*
 
@@ -615,7 +630,7 @@ ${currentRes.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${currentRes.drawOnLiq
                       textTransform: 'uppercase',
                     }}
                   >
-                    {currentRes.symbol || 'CHART'} • {currentRes.timeframe || 'Intraday'}
+                    {currentRes.symbol || 'CHART'} • {displayTimeframe}
                   </div>
                   <div style={{ fontSize: '10px', color: '#86868b', marginTop: '2px' }}>
                     {new Date(currentRes.timestamp).toLocaleDateString()} {new Date(currentRes.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

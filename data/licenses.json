@@ -332,9 +332,9 @@
     "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
     "totalPurchased": 999999,
-    "totalUsed": 9,
+    "totalUsed": 12,
     "createdAt": 1788520236015,
-    "lastUsedAt": 1789734055933
+    "lastUsedAt": 1789734747246
   },
   {
     "key": "TRADEOY-VIP-FRIENDS-2026",
@@ -342,9 +342,9 @@
     "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
     "totalPurchased": 999999,
-    "totalUsed": 11,
+    "totalUsed": 15,
     "createdAt": 1788520236015,
-    "lastUsedAt": 1789671643229
+    "lastUsedAt": 1789736771689
   },
   {
     "key": "TRADEOY-VIP-ELITE-MASTER",
@@ -1238,5 +1238,235 @@
     "createdAt": 1789734620976,
     "stripeSessionIds": [],
     "lastUsedAt": 1789734632815
+  },
+  {
+    "key": "TRADEOY-MLZM-ATZ5-PQUG",
+    "credits": 1,
+    "tier": "starter_trial",
+    "email": "trial@tradeoy.com",
+    "totalPurchased": 3,
+    "totalUsed": 2,
+    "createdAt": 1789735009098,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789735015614
+  },
+  {
+    "key": "TRADEOY-7CLX-YDGM-SE6E",
+    "credits": 5,
+    "tier": "pro_test",
+    "email": "test@example.com",
+    "totalPurchased": 5,
+    "totalUsed": 0,
+    "createdAt": 1789735842881,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-X9FP-ECLX-442C",
+    "credits": 1,
+    "tier": "test_user",
+    "totalPurchased": 2,
+    "totalUsed": 1,
+    "createdAt": 1789735842882,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789735842883
+  },
+  {
+    "key": "TRADEOY-P768-TFN6-74B4",
+    "credits": 3,
+    "tier": "test_rollback",
+    "totalPurchased": 3,
+    "totalUsed": 0,
+    "createdAt": 1789735842884,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789735842884
+  },
+  {
+    "key": "TRADEOY-MBUM-RXDU-PMBU",
+    "credits": 0,
+    "tier": "empty",
+    "totalPurchased": 0,
+    "totalUsed": 0,
+    "createdAt": 1789735842886,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-HMJM-6UER-R6LN",
+    "credits": 0,
+    "tier": "starter",
+    "email": "concurrency-pentest@tradeoy.com",
+    "totalPurchased": 2,
+    "totalUsed": 2,
+    "createdAt": 1789735843009,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789735843010
+  },
+  {
+    "key": "TRADEOY-R2S9-Z7CK-85MJ",
+    "credits": 5,
+    "tier": "pro_test",
+    "email": "test@example.com",
+    "totalPurchased": 5,
+    "totalUsed": 0,
+    "createdAt": 1789736598799,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-5MVS-BPPP-H6X4",
+    "credits": 1,
+    "tier": "test_user",
+    "totalPurchased": 2,
+    "totalUsed": 1,
+    "createdAt": 1789736598800,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736598800
+  },
+  {
+    "key": "TRADEOY-5DXT-PSNA-6D5G",
+    "credits": 3,
+    "tier": "test_rollback",
+    "totalPurchased": 3,
+    "totalUsed": 0,
+    "createdAt": 1789736598802,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736598802
+  },
+  {
+    "key": "TRADEOY-D6WK-VSD6-TRAC",
+    "credits": 0,
+    "tier": "empty",
+    "totalPurchased": 0,
+    "totalUsed": 0,
+    "createdAt": 1789736598803,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-YDB4-8Z9L-JW6S",
+    "credits": 3,
+    "tier": "starter_trial",
+    "email": "testrunner@tradeoy.com",
+    "totalPurchased": 3,
+    "totalUsed": 0,
+    "createdAt": 1789736599171,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-2NME-3L94-3B84",
+    "credits": 0,
+    "tier": "starter",
+    "email": "concurrency-pentest@tradeoy.com",
+    "totalPurchased": 2,
+    "totalUsed": 2,
+    "createdAt": 1789736599214,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736599215
+  },
+  {
+    "key": "TRADEOY-VIP-UNLIMITED-MASTER",
+    "credits": 999999,
+    "tier": "vip_unlimited",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 999999,
+    "totalUsed": 0,
+    "createdAt": 1789736600065
+  },
+  {
+    "key": "TRADEOY-8KBE-LH4L-D2Q8",
+    "credits": 5,
+    "tier": "pro_test",
+    "email": "test@example.com",
+    "totalPurchased": 5,
+    "totalUsed": 0,
+    "createdAt": 1789736700974,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-R748-MRRB-V88Q",
+    "credits": 1,
+    "tier": "test_user",
+    "totalPurchased": 2,
+    "totalUsed": 1,
+    "createdAt": 1789736700978,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736700978
+  },
+  {
+    "key": "TRADEOY-CULT-5BAY-VPQ8",
+    "credits": 3,
+    "tier": "test_rollback",
+    "totalPurchased": 3,
+    "totalUsed": 0,
+    "createdAt": 1789736700979,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736700980
+  },
+  {
+    "key": "TRADEOY-6VLM-Z8EN-GPK5",
+    "credits": 0,
+    "tier": "empty",
+    "totalPurchased": 0,
+    "totalUsed": 0,
+    "createdAt": 1789736700981,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-LM4Z-2JUM-ZVK7",
+    "credits": 0,
+    "tier": "starter",
+    "email": "concurrency-pentest@tradeoy.com",
+    "totalPurchased": 2,
+    "totalUsed": 2,
+    "createdAt": 1789736701092,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736701094
+  },
+  {
+    "key": "TRADEOY-BKLZ-H8EX-B38A",
+    "credits": 5,
+    "tier": "pro_test",
+    "email": "test@example.com",
+    "totalPurchased": 5,
+    "totalUsed": 0,
+    "createdAt": 1789736771683,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-Q53G-VJ77-ZE4B",
+    "credits": 1,
+    "tier": "test_user",
+    "totalPurchased": 2,
+    "totalUsed": 1,
+    "createdAt": 1789736771685,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736771685
+  },
+  {
+    "key": "TRADEOY-AU8U-J7TY-RUYP",
+    "credits": 3,
+    "tier": "test_rollback",
+    "totalPurchased": 3,
+    "totalUsed": 0,
+    "createdAt": 1789736771686,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736771687
+  },
+  {
+    "key": "TRADEOY-3D58-JBN4-R3K4",
+    "credits": 0,
+    "tier": "empty",
+    "totalPurchased": 0,
+    "totalUsed": 0,
+    "createdAt": 1789736771688,
+    "stripeSessionIds": []
+  },
+  {
+    "key": "TRADEOY-LXYQ-RDT9-APH3",
+    "credits": 0,
+    "tier": "starter",
+    "email": "concurrency-pentest@tradeoy.com",
+    "totalPurchased": 2,
+    "totalUsed": 2,
+    "createdAt": 1789736771783,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789736771784
   }
 ]

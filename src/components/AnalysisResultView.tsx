@@ -38,6 +38,7 @@ import { AnalysisResult, LanguageOption, AppTheme } from '../types';
 import { ShareAnalysisModal } from './ShareAnalysisModal';
 import { getTranslation } from '../utils/translations';
 import { renderTradingViewChartSnapshot } from '../utils/chartSnapshotRenderer';
+import { sortTimeframeSequence, getTradingViewInterval } from '../utils/timeframeHelper';
 
 const parsePrice = (val: any): number => {
   if (typeof val === 'number') return val;
@@ -148,6 +149,20 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const [translationError, setTranslationError] = useState<string | null>(null);
 
+  const displayTimeframe = React.useMemo(() => {
+    const tf = (displayResult.timeframe || result.timeframe || '').trim();
+    if (tf === 'M5 + M15') {
+      if ((result.uploadedImages && result.uploadedImages.length >= 3) || (displayResult.uploadedImages && displayResult.uploadedImages.length >= 3)) {
+        return 'H1 + M15 + M5';
+      }
+      return 'M15 + M5';
+    }
+    if (tf === 'M15 + H1') {
+      return 'H1 + M15';
+    }
+    return sortTimeframeSequence(tf) || tf || 'Intraday';
+  }, [displayResult.timeframe, result.timeframe, result.uploadedImages, displayResult.uploadedImages]);
+
   useEffect(() => {
     setDisplayResult(result);
   }, [result]);
@@ -172,7 +187,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
         setTranslationError(data.error || 'Překlad analýzy se nepodařil.');
       }
     } catch (err) {
-      console.error('Translation error:', err);
+      console.warn('Translation notice:', err);
       setTranslationError('Chyba sítě při překladu.');
     } finally {
       setIsTranslating(false);
@@ -208,7 +223,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
     setIsGeneratingHdChart(true);
     try {
       const sym = (result.symbol || 'BTCUSDT').replace(/\s+/g, '');
-      const tf = result.timeframe || '15';
+      const tf = getTradingViewInterval(displayResult.timeframe || result.timeframe);
       let candles: any[] = [];
       let precision = 2;
       let currentPrice: number | undefined = undefined;
@@ -371,7 +386,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }`}>
               <span className={isLight ? 'text-slate-900 font-extrabold' : 'text-[#f5f5f7]'}>{result.symbol || 'Chart'}</span>
               <span>•</span>
-              <span className={`font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>{result.timeframe || 'Intraday'}</span>
+              <span className={`font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>{displayTimeframe}</span>
               <span>•</span>
               <span>{new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -915,7 +930,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   title="TradingView Live Chart"
                   src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_analysis_embed&symbol=${encodeURIComponent(
                     (result.symbol || 'BINANCE:BTCUSDT').replace(/\s+/g, '')
-                  )}&interval=${encodeURIComponent(result.timeframe || '15')}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=${isLight ? 'light' : 'dark'}&style=1&timezone=exchange`}
+                  )}&interval=${encodeURIComponent(getTradingViewInterval(displayResult.timeframe || result.timeframe))}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=${isLight ? 'light' : 'dark'}&style=1&timezone=exchange`}
                   className="w-full h-full border-0"
                 />
               </div>
@@ -1365,7 +1380,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full font-semibold border ${
                   isLight ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-white/10 text-slate-300 border-white/10'
                 }`}>
-                  {result.timeframe || '15m'}
+                  {displayTimeframe}
                 </span>
                 <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
                   result.signal === 'LONG'

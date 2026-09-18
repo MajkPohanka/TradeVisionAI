@@ -201,10 +201,12 @@ export interface MarketAssetData {
   id: string;
   name: string;
   nameCs: string;
+  nameEs?: string;
   symbol: string;
   category: 'indices' | 'commodities' | 'crypto' | 'forex';
   categoryLabelCs: string;
   categoryLabelEn: string;
+  categoryLabelEs?: string;
   price: number;
   changePercent: number;
   changeValue: number;

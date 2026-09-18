@@ -130,9 +130,14 @@ function resolveSymbolQuery(symbol: string): {
   return { source: 'yahoo', query: clean, displayName: clean, precision: 2, basePrice: 150 };
 }
 
-// Map user timeframe strings (e.g. 5m, 15m, 1h, 4h, D, 1d) to API intervals
+// Map user timeframe strings (e.g. 5m, 15m, 1h, 4h, D, 1d, or "H1 + M15 + M5") to API intervals
 function resolveIntervals(timeframe: string) {
-  const tf = timeframe.toLowerCase().trim();
+  let tf = (timeframe || '15m').toLowerCase().trim();
+  if (tf.includes('+')) {
+    const parts = tf.split('+').map((p) => p.trim()).filter(Boolean);
+    // Prefer the execution/trigger timeframe (last part, e.g. M5 or M15) or first part
+    tf = parts[parts.length - 1] || parts[0] || '15m';
+  }
   let binanceInterval = '4h';
   let yahooInterval = '1h';
   let yahooRange = '5d';

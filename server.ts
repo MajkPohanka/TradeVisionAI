@@ -16,6 +16,9 @@ import {
 } from './server/schemas';
 import { fetchLiveMarketOverview } from './server/marketOverview';
 import { getChartCandles } from './server/chartCandles';
+import { localizeEconomicTitle } from './server/economicLocalization';
+
+export { localizeEconomicTitle };
 
 dotenv.config();
 
@@ -406,6 +409,26 @@ export class GeminiAuthError extends Error {
   }
 }
 
+const knownInvalidGeminiKeys = new Set<string>();
+
+export function isGeminiKeyValidFormat(key?: string): boolean {
+  if (!key) return false;
+  const cleaned = cleanApiKey(key);
+  if (!cleaned || cleaned.length < 20) return false;
+  // Google Gemini API keys are API keys that do not start with 'AQ.' (OAuth/internal token which yields ACCESS_TOKEN_TYPE_UNSUPPORTED)
+  if (cleaned.startsWith('AQ.')) return false;
+  if (knownInvalidGeminiKeys.has(cleaned)) return false;
+  return true;
+}
+
+export function markGeminiKeyInvalid(key?: string) {
+  if (!key) return;
+  const cleaned = cleanApiKey(key);
+  if (cleaned) {
+    knownInvalidGeminiKeys.add(cleaned);
+  }
+}
+
 export function isGeminiAuthError(err: any): boolean {
   if (!err) return false;
   if (err.isAuthError || err.name === 'GeminiAuthError') return true;
@@ -469,6 +492,7 @@ async function callGeminiWithRetry(
         // If this is an authentication error (e.g. 401 / ACCESS_TOKEN_TYPE_UNSUPPORTED / invalid API key),
         // fail FAST immediately! Retrying across different models or multiple attempts will NEVER succeed with an invalid key.
         if (isGeminiAuthError(err)) {
+          markGeminiKeyInvalid(process.env.GEMINI_API_KEY);
           console.warn(`[Gemini Auth Failure] 401 UNAUTHENTICATED (ACCESS_TOKEN_TYPE_UNSUPPORTED). Halting retries immediately.`);
           throw new GeminiAuthError(
             'Google Gemini API klíč v Nastavení (Settings) není platný nebo vypršel (chyba ověření Google AI 401: ACCESS_TOKEN_TYPE_UNSUPPORTED). Přejděte prosím v horním menu do nabídky Settings (Nastavení) a zadejte platný Gemini API klíč vygenerovaný na https://aistudio.google.com/app/apikey.',
@@ -514,7 +538,51 @@ async function callGeminiWithRetry(
 // and audit evaluations when Gemini API key is unconfigured, blocked, or in cooldown.
 // ==========================================
 
-function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = []): any {
+function sortServerTimeframes(timeframeStr?: string): string {
+  if (!timeframeStr || typeof timeframeStr !== 'string') return '';
+  const weights: Record<string, number> = {
+    MN: 43200, '1MO': 43200, MONTHLY: 43200,
+    W1: 10080, '1W': 10080, WEEKLY: 10080,
+    D1: 1440, '1D': 1440, DAILY: 1440, D: 1440,
+    H4: 240, '4H': 240, '240M': 240,
+    H2: 120, '2H': 120,
+    H1: 60, '1H': 60, '60M': 60,
+    M30: 30, '30M': 30,
+    M15: 15, '15M': 15,
+    M5: 5, '5M': 5,
+    M3: 3, '3M': 3,
+    M1: 1, '1M': 1, '1MIN': 1,
+  };
+
+  const cleanToken = (tok: string): { label: string; min: number } => {
+    const c = tok.trim().toUpperCase().replace(/\s+/g, '');
+    if (c.includes('MONTH') || c === 'MN') return { label: '1M', min: 43200 };
+    if (c.includes('WEEK') || c === '1W' || c === 'W1') return { label: 'W1', min: 10080 };
+    if (c.includes('DAY') || c.includes('DAILY') || c === '1D' || c === 'D1') return { label: 'D1', min: 1440 };
+    if (c === '4H' || c === 'H4') return { label: 'H4', min: 240 };
+    if (c === '2H' || c === 'H2') return { label: 'H2', min: 120 };
+    if (c === '1H' || c === 'H1') return { label: 'H1', min: 60 };
+    if (c === '30M' || c === 'M30') return { label: 'M30', min: 30 };
+    if (c === '15M' || c === 'M15') return { label: 'M15', min: 15 };
+    if (c === '5M' || c === 'M5') return { label: 'M5', min: 5 };
+    if (c === '1M' || c === 'M1') return { label: 'M1', min: 1 };
+    return { label: tok.trim(), min: weights[c] || 0 };
+  };
+
+  const rawParts = timeframeStr.split(/[+,/&]/).map((p) => p.trim()).filter(Boolean);
+  if (rawParts.length <= 1) return cleanToken(timeframeStr).label;
+
+  const normalized = rawParts.map(cleanToken);
+  normalized.sort((a, b) => b.min - a.min); // Top-down: HTF -> MTF -> LTF
+
+  const unique: string[] = [];
+  normalized.forEach((item) => {
+    if (!unique.includes(item.label)) unique.push(item.label);
+  });
+  return unique.join(' + ');
+}
+
+function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): any {
   const lang = settings?.language || 'cs';
   const holdingPeriod = settings?.holdingPeriod || 'intraday';
   const riskTolerance = settings?.riskTolerance || 'balanced';
@@ -522,7 +590,28 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
     ? settings.strategies
     : ['smc_ict', 'price_action', 'wyckoff'];
 
-  const timeframe = holdingPeriod === 'scalp' ? 'M5 + M15' : holdingPeriod === 'swing' ? 'H4 + D1' : holdingPeriod === 'position' ? 'D1 + W1' : 'M15 + H1';
+  // Top-Down sequence corresponding to 3 slots: Slot 01 (HTF) + Slot 02 (MTF) + Slot 03 (LTF)
+  const slotMapping: Record<string, string[]> = {
+    scalp: ['H1', 'M15', 'M5'],
+    intraday: ['H4', 'M15', 'M5'],
+    swing: ['D1', 'H4', 'H1'],
+    position: ['W1', 'D1', 'H4'],
+  };
+
+  const defaultSlots = slotMapping[holdingPeriod] || slotMapping.intraday;
+  let timeframe = requestedTimeframe || settings?.timeframe;
+
+  if (!timeframe || timeframe === 'M5 + M15' || timeframe === 'M15 + H1') {
+    if (images.length === 1) {
+      timeframe = defaultSlots[0];
+    } else if (images.length === 2) {
+      timeframe = `${defaultSlots[0]} + ${defaultSlots[1]}`;
+    } else {
+      timeframe = defaultSlots.join(' + ');
+    }
+  } else {
+    timeframe = sortServerTimeframes(timeframe);
+  }
 
   // Strategy confluences localized
   const confluences: any[] = [];
@@ -1405,7 +1494,7 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
       });
     }
 
-    const { images, settings, licenseKey } = validation.data;
+    const { images, settings, licenseKey, timeframe: reqTimeframe } = validation.data;
 
     // 1. Credit & License Verification - Strict validation without auto-grant
     const activeKey = licenseKey ? String(licenseKey).trim().toUpperCase() : '';
@@ -1440,6 +1529,24 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
     reservationId = reservation.reservationId;
 
     const customKey = (settings as any)?.customApiKey || (settings as any)?.geminiApiKey;
+    const effectiveGeminiKey = customKey || process.env.GEMINI_API_KEY;
+
+    // Fast-path: If the API key is not valid or has failed auth, seamlessly use TRADEOY Institutional Engine directly
+    if (!isGeminiKeyValidFormat(effectiveGeminiKey)) {
+      console.info('[analyze-chart] Gemini API key is unconfigured or invalid format. Using TRADEOY Institutional Engine directly.');
+      const fallbackData = generateInstitutionalFallbackAnalysis(settings, images, reqTimeframe || (settings as any)?.timeframe);
+      return res.json({
+        success: true,
+        data: fallbackData,
+        licenseKey: activeKey,
+        remainingCredits: reservation.remainingCredits + 1, // 100% refund preserved!
+        isFallbackEngine: true,
+        authNotice: (settings?.language || 'cs') === 'cs'
+          ? 'Analýza byla úspěšně zpracována institucionálním engine TRADEOY. Váš licenční kredit zůstal 100% zachován.'
+          : 'Analysis was successfully processed by TRADEOY Institutional Engine. Your license credit remains 100% preserved.',
+      });
+    }
+
     const ai = getGeminiClient(customKey);
 
     const imageParts = images.map((imgStr: string) => {
@@ -1523,14 +1630,14 @@ ${langPrompt}`;
     const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
 CRITICAL ASSET, TIMEFRAME & PRICE OCR INSTRUCTION:
 - Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image.
-- Timeframe Detection: Check EACH uploaded chart image individually for its specific timeframe label in the top bar and background watermark (e.g., 4H / 1H / 15m / 5m / 1m / Daily). If 3 charts were uploaded (e.g., HTF 4H, MTF 15M, LTF 5M), list the exact sequence corresponding to each image: e.g. "4H + 15M + 5M". NEVER output identical repetitive timeframes (like "1H + 1H + 1H") unless all 3 images actually display 1H!
+- Timeframe Detection: Check EACH uploaded chart image individually for its specific timeframe label in the top bar and background watermark (e.g., 4H / 1H / 15m / 5m / 1m / Daily). If 3 charts were uploaded (e.g., HTF 1H, MTF 15M, LTF 5M), list the exact sequence corresponding to each image in top-down sequential order: e.g. "H1 + M15 + M5" or "4H + 15M + 5M". NEVER output reverse order (like "M5 + M15") and NEVER omit any uploaded chart timeframe! Always output in top-down sequential order matching the uploaded charts (HTF + MTF + LTF).
 - Price Scale: Look at the exact vertical right-hand price scale and horizontal price levels (e.g. 4480.00). All numbers in entryZone, stopLoss, and takeProfit MUST match this exact numerical range.
 
 Return STRICTLY a JSON object conforming to this exact schema (no markdown outside JSON):
 
 {
   "symbol": "Exact detected asset symbol from chart (e.g. XAU/USD, BTC/USDT, EUR/USD, US100, NVDA)",
-  "timeframe": "Exact sequence of detected timeframes across all uploaded charts in order e.g. '4H + 15M + 5M' or 'Daily + 4H + 15M'",
+  "timeframe": "Exact sequence of detected timeframes across all uploaded charts in top-down order e.g. 'H1 + M15 + M5', '4H + 15M + 5M' or 'Daily + 4H + 15M'",
   "signal": "LONG" | "SHORT" | "NEUTRAL_WAIT",
   "confidenceScore": number between 35 and 96 calculated strictly from confluence count (HTF alignment, liquidity sweep, displacement, POI mitigation, R:R strength),
   "biasReasoning": "Concise, sharp, institutional summary of current market structure, theoretical order flow bias, and macro context (in strictly objective, educational 3rd-person probabilistic tone, no investment recommendations) in requested language",
@@ -1684,6 +1791,13 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     const responseText = response.text || '{}';
     const parsedData = safeExtractJson(responseText);
 
+    // Normalize and sort detected multi-timeframes strictly top-down (HTF -> MTF -> LTF)
+    if (parsedData.timeframe) {
+      parsedData.timeframe = sortServerTimeframes(parsedData.timeframe);
+    } else if (reqTimeframe) {
+      parsedData.timeframe = sortServerTimeframes(reqTimeframe);
+    }
+
     // Commit reservation permanently upon successful AI completion
     CreditManager.commitReservation(reservationId);
 
@@ -1698,7 +1812,6 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     if (reservationId) {
       CreditManager.rollbackReservation(reservationId);
     }
-    console.error('Error analyzing chart:', error);
     const errMsg = error?.message || String(error);
 
     const isAuthErr = isGeminiAuthError(error);
@@ -1710,6 +1823,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     const reqSettings = req.body?.settings || {};
     const reqImages = Array.isArray(req.body?.images) ? req.body.images : [];
     const reqKey = (req.body?.licenseKey || '').trim().toUpperCase();
+    const reqTimeframe = req.body?.timeframe || reqSettings?.timeframe;
     const reqLang = reqSettings?.language || 'cs';
     const currentLicenseRecord = reqKey ? CreditManager.getLicense(reqKey) : null;
     const restoredCredits = currentLicenseRecord ? currentLicenseRecord.credits : 0;
@@ -1718,7 +1832,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     // seamlessly provide institutional quantitative analysis without charging the user's credits!
     if (isAuthErr || isCapacityIssue || isTimeout) {
       console.warn(`[analyze-chart] Gemini call unavailable (${errMsg}). Falling back gracefully to TRADEOY Institutional Quantitative Engine.`);
-      const fallbackData = generateInstitutionalFallbackAnalysis(reqSettings, reqImages);
+      const fallbackData = generateInstitutionalFallbackAnalysis(reqSettings, reqImages, reqTimeframe);
       return res.json({
         success: true,
         data: fallbackData,
@@ -1734,6 +1848,8 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
               : 'Analysis was processed by TRADEOY Institutional Engine (capacity failover). Your license credit remains fully preserved.'),
       });
     }
+
+    console.error('Error analyzing chart:', error);
 
     let userFriendlyError = 'Nastala chyba při analýze grafu. Zkontrolujte prosím kvalitu grafu a zkuste to znovu.';
     if (isCapacityIssue) {
@@ -1757,6 +1873,27 @@ app.post('/api/translate-analysis', aiRateLimiter, async (req, res) => {
     const { result, targetLanguage } = req.body || {};
     if (!result || !targetLanguage) {
       return res.status(400).json({ success: false, error: 'Chybí data analýzy nebo cílový jazyk.' });
+    }
+
+    if (!isGeminiKeyValidFormat(process.env.GEMINI_API_KEY)) {
+      if (result.isFallbackEngine) {
+        const translatedFallback = generateInstitutionalFallbackAnalysis({ language: targetLanguage }, result.uploadedImages || []);
+        return res.json({
+          success: true,
+          translatedResult: {
+            ...result,
+            ...translatedFallback,
+            id: result.id,
+            timestamp: result.timestamp,
+            uploadedImages: result.uploadedImages,
+            language: targetLanguage,
+          },
+        });
+      }
+      return res.json({
+        success: true,
+        translatedResult: result,
+      });
     }
 
     const ai = getGeminiClient();
@@ -1797,6 +1934,15 @@ CRITICAL PRESERVATION RULES:
       stopLossReason: result.stopLoss?.reason || '',
       takeProfitDescriptions: (result.takeProfitTargets || []).map((tp: any) => tp.description || ''),
       economicRiskAdvice: result.economicCalendarWarning?.riskAdvice || '',
+      economicUpcomingEvents: (result.economicCalendarWarning?.upcomingNewsEvents || []).map((ev: any) => ({
+        id: ev.id,
+        title: ev.title || '',
+        warningText: ev.warningText || '',
+      })),
+      candlestickPatterns: (result.candlestickPatterns || []).map((cp: any) => ({
+        location: cp.location || '',
+        significance: cp.significance || '',
+      })),
       priceActionDescriptions: (result.priceActionStructures || []).map((pas: any) => pas.description || ''),
       mentorAdvice: result.mentorAdvice || '',
       riskManagement: result.riskManagement ? {
@@ -1845,7 +1991,20 @@ CRITICAL PRESERVATION RULES:
       economicCalendarWarning: result.economicCalendarWarning ? {
         ...result.economicCalendarWarning,
         riskAdvice: parsed.economicRiskAdvice || result.economicCalendarWarning.riskAdvice,
+        upcomingNewsEvents: (result.economicCalendarWarning.upcomingNewsEvents || []).map((ev: any, idx: number) => {
+          const translatedEv = parsed.economicUpcomingEvents?.[idx];
+          return {
+            ...ev,
+            title: translatedEv?.title || localizeEconomicTitle(ev.title, targetLanguage),
+            warningText: translatedEv?.warningText || ev.warningText,
+          };
+        }),
       } : result.economicCalendarWarning,
+      candlestickPatterns: result.candlestickPatterns?.map((cp: any, idx: number) => ({
+        ...cp,
+        location: parsed.candlestickPatterns?.[idx]?.location || cp.location,
+        significance: parsed.candlestickPatterns?.[idx]?.significance || cp.significance,
+      })),
       priceActionStructures: result.priceActionStructures?.map((pas: any, idx: number) => ({
         ...pas,
         description: parsed.priceActionDescriptions?.[idx] || pas.description,
@@ -1867,7 +2026,7 @@ CRITICAL PRESERVATION RULES:
       translatedResult,
     });
   } catch (err: any) {
-    console.error('Error translating analysis:', err?.message || err);
+    console.warn('[translate-analysis] Translation service unavailable, retaining original analysis:', err?.message || err);
     return res.json({
       success: true,
       translatedResult: req.body?.result,
@@ -1921,6 +2080,21 @@ app.post('/api/audit-metatrader', aiRateLimiter, async (req, res) => {
       });
     }
     reservationId = reservation.reservationId;
+
+    const effectiveGeminiKey = (settings as any)?.customApiKey || process.env.GEMINI_API_KEY;
+    if (!isGeminiKeyValidFormat(effectiveGeminiKey)) {
+      console.info('[audit-metatrader] Gemini API key is unconfigured or invalid format. Using TRADEOY Statistical Audit directly.');
+      const reqTrades = Array.isArray(req.body?.trades) ? req.body.trades : [];
+      const fallbackAudit = generateFallbackAuditData(reqTrades, settings);
+      return res.json({
+        success: true,
+        data: fallbackAudit,
+        licenseKey: activeKey,
+        remainingCredits: reservation.remainingCredits + 1, // 100% refund preserved
+        isFallbackEngine: true,
+        authNotice: 'Audit byl úspěšně vyhodnocen statistickým institucionálním enginem TRADEOY. Váš licenční kredit zůstal 100% zachován.',
+      });
+    }
 
     const ai = getGeminiClient();
 
@@ -2045,7 +2219,6 @@ Return strictly a JSON object conforming to this schema:
     if (reservationId) {
       CreditManager.rollbackReservation(reservationId);
     }
-    console.error('Error auditing MetaTrader trades:', error);
     const errMsg = error?.message || String(error);
 
     const isAuthErr = isGeminiAuthError(error);
@@ -2071,6 +2244,8 @@ Return strictly a JSON object conforming to this schema:
         authNotice: 'Audit byl úspěšně vyhodnocen statistickým institucionálním enginem TRADEOY. Váš licenční kredit zůstal 100% zachován.',
       });
     }
+
+    console.error('Error auditing MetaTrader trades:', error);
 
     res.status(500).json({
       success: false,
@@ -2120,6 +2295,17 @@ app.post('/api/ask-mentor', aiRateLimiter, async (req, res) => {
         error: 'Pro konzultaci s AI Mentorem je vyžadován alespoň 1 aktivní kredit na účtu.',
         remainingCredits: 0,
         licenseKey: activeKey,
+      });
+    }
+
+    const effectiveGeminiKey = (settings as any)?.customApiKey || process.env.GEMINI_API_KEY;
+    if (!isGeminiKeyValidFormat(effectiveGeminiKey)) {
+      console.info('[ask-mentor] Gemini API key is unconfigured or invalid format. Using TRADEOY Mentor Engine directly.');
+      const answer = generateFallbackMentorAnswer(question, currentAnalysis, settings);
+      return res.json({
+        success: true,
+        answer,
+        isFallbackEngine: true,
       });
     }
 
@@ -2191,7 +2377,6 @@ Rules for mentor response:
       answer: answer.trim(),
     });
   } catch (error: any) {
-    console.error('Error asking mentor:', error);
     const errMsg = error?.message || String(error);
 
     const isAuthErr = isGeminiAuthError(error);
@@ -2212,6 +2397,8 @@ Rules for mentor response:
         isFallbackEngine: true,
       });
     }
+
+    console.error('Error asking mentor:', error);
 
     res.status(500).json({
       success: false,
@@ -2310,7 +2497,7 @@ app.post('/api/economic-calendar', async (req, res) => {
                 id: String(idx + 1),
                 date: `${targetDate} ${timeFormatted}`,
                 currency: curr,
-                title: item.title,
+                title: localizeEconomicTitle(item.title, langCode),
                 impact: impactUpper === 'HIGH' ? 'HIGH' : impactUpper === 'MEDIUM' ? 'MEDIUM' : 'LOW',
                 forecast: item.forecast || 'N/A',
                 previous: item.previous || 'N/A',
@@ -2383,7 +2570,7 @@ app.post('/api/economic-calendar', async (req, res) => {
             id: String(idx + 1),
             date: `${targetDate} ${ev.time}`,
             currency: ev.curr,
-            title: ev.title,
+            title: localizeEconomicTitle(ev.title, langCode),
             impact: ev.impact,
             forecast: ev.forecast,
             previous: ev.previous,

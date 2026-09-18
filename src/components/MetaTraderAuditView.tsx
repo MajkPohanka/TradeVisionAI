@@ -113,7 +113,11 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
 
     if (currentLicense && currentLicense.credits <= 0) {
       if (onOpenCreditsModal) onOpenCreditsModal();
-      setError('Nemáte dostatek kreditů pro spuštění auditu. Doplňte prosím kredity.');
+      setError(settings.language === 'en'
+        ? 'You do not have enough credits to run the audit. Please top up your credits.'
+        : settings.language === 'es'
+        ? 'No tiene suficientes créditos para ejecutar la auditoría. Por favor recargue créditos.'
+        : 'Nemáte dostatek kreditů pro spuštění auditu. Doplňte prosím kredity.');
       return;
     }
 
@@ -138,9 +142,17 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
         data = text ? JSON.parse(text) : {};
       } catch (e) {
         if (text.trim().startsWith('<')) {
-          throw new Error('Časový limit auditu vypršel nebo je služba dočasně vytížena. Zkuste to prosím znovu za okamžik.');
+          throw new Error(settings.language === 'en'
+            ? 'Audit timed out or service is temporarily busy. Please retry in a moment.'
+            : settings.language === 'es'
+            ? 'Tiempo de espera agotado o servicio saturado temporalmente. Reintente en un momento.'
+            : 'Časový limit auditu vypršel nebo je služba dočasně vytížena. Zkuste to prosím znovu za okamžik.');
         }
-        throw new Error(`Chyba při komunikaci se serverem (HTTP ${res.status}).`);
+        throw new Error(settings.language === 'en'
+          ? `Server communication error (HTTP ${res.status}).`
+          : settings.language === 'es'
+          ? `Error de comunicación con el servidor (HTTP ${res.status}).`
+          : `Chyba při komunikaci se serverem (HTTP ${res.status}).`);
       }
 
       if (res.status === 402 || data.code === 'INSUFFICIENT_CREDITS') {
@@ -148,7 +160,11 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
           onLicenseUpdated({ key: data.licenseKey, credits: 0 });
         }
         if (onOpenCreditsModal) onOpenCreditsModal();
-        throw new Error(data.error || 'Vyčerpali jste všechny kredity. Doplňte prosím kredity.');
+        throw new Error(data.error || (settings.language === 'en'
+          ? 'You have used all credits. Please top up your credits.'
+          : settings.language === 'es'
+          ? 'Ha agotado todos sus créditos. Por favor recargue créditos.'
+          : 'Vyčerpali jste všechny kredity. Doplňte prosím kredity.'));
       }
 
       if (!res.ok || !data.success) {
@@ -183,7 +199,11 @@ export const MetaTraderAuditView: React.FC<MetaTraderAuditViewProps> = ({
                               rawMsg.includes('429');
 
       if (isCapacityIssue) {
-        setError('Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit za tuto analýzu zůstal v plné výši zachován.');
+        setError(settings.language === 'en'
+          ? 'Automatic AI server capacity scaling is in progress. The TRADEOY.com team has been notified and full functionality will be restored promptly. Your credit has been preserved.'
+          : settings.language === 'es'
+          ? 'Escalado automático de capacidad del servidor de IA en curso. El equipo de TRADEOY.com ha sido notificado y la funcionalidad se restablecerá rápidamente. Su crédito ha sido preservado.'
+          : 'Probíhá automatické navýšení kapacity AI serveru. Vývojový tým TRADEOY.com byl neprodleně kontaktován a plná funkčnost bude obnovena v co nejkratším čase. Váš kredit za tuto analýzu zůstal v plné výši zachován.');
       } else {
         setError(rawMsg);
       }

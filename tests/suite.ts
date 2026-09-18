@@ -8,6 +8,8 @@ import {
   ConfirmSessionSchema,
   formatZodError,
 } from '../server/schemas';
+import { translations, getTranslation } from '../src/utils/translations';
+import { localizeEconomicTitle } from '../server/economicLocalization';
 
 interface TestResult {
   name: string;
@@ -406,6 +408,215 @@ async function main() {
     const res = await fetch(`${BASE_URL}/api/health`);
     assert.ok(res.headers.get('permissions-policy')?.includes('camera=()'));
     assert.equal(res.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+  });
+
+  // ----------------------------------------------------
+  // 5. LOCALIZATION & TRANSLATION PARITY (CS, EN, ES)
+  // ----------------------------------------------------
+  console.log('\n--- 5. Localization & Translation Parity (CS, EN, ES) ---');
+
+  await runTest('Localization/Parity', 'Translation key parity between CS, EN, and ES (all 445+ keys present)', () => {
+    const csKeys = Object.keys(translations.cs);
+    const enKeys = Object.keys(translations.en);
+    const esKeys = Object.keys(translations.es);
+
+    assert.equal(csKeys.length, enKeys.length, `Key count mismatch between CS (${csKeys.length}) and EN (${enKeys.length})`);
+    assert.equal(csKeys.length, esKeys.length, `Key count mismatch between CS (${csKeys.length}) and ES (${esKeys.length})`);
+
+    const missingEn = csKeys.filter(k => !(k in translations.en));
+    const missingEs = csKeys.filter(k => !(k in translations.es));
+
+    assert.equal(missingEn.length, 0, `Missing EN keys: ${missingEn.join(', ')}`);
+    assert.equal(missingEs.length, 0, `Missing ES keys: ${missingEs.join(', ')}`);
+  });
+
+  await runTest('Localization/Integrity', 'No empty, null, or undefined translation strings across all languages', () => {
+    for (const lang of ['cs', 'en', 'es'] as const) {
+      const dict = translations[lang];
+      for (const [key, val] of Object.entries(dict)) {
+        assert.ok(typeof val === 'string', `${lang}.${key} is not a string`);
+        assert.ok(val.trim().length > 0, `${lang}.${key} is empty`);
+      }
+    }
+  });
+
+  await runTest('Localization/Helper', 'getTranslation helper returns correct language dictionary with fallback', () => {
+    const cs = getTranslation('cs');
+    const en = getTranslation('en');
+    const es = getTranslation('es');
+    const fallback = getTranslation('de' as any);
+
+    assert.equal(cs.tabAnalyzer, 'Analýza Grafu');
+    assert.equal(en.tabAnalyzer, 'Chart Analysis');
+    assert.equal(es.tabAnalyzer, 'Análisis de Gráficos');
+    assert.equal(fallback.tabAnalyzer, 'Analýza Grafu');
+  });
+
+  // ----------------------------------------------------
+  // 6. ECONOMIC CALENDAR & MACRO NEWS LOCALIZATION
+  // ----------------------------------------------------
+  console.log('\n--- 6. Economic Calendar & Macro News Localization ---');
+
+  await runTest('Calendar/Translation', 'localizeEconomicTitle translates US/EU macro indicators to CS and ES', () => {
+    const testCases = [
+      {
+        raw: 'Core CPI m/m & Consumer Price Index y/y',
+        cs: 'Jádrová inflace CPI (m/m) a Index spotřebitelských cen (y/y)',
+        es: 'IPC subyacente (m/m) e Índice de Precios al Consumidor (a/a)',
+      },
+      {
+        raw: 'Non-Farm Employment Change (NFP) & Unemployment Rate',
+        cs: 'NFP - Tvorba pracovních míst mimo zemědělství a míra nezaměstnanosti',
+        es: 'Nóminas no agrícolas (NFP) y Tasa de desempleo',
+      },
+      {
+        raw: 'FOMC Meeting Minutes / Rate Decision',
+        cs: 'Zápis z jednání FOMC / Rozhodnutí o úrokových sazbách Fed',
+        es: 'Minutas de la reunión del FOMC / Decisión de tipos de interés',
+      },
+      {
+        raw: 'Crude Oil Inventories',
+        cs: 'Týdenní zásoby ropy v USA (EIA)',
+        es: 'Inventarios de petróleo crudo de la AIE',
+      },
+    ];
+
+    for (const tc of testCases) {
+      assert.equal(localizeEconomicTitle(tc.raw, 'cs'), tc.cs);
+      assert.equal(localizeEconomicTitle(tc.raw, 'es'), tc.es);
+      assert.equal(localizeEconomicTitle(tc.raw, 'en'), tc.raw);
+    }
+  });
+
+  await runTest('Calendar/API', 'POST /api/economic-calendar returns localized schedule in CS', async () => {
+    const res = await fetch(`${BASE_URL}/api/economic-calendar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'cs', date: '20.8.2026' }),
+    });
+    assert.equal(res.status, 200);
+    const json: any = await res.json();
+    assert.equal(json.success, true);
+    assert.ok(Array.isArray(json.data.events));
+    assert.ok(json.data.events.length > 0);
+    assert.ok(json.data.marketSummaryAdvice);
+  });
+
+  await runTest('Calendar/API', 'POST /api/economic-calendar returns localized schedule in EN and ES', async () => {
+    const resEn = await fetch(`${BASE_URL}/api/economic-calendar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'en', date: '20.8.2026' }),
+    });
+    assert.equal(resEn.status, 200);
+    const jsonEn: any = await resEn.json();
+    assert.equal(jsonEn.success, true);
+    assert.ok(jsonEn.data.marketSummaryAdvice.includes('macro risk') || jsonEn.data.marketSummaryAdvice.includes('economic news'));
+
+    const resEs = await fetch(`${BASE_URL}/api/economic-calendar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'es', date: '20.8.2026' }),
+    });
+    assert.equal(resEs.status, 200);
+    const jsonEs: any = await resEs.json();
+    assert.equal(jsonEs.success, true);
+    assert.ok(jsonEs.data.marketSummaryAdvice.includes('Riesgo macro') || jsonEs.data.marketSummaryAdvice.includes('noticias'));
+  });
+
+  // ----------------------------------------------------
+  // 7. MARKET OVERVIEW BAR & ASSET LOCALIZATION
+  // ----------------------------------------------------
+  console.log('\n--- 7. Market Overview Bar & Asset Localization ---');
+
+  await runTest('MarketOverview/API', 'GET /api/market-overview returns 16 assets with complete CS, EN, and ES labels', async () => {
+    const res = await fetch(`${BASE_URL}/api/market-overview`);
+    assert.equal(res.status, 200);
+    const json: any = await res.json();
+    assert.equal(json.success, true);
+    assert.equal(json.assets.length, 16);
+
+    for (const asset of json.assets) {
+      assert.ok(asset.name, `Missing English name for ${asset.id}`);
+      assert.ok(asset.nameCs, `Missing Czech name for ${asset.id}`);
+      assert.ok(asset.nameEs, `Missing Spanish name for ${asset.id}`);
+      assert.ok(asset.categoryLabelEn, `Missing English category for ${asset.id}`);
+      assert.ok(asset.categoryLabelCs, `Missing Czech category for ${asset.id}`);
+      assert.ok(asset.categoryLabelEs, `Missing Spanish category for ${asset.id}`);
+      assert.ok(typeof asset.price === 'number', `Invalid price for ${asset.id}`);
+    }
+  });
+
+  // ----------------------------------------------------
+  // 8. METATRADER AUDIT & FALLBACK GENERATOR
+  // ----------------------------------------------------
+  console.log('\n--- 8. MetaTrader Audit & Fallback Engine Multi-Language Integrity ---');
+
+  await runTest('Audit/API', 'POST /api/audit-metatrader processes text history with VIP unlimited license', async () => {
+    const res = await fetch(`${BASE_URL}/api/audit-metatrader`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rawText: `Ticket\tOpen Time\tType\tSize\tItem\tPrice\tS/L\tT/P\tClose Time\tPrice\tProfit
+#102941\t2026.08.06 14:28\tBUY\t1.00\tEURUSD\t1.08500\t0.00000\t1.09200\t2026.08.06 14:32\t1.08120\t-380.00
+#102945\t2026.08.06 14:33\tSELL\t2.00\tEURUSD\t1.08100\t0.00000\t0.00000\t2026.08.06 14:36\t1.08350\t-500.00
+#102950\t2026.08.06 15:10\tBUY\t0.50\tBTCUSD\t63200.00\t62500.00\t64500.00\t2026.08.06 18:20\t64500.00\t+650.00`,
+        settings: { language: 'cs', holdingPeriod: 'intraday', methodologies: ['price_action', 'smc'], riskProfile: 'balanced' },
+        licenseKey: 'TRADEOY-VIP-UNLIMITED-MASTER',
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const json: any = await res.json();
+    assert.equal(json.success, true);
+    const tradesCount = json.data.tradesAnalyzedCount ?? json.data.totalTrades;
+    assert.ok(typeof tradesCount === 'number' && tradesCount >= 1);
+    const winRate = json.data.winRatePercent ?? json.data.winRate;
+    assert.ok(typeof winRate === 'number');
+    const mistakes = json.data.primaryMistakes ?? json.data.mistakeBreakdown;
+    assert.ok(Array.isArray(mistakes));
+  });
+
+  // ----------------------------------------------------
+  // 9. DYNAMIC ANALYSIS TRANSLATION PIPELINE
+  // ----------------------------------------------------
+  console.log('\n--- 9. Dynamic Analysis Translation Pipeline ---');
+
+  await runTest('TranslateAnalysis/API', 'POST /api/translate-analysis returns translated structure for fallback analysis', async () => {
+    const mockResult = {
+      id: 'test-analysis-123',
+      timestamp: Date.now(),
+      symbol: 'BTCUSDT',
+      timeframe: 'H1 + M15 + M5',
+      signal: 'BUY',
+      confidence: 85,
+      isFallbackEngine: true,
+      language: 'cs',
+      biasReasoning: 'Cena testuje klíčovou zónu podpory a vytváří nákupní konfluenci.',
+      drawOnLiquidity: {
+        target: 'BSL 65000',
+        type: 'BUY_SIDE_LIQUIDITY',
+        reason: 'Likvidita čeká nad lokálními maximy',
+        prohibitedOpposingTrade: 'Není doporučeno prodávat',
+      },
+      stopLoss: { price: 62000, reason: 'Invalidace pod swingovým minimem' },
+      takeProfitTargets: [{ target: 'TP1', price: 64500, closePercentage: 50, description: 'První zóna odporu' }],
+    };
+
+    const res = await fetch(`${BASE_URL}/api/translate-analysis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        result: mockResult,
+        targetLanguage: 'en',
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const json: any = await res.json();
+    assert.equal(json.success, true);
+    assert.equal(json.translatedResult.language, 'en');
+    assert.equal(json.translatedResult.id, mockResult.id);
   });
 
   // ----------------------------------------------------

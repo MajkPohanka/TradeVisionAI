@@ -122,6 +122,8 @@ export interface AnalysisResult {
   uploadedImages: string[]; // base64 or URLs
   userNotes?: string;
   tradeOutcome?: 'PENDING' | 'WIN' | 'LOSS' | 'BREAKEVEN';
+  isFallbackEngine?: boolean;
+  authNotice?: string;
 }
 
 export interface MetaTraderTradeRecord {

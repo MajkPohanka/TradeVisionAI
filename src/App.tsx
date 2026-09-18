@@ -406,6 +406,8 @@ export default function App() {
 
       const fullResult: AnalysisResult = {
         ...data.data,
+        isFallbackEngine: data.data?.isFallbackEngine ?? data.isFallbackEngine,
+        authNotice: data.data?.authNotice ?? data.authNotice,
         id: data.data.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
         timestamp: data.data.timestamp || Date.now(),
         uploadedImages:
@@ -417,6 +419,7 @@ export default function App() {
       };
 
       setAnalysisResult(fullResult);
+      setError(null);
 
       setTimeout(() => {
         const resultEl = document.getElementById('analysis-result-section');

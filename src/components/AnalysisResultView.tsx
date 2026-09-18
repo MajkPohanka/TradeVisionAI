@@ -320,6 +320,33 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Institutional Engine Notice Banner */}
+      {(result.isFallbackEngine || result.authNotice) && (
+        <div
+          id="institutional-engine-notice-banner"
+          className={`p-4 rounded-2xl border flex items-start gap-3.5 shadow-sm transition-all ${
+            isLight
+              ? 'bg-amber-50/90 border-amber-300 text-amber-950'
+              : 'bg-amber-950/25 border-amber-500/30 text-amber-200'
+          }`}
+        >
+          <Zap className={`w-5 h-5 shrink-0 mt-0.5 ${isLight ? 'text-amber-700' : 'text-amber-400'}`} />
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2 font-bold">
+              <span>{isLight ? 'Kvantitativní institucionální analýza TRADEOY' : 'TRADEOY Institutional Quantitative Engine'}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+              }`}>
+                ✓ Licenční kredit 100% zachován
+              </span>
+            </div>
+            <p className="opacity-90 leading-relaxed">
+              {result.authNotice || 'Analýza byla úspěšně zpracována institucionálním engine TRADEOY na základě technických a mikrostrukturálních pravidel.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 1. TOP SIGNAL HEADER & CONFIDENCE */}
       <div className={`border rounded-3xl p-6 sm:p-7 relative overflow-hidden transition-all ${
         isLight

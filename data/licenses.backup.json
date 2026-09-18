@@ -332,8 +332,9 @@
     "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
     "totalPurchased": 999999,
-    "totalUsed": 0,
-    "createdAt": 1788520236015
+    "totalUsed": 9,
+    "createdAt": 1788520236015,
+    "lastUsedAt": 1789734055933
   },
   {
     "key": "TRADEOY-VIP-FRIENDS-2026",
@@ -1218,13 +1219,24 @@
   },
   {
     "key": "TRADEOY-BXNC-EH9S-YKV7",
-    "credits": 1,
+    "credits": 0,
     "tier": "starter",
     "email": "concurrency-pentest@tradeoy.com",
     "totalPurchased": 2,
-    "totalUsed": 1,
+    "totalUsed": 2,
     "createdAt": 1789671643373,
     "stripeSessionIds": [],
     "lastUsedAt": 1789671643374
+  },
+  {
+    "key": "TRADEOY-WFM2-GX2K-LBYG",
+    "credits": 2,
+    "tier": "starter_trial",
+    "email": "trial@tradeoy.com",
+    "totalPurchased": 3,
+    "totalUsed": 1,
+    "createdAt": 1789734620976,
+    "stripeSessionIds": [],
+    "lastUsedAt": 1789734632815
   }
 ]

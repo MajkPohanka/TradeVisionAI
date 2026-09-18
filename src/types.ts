@@ -29,6 +29,8 @@ export interface StrategySettings {
   accountRiskPercent: number; // e.g. 1% or 2%
   presets?: StrategyPreset[];
   activePresetId?: string;
+  symbol?: string;
+  asset?: string;
 }
 
 export interface EconomicCalendarEvent {

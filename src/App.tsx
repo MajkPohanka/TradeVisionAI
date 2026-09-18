@@ -348,7 +348,9 @@ export default function App() {
           settings: {
             ...settings,
             timeframe: slotTimeframe,
+            symbol: selectedTvSymbol || settings.symbol,
           },
+          symbol: selectedTvSymbol || settings.symbol,
           timeframe: slotTimeframe,
           licenseKey: activeLicenseKey,
         }),

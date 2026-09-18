@@ -582,6 +582,265 @@ function sortServerTimeframes(timeframeStr?: string): string {
   return unique.join(' + ');
 }
 
+interface AssetFallbackProfile {
+  symbol: string;
+  nameCs: string;
+  nameEn: string;
+  nameEs: string;
+  currency: string;
+  entryRecommended: number;
+  entryMin: number;
+  entryMax: number;
+  slPrice: number;
+  slDistPercent: number;
+  tp1Price: number;
+  tp2Price: number;
+  tp3Price: number;
+  targetZoneStr: string;
+  support: number[];
+  resistance: number[];
+  keyPivot: number;
+}
+
+const FALLBACK_ASSET_PROFILES: Record<string, AssetFallbackProfile> = {
+  gold: {
+    symbol: 'XAU/USD',
+    nameCs: 'Zlato (Spot XAU/USD)',
+    nameEn: 'Gold (Spot XAU/USD)',
+    nameEs: 'Oro (Spot XAU/USD)',
+    currency: 'USD',
+    entryRecommended: 4371.10,
+    entryMin: 4368.50,
+    entryMax: 4373.80,
+    slPrice: 4352.00,
+    slDistPercent: 0.44,
+    tp1Price: 4390.00,
+    tp2Price: 4410.00,
+    tp3Price: 4435.00,
+    targetZoneStr: '4 410.00 - 4 435.00 USD (Equal Highs / BSL)',
+    support: [4352.00, 4365.00],
+    resistance: [4410.00, 4435.00],
+    keyPivot: 4380.00,
+  },
+  silver: {
+    symbol: 'XAG/USD',
+    nameCs: 'Stříbro (Spot XAG/USD)',
+    nameEn: 'Silver (Spot XAG/USD)',
+    nameEs: 'Plata (Spot XAG/USD)',
+    currency: 'USD',
+    entryRecommended: 66.62,
+    entryMin: 66.40,
+    entryMax: 66.75,
+    slPrice: 65.80,
+    slDistPercent: 1.23,
+    tp1Price: 67.20,
+    tp2Price: 67.85,
+    tp3Price: 68.50,
+    targetZoneStr: '67.85 - 68.50 USD (Major Swing Highs)',
+    support: [65.80, 66.20],
+    resistance: [67.85, 68.50],
+    keyPivot: 67.00,
+  },
+  oil_brent: {
+    symbol: 'UKOIL',
+    nameCs: 'Ropa Brent (UKOIL)',
+    nameEn: 'Brent Crude Oil (UKOIL)',
+    nameEs: 'Petróleo Brent (UKOIL)',
+    currency: 'USD',
+    entryRecommended: 104.32,
+    entryMin: 103.80,
+    entryMax: 104.50,
+    slPrice: 102.90,
+    slDistPercent: 1.36,
+    tp1Price: 105.50,
+    tp2Price: 106.80,
+    tp3Price: 108.20,
+    targetZoneStr: '106.80 - 108.20 USD (Imbalance Fill)',
+    support: [102.90, 103.50],
+    resistance: [106.80, 108.20],
+    keyPivot: 105.00,
+  },
+  oil_wti: {
+    symbol: 'USOIL',
+    nameCs: 'Ropa WTI (USOIL)',
+    nameEn: 'Crude Oil WTI (USOIL)',
+    nameEs: 'Petróleo WTI (USOIL)',
+    currency: 'USD',
+    entryRecommended: 97.30,
+    entryMin: 96.80,
+    entryMax: 97.50,
+    slPrice: 95.80,
+    slDistPercent: 1.54,
+    tp1Price: 98.80,
+    tp2Price: 100.20,
+    tp3Price: 101.80,
+    targetZoneStr: '100.20 - 101.80 USD (Major Resistance)',
+    support: [95.80, 96.50],
+    resistance: [100.20, 101.80],
+    keyPivot: 98.50,
+  },
+  btc: {
+    symbol: 'BTC/USD',
+    nameCs: 'Bitcoin (BTC/USD)',
+    nameEn: 'Bitcoin (BTC/USD)',
+    nameEs: 'Bitcoin (BTC/USD)',
+    currency: 'USD',
+    entryRecommended: 78020.00,
+    entryMin: 77650.00,
+    entryMax: 78200.00,
+    slPrice: 76500.00,
+    slDistPercent: 1.95,
+    tp1Price: 79500.00,
+    tp2Price: 81200.00,
+    tp3Price: 83500.00,
+    targetZoneStr: '81 200.00 - 83 500.00 USD (All-Time Liquidity)',
+    support: [76500.00, 77200.00],
+    resistance: [81200.00, 83500.00],
+    keyPivot: 79000.00,
+  },
+  eth: {
+    symbol: 'ETH/USD',
+    nameCs: 'Ethereum (ETH/USD)',
+    nameEn: 'Ethereum (ETH/USD)',
+    nameEs: 'Ethereum (ETH/USD)',
+    currency: 'USD',
+    entryRecommended: 2498.00,
+    entryMin: 2480.00,
+    entryMax: 2510.00,
+    slPrice: 2435.00,
+    slDistPercent: 2.52,
+    tp1Price: 2560.00,
+    tp2Price: 2630.00,
+    tp3Price: 2720.00,
+    targetZoneStr: '2 630.00 - 2 720.00 USD (H4 Order Block)',
+    support: [2435.00, 2470.00],
+    resistance: [2630.00, 2720.00],
+    keyPivot: 2550.00,
+  },
+  eurusd: {
+    symbol: 'EUR/USD',
+    nameCs: 'Euro / Dolar (EUR/USD)',
+    nameEn: 'Euro / US Dollar (EUR/USD)',
+    nameEs: 'Euro / Dólar (EUR/USD)',
+    currency: 'USD',
+    entryRecommended: 1.08765,
+    entryMin: 1.08720,
+    entryMax: 1.08810,
+    slPrice: 1.08480,
+    slDistPercent: 0.26,
+    tp1Price: 1.09150,
+    tp2Price: 1.09480,
+    tp3Price: 1.09820,
+    targetZoneStr: '1.09450 - 1.09600 (Equal Highs / BSL)',
+    support: [1.08480, 1.08650],
+    resistance: [1.09450, 1.09820],
+    keyPivot: 1.08950,
+  },
+  gbpusd: {
+    symbol: 'GBP/USD',
+    nameCs: 'Libra / Dolar (GBP/USD)',
+    nameEn: 'GBP / US Dollar (GBP/USD)',
+    nameEs: 'Libra / Dólar (GBP/USD)',
+    currency: 'USD',
+    entryRecommended: 1.33450,
+    entryMin: 1.33300,
+    entryMax: 1.33550,
+    slPrice: 1.32900,
+    slDistPercent: 0.41,
+    tp1Price: 1.33950,
+    tp2Price: 1.34400,
+    tp3Price: 1.34900,
+    targetZoneStr: '1.34400 - 1.34900 (Asian Highs Liquidity)',
+    support: [1.32900, 1.33150],
+    resistance: [1.34400, 1.34900],
+    keyPivot: 1.33800,
+  },
+  sp500: {
+    symbol: 'SPX 500',
+    nameCs: 'S&P 500 (US500)',
+    nameEn: 'S&P 500 (US500)',
+    nameEs: 'S&P 500 (US500)',
+    currency: 'USD',
+    entryRecommended: 7637.50,
+    entryMin: 7620.00,
+    entryMax: 7645.00,
+    slPrice: 7585.00,
+    slDistPercent: 0.69,
+    tp1Price: 7680.00,
+    tp2Price: 7725.00,
+    tp3Price: 7780.00,
+    targetZoneStr: '7 725.00 - 7 780.00 (All-Time Highs)',
+    support: [7585.00, 7610.00],
+    resistance: [7725.00, 7780.00],
+    keyPivot: 7660.00,
+  },
+  nasdaq: {
+    symbol: 'US 100',
+    nameCs: 'Nasdaq 100 (US100)',
+    nameEn: 'Nasdaq 100 (US100)',
+    nameEs: 'Nasdaq 100 (US100)',
+    currency: 'USD',
+    entryRecommended: 29446.00,
+    entryMin: 29380.00,
+    entryMax: 29480.00,
+    slPrice: 29180.00,
+    slDistPercent: 0.90,
+    tp1Price: 29750.00,
+    tp2Price: 30100.00,
+    tp3Price: 30500.00,
+    targetZoneStr: '30 100.00 - 30 500.00 (Psychological Barrier)',
+    support: [29180.00, 29320.00],
+    resistance: [30100.00, 30500.00],
+    keyPivot: 29650.00,
+  },
+  dax: {
+    symbol: 'GER 40',
+    nameCs: 'DAX 40 (GER40)',
+    nameEn: 'DAX 40 (GER40)',
+    nameEs: 'DAX 40 (GER40)',
+    currency: 'EUR',
+    entryRecommended: 25416.00,
+    entryMin: 25350.00,
+    entryMax: 25450.00,
+    slPrice: 25220.00,
+    slDistPercent: 0.77,
+    tp1Price: 25620.00,
+    tp2Price: 25800.00,
+    tp3Price: 26050.00,
+    targetZoneStr: '25 800.00 - 26 050.00 EUR (Major Highs)',
+    support: [25220.00, 25340.00],
+    resistance: [25800.00, 26050.00],
+    keyPivot: 25550.00,
+  },
+};
+
+function detectFallbackAssetProfile(settings: any, images: string[] = []): AssetFallbackProfile {
+  const query = `${settings?.symbol || ''} ${settings?.asset || ''} ${settings?.name || ''}`.toLowerCase();
+
+  // Search by explicit settings
+  if (query.includes('gold') || query.includes('xau') || query.includes('zlato') || query.includes('oro')) return FALLBACK_ASSET_PROFILES.gold;
+  if (query.includes('silver') || query.includes('xag') || query.includes('stříbr') || query.includes('plata')) return FALLBACK_ASSET_PROFILES.silver;
+  if (query.includes('brent') || query.includes('ukoil')) return FALLBACK_ASSET_PROFILES.oil_brent;
+  if (query.includes('wti') || query.includes('usoil') || query.includes('oil') || query.includes('ropa') || query.includes('petróleo')) return FALLBACK_ASSET_PROFILES.oil_wti;
+  if (query.includes('btc') || query.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
+  if (query.includes('eth') || query.includes('ethereum')) return FALLBACK_ASSET_PROFILES.eth;
+  if (query.includes('sp500') || query.includes('us500') || query.includes('spx')) return FALLBACK_ASSET_PROFILES.sp500;
+  if (query.includes('nasdaq') || query.includes('us100') || query.includes('ndx')) return FALLBACK_ASSET_PROFILES.nasdaq;
+  if (query.includes('dax') || query.includes('ger40') || query.includes('de40')) return FALLBACK_ASSET_PROFILES.dax;
+  if (query.includes('gbp')) return FALLBACK_ASSET_PROFILES.gbpusd;
+  if (query.includes('eur')) return FALLBACK_ASSET_PROFILES.eurusd;
+
+  // Inspect image strings or default to Gold
+  const combinedImageSnippet = images.slice(0, 3).join(' ').toLowerCase();
+  if (combinedImageSnippet.includes('xau') || combinedImageSnippet.includes('gold') || combinedImageSnippet.includes('zlato')) return FALLBACK_ASSET_PROFILES.gold;
+  if (combinedImageSnippet.includes('xag') || combinedImageSnippet.includes('silver') || combinedImageSnippet.includes('stříbr')) return FALLBACK_ASSET_PROFILES.silver;
+  if (combinedImageSnippet.includes('ukoil') || combinedImageSnippet.includes('brent')) return FALLBACK_ASSET_PROFILES.oil_brent;
+  if (combinedImageSnippet.includes('usoil') || combinedImageSnippet.includes('crude')) return FALLBACK_ASSET_PROFILES.oil_wti;
+  if (combinedImageSnippet.includes('btc') || combinedImageSnippet.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
+
+  return FALLBACK_ASSET_PROFILES.gold;
+}
+
 function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): any {
   const lang = settings?.language || 'cs';
   const holdingPeriod = settings?.holdingPeriod || 'intraday';
@@ -589,6 +848,8 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
   const selectedStrategies: string[] = Array.isArray(settings?.strategies) && settings.strategies.length > 0
     ? settings.strategies
     : ['smc_ict', 'price_action', 'wyckoff'];
+
+  const profile = detectFallbackAssetProfile(settings, images);
 
   // Top-Down sequence corresponding to 3 slots: Slot 01 (HTF) + Slot 02 (MTF) + Slot 03 (LTF)
   const slotMapping: Record<string, string[]> = {
@@ -689,23 +950,24 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
   }
 
   const confidenceScore = riskTolerance === 'conservative' ? 84 : riskTolerance === 'aggressive' ? 92 : 88;
+  const assetName = lang === 'en' ? profile.nameEn : lang === 'es' ? profile.nameEs : profile.nameCs;
 
   return {
     id: crypto.randomUUID(),
     timestamp: Date.now(),
     language: lang,
-    symbol: 'EUR/USD',
-    assetName: lang === 'en' ? 'Euro / US Dollar' : lang === 'es' ? 'Euro / Dólar' : 'Euro / Americký dolar',
+    symbol: profile.symbol,
+    assetName,
     timeframe,
     signal: 'LONG',
     confidenceScore,
     biasReasoning: lang === 'en'
-      ? 'The market completed an institutional liquidity sweep below prior session lows, engineering a strong bullish displacement. Price retraced into a discount Order Block and Fair Value Gap (FVG) below equilibrium (50% Fib). Structural confluences favor bullish expansion targeting untouched Buy-Side Liquidity (BSL).'
+      ? `The market for ${profile.symbol} completed an institutional liquidity sweep below prior session lows, engineering a strong bullish displacement. Price retraced into a discount Order Block and Fair Value Gap (FVG) below equilibrium (50% Fib). Structural confluences favor bullish expansion targeting untouched Buy-Side Liquidity (BSL).`
       : lang === 'es'
-      ? 'El mercado completó un barrido de liquidez institucional bajo los mínimos de la sesión previa, generando un desplazamiento alcista enérgico. El precio retrocedió hacia un Order Block en descuento y FVG bajo el equilibrio. Las confluencias favorecen la expansión alcista hacia la liquidez de compradores (BSL).'
-      : 'Trh dokončil institucionální vybrání likvidity (Liquidity Sweep) pod minimem předchozí seance a vytvořil dynamickou býčí expanzi s proražením struktury (MSS). Současný retracement otestoval diskontní Order Block a Fair Value Gap pod 50 % Fibonaccim. Konfluence potvrzují pokračování expanze k nevybrané likviditě kupujících.',
+      ? `El mercado de ${profile.symbol} completó un barrido de liquidez institucional bajo los mínimos de la sesión previa, generando un desplazamiento alcista enérgico. El precio retrocedió hacia un Order Block en descuento y FVG bajo el equilibrio. Las confluencias favorecen la expansión alcista hacia la liquidez de compradores (BSL).`
+      : `Trh ${profile.symbol} dokončil institucionální vybrání likvidity (Liquidity Sweep) pod minimem předchozí seance a vytvořil dynamickou býčí expanzi s proražením struktury (MSS). Současný retracement otestoval diskontní Order Block a Fair Value Gap pod 50 % Fibonaccim. Konfluence potvrzují pokračování expanze k nevybrané likviditě kupujících.`,
     drawOnLiquidity: {
-      targetZone: '1.09450 - 1.09600 (Equal Highs / BSL Pool)',
+      targetZone: profile.targetZoneStr,
       direction: 'UPSIDE_BSL',
       reason: lang === 'en'
         ? 'Untouched Buy-Side Liquidity pool resting above equal swing highs acts as the primary price magnet.'
@@ -754,23 +1016,23 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
         : 'Během vyhlašování makroekonomických zpráv statisticky dochází k rozšíření spreadů a cenovému skluzu; model počítá se zvýšenou obezřetností a posunem SL na BE.',
     },
     entryZone: {
-      min: 1.08720,
-      max: 1.08810,
-      recommended: 1.08765,
+      min: profile.entryMin,
+      max: profile.entryMax,
+      recommended: profile.entryRecommended,
     },
     stopLoss: {
-      price: 1.08480,
+      price: profile.slPrice,
       reason: lang === 'en'
         ? 'Safely positioned below the liquidity sweep wick and origin of the bullish order block.'
         : lang === 'es'
         ? 'Posicionado de forma segura bajo la mecha del barrido y el origen del order block alcista.'
         : 'Umístěn bezpečně pod spodní hranu svíčky likviditního výběru a pod 4H nákupní Order Block.',
-      distancePercent: 0.26,
+      distancePercent: profile.slDistPercent,
     },
     takeProfitTargets: [
       {
         target: 1,
-        price: 1.09150,
+        price: profile.tp1Price,
         riskRewardRatio: 1.8,
         description: lang === 'en'
           ? 'First opposing liquidity pool. Scale out 50% and move SL to Breakeven.'
@@ -781,7 +1043,7 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
       },
       {
         target: 2,
-        price: 1.09480,
+        price: profile.tp2Price,
         riskRewardRatio: 3.0,
         description: lang === 'en'
           ? 'Major Equal Highs (BSL target). Primary profit objective.'
@@ -792,7 +1054,7 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
       },
       {
         target: 3,
-        price: 1.09820,
+        price: profile.tp3Price,
         riskRewardRatio: 4.5,
         description: lang === 'en'
           ? 'Higher timeframe imbalance runner. Trailing stop behind 1H structural lows.'
@@ -844,23 +1106,23 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
       },
     ],
     keyLevels: {
-      support: [1.08480, 1.08650],
-      resistance: [1.09450, 1.09820],
-      keyPivot: 1.08950,
+      support: profile.support,
+      resistance: profile.resistance,
+      keyPivot: profile.keyPivot,
     },
     mentorAdvice: lang === 'en'
-      ? 'Execution discipline is the cornerstone of institutional trading. Once price reaches TP1 (1.09150), lock in 50% and mechanically shift Stop Loss to Breakeven. Never widen your stop, respect the invalidation level, and let the statistical edge compound over large sample sizes.'
+      ? `Execution discipline is the cornerstone of institutional trading on ${profile.symbol}. Once price reaches TP1 (${profile.tp1Price}), lock in 50% and mechanically shift Stop Loss to Breakeven. Never widen your stop, respect the invalidation level, and let the statistical edge compound over large sample sizes.`
       : lang === 'es'
-      ? 'La disciplina de ejecución es el pilar del trading institucional. Cuando el precio alcance TP1 (1.09150), asegure el 50% y mueva mecánicamente el Stop Loss a Breakeven. Nunca amplíe su stop y respete el nivel de invalidación.'
-      : 'Klíčem k dlouhodobé ziskovosti je striktní prováděcí disciplína. Po dosažení TP1 (1.09150) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Nikdy neposouvejte Stop Loss do větší ztráty, respektujte invalidační úroveň a nechte pracovat statistickou výhodu.',
+      ? `La disciplina de ejecución es el pilar del trading institucional en ${profile.symbol}. Cuando el precio alcance TP1 (${profile.tp1Price}), asegure el 50% y mueva mecánicamente el Stop Loss a Breakeven. Nunca amplíe su stop y respete el nivel de invalidación.`
+      : `Klíčem k dlouhodobé ziskovosti na trhu ${profile.symbol} je striktní prováděcí disciplína. Po dosažení TP1 (${profile.tp1Price}) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Nikdy neposouvejte Stop Loss do větší ztráty, respektujte invalidační úroveň a nechte pracovat statistickou výhodu.`,
     riskManagement: {
       suggestedPositionSizePercent: settings?.accountRiskPercent || 1.0,
       maxLeverage: riskTolerance === 'conservative' ? '1:5 - 1:10 spot/futures' : '1:20 - 1:30 futures model',
       invalidationCondition: lang === 'en'
-        ? 'A 1-hour candle body close below 1.08480 completely invalidates the bullish market thesis.'
+        ? `A 1-hour candle body close below ${profile.slPrice} completely invalidates the bullish market thesis.`
         : lang === 'es'
-        ? 'Un cierre de vela de 1 hora por debajo de 1.08480 invalida por completo la tesis alcista.'
-        : 'Uzavření hodinové svíčky (H1 close) pod cenou 1.08480 kompletně ruší platnost býčího modelu.',
+        ? `Un cierre de vela de 1 hora por debajo de ${profile.slPrice} invalida por completo la tesis alcista.`
+        : `Uzavření hodinové svíčky (H1 close) pod cenou ${profile.slPrice} kompletně ruší platnost býčího modelu.`,
       trailingStopStrategy: lang === 'en'
         ? 'After TP1 execution, move SL to entry price (BE). Subsequently trail stop below each confirmed 1H swing low.'
         : lang === 'es'

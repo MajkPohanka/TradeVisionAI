@@ -70,6 +70,76 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
   const [isMac, setIsMac] = useState(false);
 
+  // Smooth Analysis Progress Percentage State
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStage, setAnalysisStage] = useState('');
+
+  useEffect(() => {
+    if (!isLoading) {
+      setAnalysisProgress(0);
+      setAnalysisStage('');
+      return;
+    }
+
+    // Initialize progress when analysis starts
+    setAnalysisProgress(5);
+    setAnalysisStage(
+      language === 'cs' ? 'Nahrávání & optimalizace snímků...' :
+      language === 'es' ? 'Cargando y optimizando capturas...' :
+      'Uploading & optimizing chart screenshots...'
+    );
+
+    const timer = setInterval(() => {
+      setAnalysisProgress((prev) => {
+        if (prev < 20) {
+          setAnalysisStage(
+            language === 'cs' ? 'Optimalizace grafů & detekce rozlišení...' :
+            language === 'es' ? 'Optimizando resolución...' :
+            'Optimizing image resolution...'
+          );
+          return prev + Math.floor(Math.random() * 4) + 2;
+        } else if (prev < 45) {
+          setAnalysisStage(
+            language === 'cs' ? 'Připojování k AI Engine (Gemini 3.6 Pro)...' :
+            language === 'es' ? 'Conectando con Motor IA (Gemini 3.6 Pro)...' :
+            'Connecting to AI Engine (Gemini 3.6 Pro)...'
+          );
+          return prev + Math.floor(Math.random() * 4) + 2;
+        } else if (prev < 72) {
+          setAnalysisStage(
+            language === 'cs' ? 'Vyhodnocení top-down struktury & S/R zón...' :
+            language === 'es' ? 'Analizando estructura top-down y zonas S/R...' :
+            'Analyzing top-down structure & S/R zones...'
+          );
+          return prev + Math.floor(Math.random() * 3) + 1;
+        } else if (prev < 92) {
+          setAnalysisStage(
+            language === 'cs' ? 'Kalkulace Risk/Reward Ratio, Entry, SL & TP...' :
+            language === 'es' ? 'Calculando RRR, Entrada, SL & TP...' :
+            'Calculating Risk/Reward Ratio, Entry, SL & TP...'
+          );
+          return prev + Math.floor(Math.random() * 2) + 1;
+        } else if (prev < 98) {
+          setAnalysisStage(
+            language === 'cs' ? 'Finalizace institucionálního Trade Planu...' :
+            language === 'es' ? 'Finalizando plan de trading...' :
+            'Finalizing institutional Trade Plan...'
+          );
+          return prev + 1;
+        } else {
+          setAnalysisStage(
+            language === 'cs' ? 'Zpracování odpovědi...' :
+            language === 'es' ? 'Procesando respuesta...' :
+            'Processing response...'
+          );
+          return 98;
+        }
+      });
+    }, 220);
+
+    return () => clearInterval(timer);
+  }, [isLoading, language]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const targetSlotRef = useRef<number | null>(null);
@@ -1052,29 +1122,93 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </div>
         </div>
 
-        {/* WIDE & ENLARGED BUTTON */}
+        {/* WIDE & ENLARGED BUTTON WITH PROGRESS INDICATOR */}
         <button
           type="button"
           id="run-ai-analysis-btn"
           onClick={onAnalyze}
           disabled={uploadedCount === 0 || isLoading}
-          className={`w-full py-4 sm:py-5 px-8 rounded-xl sm:rounded-2xl font-black text-base sm:text-lg tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-3 active:scale-[0.99] border ${
+          className={`w-full py-4 sm:py-5 px-8 rounded-xl sm:rounded-2xl font-black text-base sm:text-lg tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center space-x-3 active:scale-[0.99] border relative overflow-hidden ${
             isLight
               ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 border-emerald-600'
               : 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:brightness-110 text-black shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 border-emerald-300/40'
           }`}
         >
+          {/* Animated fill progress bar layer behind button text */}
+          {isLoading && (
+            <div
+              className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ease-out ${
+                isLight ? 'bg-emerald-700/80' : 'bg-black/25'
+              }`}
+              style={{ width: `${analysisProgress}%` }}
+            />
+          )}
+
           {isLoading ? (
-            <>
-              <div className={`w-5 h-5 border-3 border-t-transparent rounded-full animate-spin shrink-0 ${
-                isLight ? 'border-white' : 'border-black'
-              }`} />
-              <span>{t.analyzingBtn}</span>
-            </>
+            <div className="relative z-10 flex items-center justify-center space-x-3">
+              <Sparkles className={`w-5 h-5 animate-spin shrink-0 ${isLight ? 'text-white' : 'text-black'}`} />
+              <span className="font-black uppercase tracking-wider">
+                {t.analyzingBtn || 'Probíhá AI analýza...'} ({analysisProgress}%)
+              </span>
+            </div>
           ) : (
-            <span className="uppercase tracking-wider">{t.analyzeBtn}</span>
+            <span className="uppercase tracking-wider relative z-10">{t.analyzeBtn}</span>
           )}
         </button>
+
+        {/* DETAILED AI ANALYSIS PROGRESS BAR CARD */}
+        {isLoading && (
+          <div className={`p-4 sm:p-5 rounded-xl sm:rounded-2xl border space-y-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
+            isLight
+              ? 'bg-emerald-50/90 border-emerald-200 text-slate-800 shadow-sm'
+              : 'bg-[#0e1612] border-emerald-500/30 text-emerald-100 shadow-lg shadow-emerald-950/50'
+          }`}>
+            {/* Header with percentage pill badge */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span className={`font-extrabold text-xs sm:text-sm uppercase tracking-wider ${
+                  isLight ? 'text-emerald-950' : 'text-emerald-300'
+                }`}>
+                  {language === 'cs' ? 'PROBÍHÁ AI VYHODNOCENÍ GRAFU' : language === 'es' ? 'PROCESANDO ANÁLISIS DE IA' : 'AI ANALYSIS IN PROGRESS'}
+                </span>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-black font-mono border ${
+                isLight
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-sm'
+              }`}>
+                {analysisProgress}%
+              </span>
+            </div>
+
+            {/* Current Phase Description */}
+            <div className={`text-xs font-medium flex items-center space-x-2 ${
+              isLight ? 'text-emerald-900' : 'text-emerald-200/90'
+            }`}>
+              <Sparkles className="w-4 h-4 text-emerald-500 animate-spin shrink-0" />
+              <span className="truncate">{analysisStage}</span>
+            </div>
+
+            {/* Glowing animated progress track */}
+            <div className={`w-full h-3 rounded-full overflow-hidden p-0.5 border ${
+              isLight ? 'bg-slate-200 border-emerald-300' : 'bg-black/60 border-emerald-500/30'
+            }`}>
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 rounded-full transition-all duration-300 ease-out shadow-md shadow-emerald-500/40 relative overflow-hidden"
+                style={{ width: `${analysisProgress}%` }}
+              >
+                <div className="absolute inset-0 bg-white/30 animate-pulse" />
+              </div>
+            </div>
+
+            {/* Footer estimate note */}
+            <div className="flex items-center justify-between text-[11px] opacity-75 pt-0.5">
+              <span>{language === 'cs' ? 'Předpokládaná doba: 3 - 6 sekund' : language === 'es' ? 'Tiempo estimado: 3 - 6 seg' : 'Estimated time: 3 - 6 sec'}</span>
+              <span>Top-Down Multi-Timeframe AI</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Confirmation Dialog: Delete and Create New Analysis */}

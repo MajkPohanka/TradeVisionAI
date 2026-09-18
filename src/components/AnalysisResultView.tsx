@@ -32,6 +32,7 @@ import {
   BarChart2,
   Radio,
   Camera,
+  Globe,
 } from 'lucide-react';
 import { AnalysisResult, LanguageOption, AppTheme } from '../types';
 import { ShareAnalysisModal } from './ShareAnalysisModal';
@@ -141,12 +142,58 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 }) => {
   const isLight = theme === 'light';
   const t = getTranslation(language as LanguageOption);
+
+  // Dynamic analysis result state supporting instant translation on language switch
+  const [displayResult, setDisplayResult] = useState<AnalysisResult>(result);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDisplayResult(result);
+  }, [result]);
+
+  const handleTranslate = async (targetLang: LanguageOption) => {
+    if (isTranslating) return;
+    setIsTranslating(true);
+    setTranslationError(null);
+    try {
+      const res = await fetch('/api/translate-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          result: displayResult,
+          targetLanguage: targetLang,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.translatedResult) {
+        setDisplayResult(data.translatedResult);
+      } else {
+        setTranslationError(data.error || 'Překlad analýzy se nepodařil.');
+      }
+    } catch (err) {
+      console.error('Translation error:', err);
+      setTranslationError('Chyba sítě při překladu.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Auto-translate if the active UI language differs from the current analysis result language
+  useEffect(() => {
+    if (language && displayResult && displayResult.language && displayResult.language !== language && !isTranslating) {
+      handleTranslate(language as LanguageOption);
+    }
+  }, [language]);
+
+  const currentResult = displayResult;
+
   const [activeTab, setActiveTab] = useState<'levels' | 'candles' | 'mentor' | 'checklist'>('levels');
   const [showChartOverlay, setShowChartOverlay] = useState(true);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  const uploadedImages = result.uploadedImages || [];
+  const uploadedImages = currentResult.uploadedImages || [];
   const [chartViewMode, setChartViewMode] = useState<'snapshot' | 'hd_chart' | 'live_tv'>(
     uploadedImages.length > 0 ? 'snapshot' : 'hd_chart'
   );
@@ -353,9 +400,9 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
         <div className={`mt-6 pt-5 border-t flex flex-wrap items-center justify-between gap-3 ${
           isLight ? 'border-slate-200' : 'border-white/[0.08]'
         }`}>
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
             <button
-              onClick={() => onSaveToJournal(result)}
+              onClick={() => onSaveToJournal(currentResult)}
               disabled={isSaved}
               className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95 shadow-sm ${
                 isSaved
@@ -406,6 +453,25 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             >
               <Printer className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`} />
               <span>{t.printPdfExport}</span>
+            </button>
+
+            {/* Instant AI Translation Button */}
+            <button
+              onClick={() => handleTranslate(language as LanguageOption)}
+              disabled={isTranslating}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 flex items-center space-x-1.5 cursor-pointer active:scale-95 border ${
+                isLight
+                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 shadow-xs'
+                  : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/35'
+              }`}
+              title="Přeložit AI analýzu do aktuálního jazyka"
+            >
+              <Globe className={`w-3.5 h-3.5 ${isTranslating ? 'animate-spin text-amber-400' : ''}`} />
+              <span>
+                {isTranslating
+                  ? (language === 'en' ? 'Translating...' : language === 'es' ? 'Traduciendo...' : 'Překládám...')
+                  : (language === 'en' ? 'Translate Analysis 🌐' : language === 'es' ? 'Traducir Análisis 🌐' : 'Přeložit Analýzu 🌐')}
+              </span>
             </button>
           </div>
 
@@ -1486,12 +1552,12 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             {/* Quick Levels Pills */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-rose-950/80 border border-rose-500/60 text-rose-200 font-bold">
-                SL: {result.stopLoss?.price ?? 'N/A'}
+                SL: {currentResult.stopLoss?.price ?? 'N/A'}
               </span>
               <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/60 text-cyan-200 font-bold">
-                POI: {result.entryZone?.recommended || result.entryZone?.min || 'N/A'}
+                POI: {currentResult.entryZone?.recommended || currentResult.entryZone?.min || 'N/A'}
               </span>
-              {(result.takeProfitTargets || []).map((tp) => (
+              {(currentResult.takeProfitTargets || []).map((tp) => (
                 <span key={tp.target} className="text-[11px] font-mono px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/60 text-emerald-200 font-bold">
                   TP{tp.target}: {tp.price}
                 </span>
@@ -1517,7 +1583,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
       {/* SHARE ANALYSIS MODAL */}
       <ShareAnalysisModal
-        result={result}
+        result={currentResult}
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         language={language}

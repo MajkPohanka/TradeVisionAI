@@ -65,6 +65,7 @@ export interface TakeProfitTarget {
 export interface AnalysisResult {
   id: string;
   timestamp: number;
+  language?: LanguageOption;
   symbol: string;
   assetName?: string;
   timeframe: string;

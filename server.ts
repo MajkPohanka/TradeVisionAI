@@ -1231,6 +1231,130 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
   }
 });
 
+// Fast Qualitative Analysis Translation Endpoint (Translates qualitative fields instantly to target language)
+app.post('/api/translate-analysis', aiRateLimiter, async (req, res) => {
+  try {
+    const { result, targetLanguage } = req.body || {};
+    if (!result || !targetLanguage) {
+      return res.status(400).json({ success: false, error: 'Chybí data analýzy nebo cílový jazyk.' });
+    }
+
+    const ai = getGeminiClient();
+    const langName = targetLanguage === 'en' ? 'English' : targetLanguage === 'es' ? 'Spanish' : 'Czech';
+
+    const systemPrompt = `You are a Senior Institutional Trading Analyst and Technical Financial Translator.
+Your task is to translate all human-readable qualitative text fields of the provided trading analysis JSON into ${langName}.
+
+CRITICAL PRESERVATION RULES:
+1. STRICTLY PRESERVE all numerical values, prices, percentages, dates, signals (LONG/SHORT/NEUTRAL_WAIT), tickers/symbols, and structural keys.
+2. Translate only qualitative descriptions:
+   - biasReasoning
+   - drawOnLiquidity.reason
+   - drawOnLiquidity.prohibitedOpposingTrade
+   - methodologyConfluences[].keyObservation
+   - stopLoss.reason
+   - takeProfitTargets[].description
+   - economicCalendarWarning.riskAdvice
+   - priceActionStructures[].description
+   - mentorAdvice
+   - riskManagement.invalidationCondition
+   - riskManagement.trailingStopStrategy
+   - tradeChecklist[].comment
+3. Ensure immaculate, professional institutional trading terminology in ${langName} in objective 3rd-person perspective.
+4. Output STRICTLY JSON conforming to the same structure (no markdown fences).`;
+
+    const userPayload = {
+      biasReasoning: result.biasReasoning || '',
+      drawOnLiquidity: result.drawOnLiquidity ? {
+        reason: result.drawOnLiquidity.reason || '',
+        prohibitedOpposingTrade: result.drawOnLiquidity.prohibitedOpposingTrade || '',
+      } : null,
+      methodologyConfluences: (result.methodologyConfluences || []).map((mc: any) => ({
+        methodology: mc.methodology,
+        bias: mc.bias,
+        keyObservation: mc.keyObservation || '',
+      })),
+      stopLossReason: result.stopLoss?.reason || '',
+      takeProfitDescriptions: (result.takeProfitTargets || []).map((tp: any) => tp.description || ''),
+      economicRiskAdvice: result.economicCalendarWarning?.riskAdvice || '',
+      priceActionDescriptions: (result.priceActionStructures || []).map((pas: any) => pas.description || ''),
+      mentorAdvice: result.mentorAdvice || '',
+      riskManagement: result.riskManagement ? {
+        invalidationCondition: result.riskManagement.invalidationCondition || '',
+        trailingStopStrategy: result.riskManagement.trailingStopStrategy || '',
+      } : null,
+      tradeChecklistComments: (result.tradeChecklist || []).map((tc: any) => tc.comment || ''),
+    };
+
+    const response = await geminiConcurrencyLimiter.run(() =>
+      callGeminiWithRetry(ai, {
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nTranslate these fields:\n${JSON.stringify(userPayload)}` }] }],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+        },
+      })
+    );
+
+    const translatedText = response.text || '{}';
+    const parsed = safeExtractJson(translatedText);
+
+    // Deep merge translated text back into the original analysis result
+    const translatedResult = {
+      ...result,
+      language: targetLanguage,
+      biasReasoning: parsed.biasReasoning || result.biasReasoning,
+      drawOnLiquidity: result.drawOnLiquidity ? {
+        ...result.drawOnLiquidity,
+        reason: parsed.drawOnLiquidity?.reason || result.drawOnLiquidity.reason,
+        prohibitedOpposingTrade: parsed.drawOnLiquidity?.prohibitedOpposingTrade || result.drawOnLiquidity.prohibitedOpposingTrade,
+      } : result.drawOnLiquidity,
+      methodologyConfluences: result.methodologyConfluences?.map((mc: any, idx: number) => ({
+        ...mc,
+        keyObservation: parsed.methodologyConfluences?.[idx]?.keyObservation || mc.keyObservation,
+      })),
+      stopLoss: {
+        ...result.stopLoss,
+        reason: parsed.stopLossReason || result.stopLoss?.reason,
+      },
+      takeProfitTargets: result.takeProfitTargets?.map((tp: any, idx: number) => ({
+        ...tp,
+        description: parsed.takeProfitDescriptions?.[idx] || tp.description,
+      })),
+      economicCalendarWarning: result.economicCalendarWarning ? {
+        ...result.economicCalendarWarning,
+        riskAdvice: parsed.economicRiskAdvice || result.economicCalendarWarning.riskAdvice,
+      } : result.economicCalendarWarning,
+      priceActionStructures: result.priceActionStructures?.map((pas: any, idx: number) => ({
+        ...pas,
+        description: parsed.priceActionDescriptions?.[idx] || pas.description,
+      })),
+      mentorAdvice: parsed.mentorAdvice || result.mentorAdvice,
+      riskManagement: result.riskManagement ? {
+        ...result.riskManagement,
+        invalidationCondition: parsed.riskManagement?.invalidationCondition || result.riskManagement.invalidationCondition,
+        trailingStopStrategy: parsed.riskManagement?.trailingStopStrategy || result.riskManagement.trailingStopStrategy,
+      } : result.riskManagement,
+      tradeChecklist: result.tradeChecklist?.map((tc: any, idx: number) => ({
+        ...tc,
+        comment: parsed.tradeChecklistComments?.[idx] || tc.comment,
+      })),
+    };
+
+    return res.json({
+      success: true,
+      translatedResult,
+    });
+  } catch (err: any) {
+    console.error('Error translating analysis:', err?.message || err);
+    return res.status(500).json({
+      success: false,
+      error: 'Překlad analýzy se nepodařil: ' + (err?.message || 'Neznámá chyba'),
+    });
+  }
+});
+
 // MetaTrader Trade History Audit & Post-Mortem Endpoint
 app.post('/api/audit-metatrader', aiRateLimiter, async (req, res) => {
   let reservationId: string | undefined;

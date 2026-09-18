@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   Zap,
   BookOpen,
+  Globe,
+  RefreshCw,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -40,7 +42,41 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
   onClose,
   language = 'cs',
 }) => {
-  const t = getTranslation(language as LanguageOption);
+  const [activeShareLang, setActiveShareLang] = useState<LanguageOption>(language);
+  const [shareResult, setShareResult] = useState<AnalysisResult>(result);
+  const [isTranslatingShare, setIsTranslatingShare] = useState(false);
+
+  React.useEffect(() => {
+    setActiveShareLang(language);
+    setShareResult(result);
+  }, [result, language]);
+
+  const handleShareLangChange = async (newLang: LanguageOption) => {
+    setActiveShareLang(newLang);
+    if (shareResult.language !== newLang && !isTranslatingShare) {
+      setIsTranslatingShare(true);
+      try {
+        const res = await fetch('/api/translate-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            result: shareResult,
+            targetLanguage: newLang,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.translatedResult) {
+          setShareResult(data.translatedResult);
+        }
+      } catch (e) {
+        console.error('Error translating share result:', e);
+      } finally {
+        setIsTranslatingShare(false);
+      }
+    }
+  };
+
+  const t = getTranslation(activeShareLang);
   const cardRef = useRef<HTMLDivElement>(null);
   const [copiedText, setCopiedText] = useState(false);
   const [copiedFullText, setCopiedFullText] = useState(false);
@@ -52,8 +88,9 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isLong = result.signal === 'LONG';
-  const isShort = result.signal === 'SHORT';
+  const currentRes = shareResult;
+  const isLong = currentRes.signal === 'LONG';
+  const isShort = currentRes.signal === 'SHORT';
 
   const signalText = isLong
     ? t.longBuySignal
@@ -64,77 +101,77 @@ export const ShareAnalysisModal: React.FC<ShareAnalysisModalProps> = ({
   // 1. Full Comprehensive Text Report for complete export/sharing
   const formattedFullText = `🏛️ *TRADEOY.com - ${t.institutionalAnalysis}*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 *${result.symbol || 'CHART'}* | Timeframe: *${result.timeframe || 'Intraday'}*
-🕒 ${new Date(result.timestamp).toLocaleDateString()} ${new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+📌 *${currentRes.symbol || 'CHART'}* | Timeframe: *${currentRes.timeframe || 'Intraday'}*
+🕒 ${new Date(currentRes.timestamp).toLocaleDateString()} ${new Date(currentRes.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 
 🧭 *${t.recommendedDirection}:* ${signalText}
-⚡ *${t.confidenceAI}:* ${result.confidenceScore}%
-⚖️ *${t.riskRewardRatioLabel}:* ${result.overallRiskRewardRatio || '1:2.5'}
+⚡ *${t.confidenceAI}:* ${currentRes.confidenceScore}%
+⚖️ *${t.riskRewardRatioLabel}:* ${currentRes.overallRiskRewardRatio || '1:2.5'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📍 *1. EXEKUCE & HLADINY (MODELOVÉ POI):*
-• *${t.recommendedEntry}:* ${result.entryZone?.recommended || (result.entryZone?.min && result.entryZone?.max ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')}
-• *${t.stopLossLabel}:* ${result.stopLoss?.price ?? 'N/A'} (-${result.stopLoss?.distancePercent ?? 0}%) ${result.stopLoss?.reason ? `[${result.stopLoss.reason}]` : ''}
-${(result.takeProfitTargets || [])
+• *${t.recommendedEntry}:* ${currentRes.entryZone?.recommended || (currentRes.entryZone?.min && currentRes.entryZone?.max ? `${currentRes.entryZone.min} - ${currentRes.entryZone.max}` : 'N/A')}
+• *${t.stopLossLabel}:* ${currentRes.stopLoss?.price ?? 'N/A'} (-${currentRes.stopLoss?.distancePercent ?? 0}%) ${currentRes.stopLoss?.reason ? `[${currentRes.stopLoss.reason}]` : ''}
+${(currentRes.takeProfitTargets || [])
   .map((tp) => `• *TP${tp.target}:* ${tp.price} (R:R 1:${tp.riskRewardRatio}, ${tp.closePercentage}%) - ${tp.description}`)
   .join('\n')}
 
-${result.drawOnLiquidity ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currentRes.drawOnLiquidity ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🧲 *2. DRAW ON LIQUIDITY (MAGNET LIKVIDITY):*
-• *Směr:* ${result.drawOnLiquidity.direction === 'UPSIDE_BSL' ? 'MAGNET NAHOŘE (Buy-Side Liquidity)' : result.drawOnLiquidity.direction === 'DOWNSIDE_SSL' ? 'MAGNET DOLE (Sell-Side Liquidity)' : 'RANGE / VYČKÁVÁNÍ'}
-• *Cílová zóna:* ${result.drawOnLiquidity.targetZone}
-• *Důvod:* ${result.drawOnLiquidity.reason}
-${result.drawOnLiquidity.prohibitedOpposingTrade ? `⚠️ *Rizikový faktor (Anti-Trap):* ${result.drawOnLiquidity.prohibitedOpposingTrade}` : ''}` : ''}
+• *Směr:* ${currentRes.drawOnLiquidity.direction === 'UPSIDE_BSL' ? 'MAGNET NAHOŘE (Buy-Side Liquidity)' : currentRes.drawOnLiquidity.direction === 'DOWNSIDE_SSL' ? 'MAGNET DOLE (Sell-Side Liquidity)' : 'RANGE / VYČKÁVÁNÍ'}
+• *Cílová zóna:* ${currentRes.drawOnLiquidity.targetZone}
+• *Důvod:* ${currentRes.drawOnLiquidity.reason}
+${currentRes.drawOnLiquidity.prohibitedOpposingTrade ? `⚠️ *Rizikový faktor (Anti-Trap):* ${currentRes.drawOnLiquidity.prohibitedOpposingTrade}` : ''}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🛡️ *3. MODELOVÉ ŘÍZENÍ RIZIKA & INVALIDACE:*
-• *Modelové riziko:* ${result.riskManagement?.suggestedPositionSizePercent ?? 1}% kapitálu (edukační kalkulace)
-• *Podmínka invalidace:* ${result.riskManagement?.invalidationCondition ?? 'N/A'}
-${result.riskManagement?.trailingStopStrategy ? `• *Trailing SL:* ${result.riskManagement.trailingStopStrategy}` : ''}
-${result.riskManagement?.maxLeverage ? `• *Referenční páka:* ${result.riskManagement.maxLeverage}` : ''}
+• *Modelové riziko:* ${currentRes.riskManagement?.suggestedPositionSizePercent ?? 1}% kapitálu (edukační kalkulace)
+• *Podmínka invalidace:* ${currentRes.riskManagement?.invalidationCondition ?? 'N/A'}
+${currentRes.riskManagement?.trailingStopStrategy ? `• *Trailing SL:* ${currentRes.riskManagement.trailingStopStrategy}` : ''}
+${currentRes.riskManagement?.maxLeverage ? `• *Referenční páka:* ${currentRes.riskManagement.maxLeverage}` : ''}
 
-${result.methodologyConfluences && result.methodologyConfluences.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currentRes.methodologyConfluences && currentRes.methodologyConfluences.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✨ *4. METODICKÉ KONFLUENCE:*
-${result.methodologyConfluences.map((c) => `• *${c.methodology}* [${c.bias}]: ${c.keyObservation}`).join('\n')}` : ''}
+${currentRes.methodologyConfluences.map((c) => `• *${c.methodology}* [${c.bias}]: ${c.keyObservation}`).join('\n')}` : ''}
 
-${result.priceActionStructures && result.priceActionStructures.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currentRes.priceActionStructures && currentRes.priceActionStructures.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📐 *5. STRUKTURY & SVÍČKY:*
-${result.priceActionStructures.map((s) => `• *${s.structure}:* ${s.description}`).join('\n')}
-${(result.candlestickPatterns || []).map((cp) => `• *${cp.pattern}* (${cp.signalType}) v zóně ${cp.location}: ${cp.significance}`).join('\n')}` : ''}
+${currentRes.priceActionStructures.map((s) => `• *${s.structure}:* ${s.description}`).join('\n')}
+${(currentRes.candlestickPatterns || []).map((cp) => `• *${cp.pattern}* (${cp.signalType}) v zóně ${cp.location}: ${cp.significance}`).join('\n')}` : ''}
 
-${result.economicCalendarWarning ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currentRes.economicCalendarWarning ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📰 *6. MAKRO KALENDÁŘ & VOLATILITA:*
-• ${result.economicCalendarWarning.riskAdvice}
-${(result.economicCalendarWarning.upcomingNewsEvents || []).map((n) => `  - ${n.title} (${n.currency}) ${n.date}: ${n.warningText}`).join('\n')}` : ''}
+• ${currentRes.economicCalendarWarning.riskAdvice}
+${(currentRes.economicCalendarWarning.upcomingNewsEvents || []).map((n) => `  - ${n.title} (${n.currency}) ${n.date}: ${n.warningText}`).join('\n')}` : ''}
 
-${result.mentorAdvice ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currentRes.mentorAdvice ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🧠 *7. MENTORSKÝ VÝKLAD & PSYCHOLOGIE:*
-${result.mentorAdvice}` : ''}
+${currentRes.mentorAdvice}` : ''}
 
-${result.tradeChecklist && result.tradeChecklist.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currentRes.tradeChecklist && currentRes.tradeChecklist.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ *8. PŘEDOBCHODNÍ CHECKLIST:*
-${result.tradeChecklist.map((ch) => `${ch.passed ? '✓' : '✗'} ${ch.rule} (${ch.comment})`).join('\n')}` : ''}
+${currentRes.tradeChecklist.map((ch) => `${ch.passed ? '✓' : '✗'} ${ch.rule} (${ch.comment})`).join('\n')}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💡 *SHRNUTÍ ANALÝZY:*
-${result.biasReasoning}
+${currentRes.biasReasoning}
 
 — ${t.generatedByApp} 🚀`;
 
   // 2. Compact quick summary text for instant chats
   const formattedCompactText = `📊 *TRADEOY.com - ${t.institutionalAnalysis}*
-Symbol: *${result.symbol || 'GRAF'}* (${result.timeframe || 'Intraday'})
+Symbol: *${currentRes.symbol || 'GRAF'}* (${currentRes.timeframe || 'Intraday'})
 ${t.recommendedDirection}: *${signalText}*
-${t.confidenceAI}: *${result.confidenceScore}%* | ${t.riskRewardRatioLabel}: *${result.overallRiskRewardRatio || '1:2.5'}*
+${t.confidenceAI}: *${currentRes.confidenceScore}%* | ${t.riskRewardRatioLabel}: *${currentRes.overallRiskRewardRatio || '1:2.5'}*
 
-📍 *${t.recommendedEntry}:* ${result.entryZone?.recommended || (result.entryZone?.min ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')}
-🛑 *${t.stopLossLabel}:* ${result.stopLoss?.price ?? 'N/A'} (-${result.stopLoss?.distancePercent ?? 0}%)
+📍 *${t.recommendedEntry}:* ${currentRes.entryZone?.recommended || (currentRes.entryZone?.min ? `${currentRes.entryZone.min} - ${currentRes.entryZone.max}` : 'N/A')}
+🛑 *${t.stopLossLabel}:* ${currentRes.stopLoss?.price ?? 'N/A'} (-${currentRes.stopLoss?.distancePercent ?? 0}%)
 🎯 *Take Profit Targety:*
-${(result.takeProfitTargets || [])
+${(currentRes.takeProfitTargets || [])
   .map((tp) => `   • TP${tp.target}: ${tp.price} ${tp.closePercentage ? `(${tp.closePercentage}%)` : ''}`)
   .join('\n')}
 
-${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.targetZone} (${result.drawOnLiquidity.direction})\n` : ''}💡 *${t.fundamentalTechnicalReason}* ${result.biasReasoning}
+${currentRes.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${currentRes.drawOnLiquidity.targetZone} (${currentRes.drawOnLiquidity.direction})\n` : ''}💡 *${t.fundamentalTechnicalReason}* ${currentRes.biasReasoning}
 
 — ${t.generatedByApp} 🚀`;
 
@@ -340,6 +377,30 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
               <button onClick={() => setShareError(null)} className="text-red-400 hover:text-white font-bold ml-2">✕</button>
             </div>
           )}
+
+          {/* Language Switcher for Share Export */}
+          <div className="p-3 bg-black/40 border border-white/[0.08] rounded-2xl flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center space-x-2 text-xs text-[#86868b] font-medium">
+              <Globe className={`w-4 h-4 text-amber-400 ${isTranslatingShare ? 'animate-spin' : ''}`} />
+              <span>Jazyk sdílení / Language:</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              {(['cs', 'en', 'es'] as LanguageOption[]).map((lang) => (
+                <button
+                  key={lang}
+                  disabled={isTranslatingShare}
+                  onClick={() => handleShareLangChange(lang)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1 cursor-pointer ${
+                    activeShareLang === lang
+                      ? 'bg-amber-500 text-black shadow-md'
+                      : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] hover:text-white border border-white/[0.08]'
+                  }`}
+                >
+                  <span>{lang === 'cs' ? '🇨🇿 CZ' : lang === 'en' ? '🇬🇧 EN' : '🇪🇸 ES'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Quick Platform Action Buttons */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -554,10 +615,10 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                       textTransform: 'uppercase',
                     }}
                   >
-                    {result.symbol || 'CHART'} • {result.timeframe || 'Intraday'}
+                    {currentRes.symbol || 'CHART'} • {currentRes.timeframe || 'Intraday'}
                   </div>
                   <div style={{ fontSize: '10px', color: '#86868b', marginTop: '2px' }}>
-                    {new Date(result.timestamp).toLocaleDateString()} {new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(currentRes.timestamp).toLocaleDateString()} {new Date(currentRes.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               </div>
@@ -656,7 +717,7 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                       marginTop: '1px',
                     }}
                   >
-                    {result.confidenceScore}%
+                    {currentRes.confidenceScore}%
                   </div>
                 </div>
               </div>
@@ -680,7 +741,7 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                       {t.recommendedEntry}
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: '900', fontFamily: 'monospace, monospace', color: '#ffffff', marginTop: '2px' }}>
-                      {result.entryZone?.recommended || (result.entryZone?.min ? `${result.entryZone.min}` : 'N/A')}
+                      {currentRes.entryZone?.recommended || (currentRes.entryZone?.min ? `${currentRes.entryZone.min}` : 'N/A')}
                     </div>
                   </div>
 
@@ -697,10 +758,10 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                     }}
                   >
                     <div style={{ fontSize: '9px', color: '#f87171', fontWeight: '800', textTransform: 'uppercase' }}>
-                      {t.stopLossLabel} (-{result.stopLoss?.distancePercent ?? 0}%)
+                      {t.stopLossLabel} (-{currentRes.stopLoss?.distancePercent ?? 0}%)
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: '900', fontFamily: 'monospace, monospace', color: '#fca5a5', marginTop: '2px' }}>
-                      {result.stopLoss?.price ?? 'N/A'}
+                      {currentRes.stopLoss?.price ?? 'N/A'}
                     </div>
                   </div>
 
@@ -717,18 +778,18 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                     }}
                   >
                     <div style={{ fontSize: '9px', color: '#34d399', fontWeight: '800', textTransform: 'uppercase' }}>
-                      TP 1 ({result.takeProfitTargets?.[0]?.closePercentage ?? 50}%)
+                      TP 1 ({currentRes.takeProfitTargets?.[0]?.closePercentage ?? 50}%)
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: '900', fontFamily: 'monospace, monospace', color: '#6ee7b7', marginTop: '2px' }}>
-                      {result.takeProfitTargets?.[0]?.price ?? 'N/A'}
+                      {currentRes.takeProfitTargets?.[0]?.price ?? 'N/A'}
                     </div>
                   </div>
                 </div>
 
                 {/* Additional TP Targets if available */}
-                {(result.takeProfitTargets || []).length > 1 && (
+                {(currentRes.takeProfitTargets || []).length > 1 && (
                   <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
-                    {(result.takeProfitTargets || []).slice(1, 3).map((tp) => (
+                    {(currentRes.takeProfitTargets || []).slice(1, 3).map((tp) => (
                       <div
                         key={tp.target}
                         style={{
@@ -756,7 +817,7 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
               </div>
 
               {/* 4. Draw on Liquidity & Anti-Trap Section (Full Mode) */}
-              {cardMode === 'full' && result.drawOnLiquidity && (
+              {cardMode === 'full' && currentRes.drawOnLiquidity && (
                 <div
                   style={{
                     width: '100%',
@@ -773,19 +834,19 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', fontWeight: '800' }}>
                     <span style={{ color: '#22d3ee' }}>🧲 DRAW ON LIQUIDITY:</span>
                     <span style={{ color: '#ffffff', fontFamily: 'monospace, monospace' }}>
-                      {result.drawOnLiquidity.targetZone} ({result.drawOnLiquidity.direction})
+                      {currentRes.drawOnLiquidity.targetZone} ({currentRes.drawOnLiquidity.direction})
                     </span>
                   </div>
-                  {result.drawOnLiquidity.prohibitedOpposingTrade && (
+                  {currentRes.drawOnLiquidity.prohibitedOpposingTrade && (
                     <div style={{ fontSize: '9.5px', color: '#fca5a5', lineHeight: '1.4' }}>
-                      <strong>⚠️ Anti-Trap:</strong> {result.drawOnLiquidity.prohibitedOpposingTrade}
+                      <strong>⚠️ Anti-Trap:</strong> {currentRes.drawOnLiquidity.prohibitedOpposingTrade}
                     </div>
                   )}
                 </div>
               )}
 
               {/* 5. Strategy Confluences & Risk Rules (Full Mode) */}
-              {cardMode === 'full' && result.methodologyConfluences && result.methodologyConfluences.length > 0 && (
+              {cardMode === 'full' && currentRes.methodologyConfluences && currentRes.methodologyConfluences.length > 0 && (
                 <div
                   style={{
                     display: 'flex',
@@ -795,7 +856,7 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                     boxSizing: 'border-box',
                   }}
                 >
-                  {result.methodologyConfluences.map((conf, idx) => (
+                  {currentRes.methodologyConfluences.map((conf, idx) => (
                     <div
                       key={idx}
                       style={{
@@ -853,19 +914,19 @@ ${result.drawOnLiquidity ? `🧲 *Draw on Liquidity:* ${result.drawOnLiquidity.t
                   <span>
                     {t.riskRewardRatioLabel}:{' '}
                     <strong style={{ color: '#ffffff', fontFamily: 'monospace, monospace' }}>
-                      {result.overallRiskRewardRatio || '1:2.5'}
+                      {currentRes.overallRiskRewardRatio || '1:2.5'}
                     </strong>
                   </span>
                   <span>
                     {t.suggestedRiskLabel}{' '}
                     <strong style={{ color: '#34d399', fontFamily: 'monospace, monospace' }}>
-                      {result.riskManagement?.suggestedPositionSizePercent ?? 1}% {t.accountCapital}
+                      {currentRes.riskManagement?.suggestedPositionSizePercent ?? 1}% {t.accountCapital}
                     </strong>
                   </span>
                 </div>
                 <div style={{ color: '#d1d5db', fontSize: '10px', lineHeight: '1.45', margin: 0 }}>
                   <span style={{ color: '#34d399', fontWeight: '800' }}>{t.fundamentalTechnicalReason} </span>
-                  {result.biasReasoning}
+                  {currentRes.biasReasoning}
                 </div>
               </div>
 

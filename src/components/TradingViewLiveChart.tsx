@@ -1306,11 +1306,11 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
             isLight ? 'border-slate-300/60' : 'border-white/[0.04]'
           }`}>
             {/* Timeframe Quick Switcher */}
-            <div className="flex items-center space-x-1">
-              <span className={`text-[11px] font-semibold mr-1 hidden sm:inline ${
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className={`text-[11px] sm:text-xs font-semibold mr-1 ${
                 isLight ? 'text-slate-700' : 'text-[#86868b]'
               }`}>
-                {t.tvTimeframeLabel || 'Timeframe:'}
+                {t.tvTimeframeLabel || (language === 'cs' ? 'Vyber Timeframe pro analýzu grafu:' : language === 'es' ? 'Selecciona Temporalidad para Análisis del Gráfico:' : 'Select Timeframe for Chart Analysis:')}
               </span>
               {TIMEFRAMES.map((tf) => {
                 const currentActiveInterval = intervalRef.current || interval;
@@ -1355,7 +1355,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                     id="capture-live-chart-btn"
                     onClick={handleCaptureCurrentChart}
                     disabled={isCapturing}
-                    className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-md shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
+                    className="px-6 sm:px-8 py-2.5 rounded-xl min-w-[240px] sm:min-w-[300px] justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center space-x-2.5 shadow-md shadow-emerald-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed tracking-wide"
                     title={
                       language === 'cs'
                         ? `Vyfotit aktuální graf ${currentSym} (${currentTf}) a vložit do volného pole (Slot ${getTargetSlotIndex() + 1})`

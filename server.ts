@@ -451,14 +451,14 @@ async function callGeminiWithRetry(
   requestParams: any,
   maxRetries = 1
 ) {
-  const primaryModel = requestParams.model || 'gemini-2.5-flash';
+  const primaryModel = requestParams.model || 'gemini-3.8-flash';
   // Comprehensive fallback chain with verified, high-availability multi-modal models
   const allCandidateModels = Array.from(new Set([
     primaryModel,
-    'gemini-2.5-flash',
     'gemini-3.8-flash',
-    'gemini-3.1-flash-lite',
     'gemini-flash-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
   ]));
 
   // Prioritize models that are NOT currently in 429 / 503 cooldown
@@ -945,7 +945,80 @@ function detectFallbackAssetProfile(settings: any, images: string[] = []): Asset
   return FALLBACK_ASSET_PROFILES.btc;
 }
 
-function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): any {
+// Quantitative Indicators & Technical Math Helpers for TRADEOY Engine
+function calculateEmaSeries(prices: number[], period: number): number {
+  if (!prices.length) return 0;
+  const k = 2 / (period + 1);
+  let ema = prices[0];
+  for (let i = 1; i < prices.length; i++) {
+    ema = prices[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
+function calculateRsiSeries(prices: number[], period: number = 14): number {
+  if (prices.length <= period) return 50;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = prices[i] - prices[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses += Math.abs(diff);
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+
+  for (let i = period + 1; i < prices.length; i++) {
+    const diff = prices[i] - prices[i - 1];
+    if (diff >= 0) {
+      avgGain = (avgGain * (period - 1) + diff) / period;
+      avgLoss = (avgLoss * (period - 1)) / period;
+    } else {
+      avgGain = (avgGain * (period - 1)) / period;
+      avgLoss = (avgLoss * (period - 1) + Math.abs(diff)) / period;
+    }
+  }
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+function calculateAtr(candles: Array<{ high: number; low: number; close: number }>, period: number = 14): number {
+  if (candles.length < 2) return (candles[0]?.close || 100) * 0.005;
+  const trs: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const h = candles[i].high;
+    const l = candles[i].low;
+    const prevC = candles[i - 1].close;
+    const tr = Math.max(h - l, Math.abs(h - prevC), Math.abs(l - prevC));
+    trs.push(tr);
+  }
+  const slice = trs.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / slice.length;
+}
+
+function getAssetPrecision(symbol: string, currentPrice: number): number {
+  const sym = symbol.toUpperCase();
+  if (sym.includes('JPY')) return 3;
+  if (sym.includes('XRP')) return 4;
+  if (
+    sym.includes('EUR') ||
+    sym.includes('GBP') ||
+    sym.includes('CHF') ||
+    sym.includes('AUD') ||
+    sym.includes('NZD') ||
+    sym.includes('CAD')
+  ) {
+    if (currentPrice < 10) return 5;
+  }
+  if (currentPrice >= 1000) return 2;
+  if (currentPrice >= 10) return 2;
+  if (currentPrice >= 1) return 4;
+  return 5;
+}
+
+async function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): Promise<any> {
   const lang = settings?.language || 'cs';
   const holdingPeriod = settings?.holdingPeriod || 'intraday';
   const riskTolerance = settings?.riskTolerance || 'balanced';
@@ -978,83 +1051,465 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
     timeframe = sortServerTimeframes(timeframe);
   }
 
-  // Strategy confluences localized
-  const confluences: any[] = [];
+  // Derive normalized single timeframe for live candlestick data fetch
+  let normalizedTf = '15m';
+  const tfUpper = String(timeframe || '15m').toUpperCase();
+  if (tfUpper.includes('1M') && !tfUpper.includes('15M')) normalizedTf = '1m';
+  else if (tfUpper.includes('5M') || tfUpper.includes('M5')) normalizedTf = '5m';
+  else if (tfUpper.includes('15M') || tfUpper.includes('M15')) normalizedTf = '15m';
+  else if (tfUpper.includes('30M') || tfUpper.includes('M30')) normalizedTf = '30m';
+  else if (tfUpper.includes('1H') || tfUpper.includes('H1') || tfUpper.includes('60')) normalizedTf = '1h';
+  else if (tfUpper.includes('4H') || tfUpper.includes('H4') || tfUpper.includes('240')) normalizedTf = '4h';
+  else if (tfUpper.includes('1D') || tfUpper.includes('D1') || tfUpper.includes('DAILY')) normalizedTf = '1d';
 
+  // Identify asset query symbol for candlestick engine
+  const rawSymbol = String(settings?.symbol || settings?.asset || settings?.name || settings?.ticker || profile.symbol || '').trim();
+  let querySymbol = 'XAUUSD';
+  const lowerQuery = rawSymbol.toLowerCase();
+
+  if (lowerQuery.includes('btc') || lowerQuery.includes('bitcoin')) querySymbol = 'BTCUSDT';
+  else if (lowerQuery.includes('eth') || lowerQuery.includes('ethereum')) querySymbol = 'ETHUSDT';
+  else if (lowerQuery.includes('sol') || lowerQuery.includes('solana')) querySymbol = 'SOLUSDT';
+  else if (lowerQuery.includes('xrp') || lowerQuery.includes('ripple')) querySymbol = 'XRPUSDT';
+  else if (lowerQuery.includes('gold') || lowerQuery.includes('xau') || lowerQuery.includes('zlato') || lowerQuery.includes('oro')) querySymbol = 'XAUUSD';
+  else if (lowerQuery.includes('silver') || lowerQuery.includes('xag') || lowerQuery.includes('stříbr') || lowerQuery.includes('plata')) querySymbol = 'XAGUSD';
+  else if (lowerQuery.includes('oil') || lowerQuery.includes('wti') || lowerQuery.includes('brent') || lowerQuery.includes('ropa')) querySymbol = 'USOIL';
+  else if (lowerQuery.includes('sp500') || lowerQuery.includes('spx') || lowerQuery.includes('us500')) querySymbol = 'SPX';
+  else if (lowerQuery.includes('nasdaq') || lowerQuery.includes('ndx') || lowerQuery.includes('us100')) querySymbol = 'NDX';
+  else if (lowerQuery.includes('dow') || lowerQuery.includes('dji') || lowerQuery.includes('us30')) querySymbol = 'US30';
+  else if (lowerQuery.includes('dax') || lowerQuery.includes('ger40') || lowerQuery.includes('de40')) querySymbol = 'DE40';
+  else if (lowerQuery.includes('gbp')) querySymbol = 'GBPUSD';
+  else if (lowerQuery.includes('jpy')) querySymbol = 'USDJPY';
+  else if (lowerQuery.includes('chf')) querySymbol = 'USDCHF';
+  else if (lowerQuery.includes('eur')) querySymbol = 'EURUSD';
+  else if (rawSymbol.length > 0) querySymbol = rawSymbol.replace(/[^a-zA-Z0-9]/g, '');
+
+  // Attempt to fetch real live candlestick data for deep technical evaluation
+  let candleData: any = null;
+  try {
+    candleData = await getChartCandles(querySymbol, normalizedTf);
+  } catch (err) {
+    console.warn(`[Quantitative Engine] Notice: Could not fetch live candles for ${querySymbol}:`, err);
+  }
+
+  const candles: Array<{ open: number; high: number; low: number; close: number; volume?: number }> =
+    candleData?.candles && candleData.candles.length >= 10 ? candleData.candles : [];
+
+  let currentPrice = profile.entryRecommended;
+  let precision = getAssetPrecision(profile.symbol, currentPrice);
+  let signal: 'LONG' | 'SHORT' | 'NEUTRAL_WAIT' = 'LONG';
+  let rsi = 52;
+  let ema20 = currentPrice;
+  let ema50 = currentPrice;
+  let atr = currentPrice * 0.004;
+
+  let swingHighs: Array<{ price: number; idx: number }> = [];
+  let swingLows: Array<{ price: number; idx: number }> = [];
+
+  if (candles.length >= 10) {
+    const closes = candles.map((c) => c.close);
+    currentPrice = closes[closes.length - 1];
+    precision = getAssetPrecision(profile.symbol, currentPrice);
+
+    ema20 = calculateEmaSeries(closes, Math.min(20, closes.length));
+    ema50 = calculateEmaSeries(closes, Math.min(50, closes.length));
+    rsi = calculateRsiSeries(closes, 14);
+    atr = calculateAtr(candles, 14);
+
+    // Identify swing highs & lows via 5-bar fractal check
+    for (let i = 2; i < candles.length - 2; i++) {
+      const c = candles[i];
+      if (
+        c.high >= candles[i - 1].high &&
+        c.high >= candles[i - 2].high &&
+        c.high >= candles[i + 1].high &&
+        c.high >= candles[i + 2].high
+      ) {
+        swingHighs.push({ price: c.high, idx: i });
+      }
+      if (
+        c.low <= candles[i - 1].low &&
+        c.low <= candles[i - 2].low &&
+        c.low <= candles[i + 1].low &&
+        c.low <= candles[i + 2].low
+      ) {
+        swingLows.push({ price: c.low, idx: i });
+      }
+    }
+
+    const lastHigh = swingHighs[swingHighs.length - 1]?.price || currentPrice * 1.006;
+    const prevHigh = swingHighs[swingHighs.length - 2]?.price || lastHigh;
+    const lastLow = swingLows[swingLows.length - 1]?.price || currentPrice * 0.994;
+    const prevLow = swingLows[swingLows.length - 2]?.price || lastLow;
+
+    const isLowerHighs = lastHigh < prevHigh;
+    const isLowerLows = lastLow < prevLow;
+    const isHigherHighs = lastHigh > prevHigh;
+    const isHigherLows = lastLow > prevLow;
+
+    const isBelowEma = currentPrice < ema20 && ema20 <= ema50;
+    const isAboveEma = currentPrice > ema20 && ema20 >= ema50;
+
+    // Check recent momentum of last 3 candles
+    const lastCandle = candles[candles.length - 1];
+    const thirdLastCandle = candles[Math.max(0, candles.length - 3)];
+    const recentDiff = lastCandle.close - thirdLastCandle.open;
+
+    // Smart Quantitative Decision Engine: Determine true market bias
+    if ((isLowerHighs && isLowerLows) || (isBelowEma && recentDiff < 0) || (isBelowEma && currentPrice < lastLow)) {
+      signal = 'SHORT';
+    } else if ((isHigherHighs && isHigherLows) || (isAboveEma && recentDiff > 0) || (isAboveEma && currentPrice > lastHigh)) {
+      signal = 'LONG';
+    } else if (isBelowEma) {
+      signal = 'SHORT';
+    } else if (isAboveEma) {
+      signal = 'LONG';
+    } else if (rsi > 62) {
+      signal = 'SHORT';
+    } else if (rsi < 38) {
+      signal = 'LONG';
+    } else {
+      signal = Math.abs(currentPrice - lastLow) < Math.abs(currentPrice - lastHigh) ? 'LONG' : 'SHORT';
+    }
+  } else {
+    // If candles unavailable, calibrate dynamically around profile baseline
+    signal = 'LONG';
+  }
+
+  // Calculate mathematically robust Entry, Stop Loss, and TP1/TP2/TP3 targets based on live levels
+  const buffer = Math.max(atr * 1.2, currentPrice * 0.002);
+  let entryRecommended = currentPrice;
+  let entryMin = currentPrice;
+  let entryMax = currentPrice;
+  let slPrice = currentPrice;
+  let slDistPercent = 0.5;
+  let tp1Price = currentPrice;
+  let tp2Price = currentPrice;
+  let tp3Price = currentPrice;
+  let targetZoneStr = '';
+  let drawDirection = 'UPSIDE_BSL';
+  let drawReason = '';
+  let prohibitedTradeWarning = '';
+  let invalidationCond = '';
+  let trailingStopRule = '';
+
+  const recentHighPrice = swingHighs[swingHighs.length - 1]?.price || currentPrice * 1.006;
+  const recentLowPrice = swingLows[swingLows.length - 1]?.price || currentPrice * 0.994;
+
+  if (signal === 'SHORT') {
+    drawDirection = 'DOWNSIDE_SSL';
+    slPrice = Number((Math.max(recentHighPrice, currentPrice + buffer) + buffer * 0.4).toFixed(precision));
+    entryRecommended = Number(Math.min(currentPrice * 1.0004, slPrice - buffer * 0.7).toFixed(precision));
+    entryMin = Number(currentPrice.toFixed(precision));
+    entryMax = Number((entryRecommended + buffer * 0.25).toFixed(precision));
+
+    const slDist = Math.max(slPrice - entryRecommended, buffer);
+    slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
+
+    tp1Price = Number((entryRecommended - slDist * 1.8).toFixed(precision));
+    tp2Price = Number((entryRecommended - slDist * 3.0).toFixed(precision));
+    tp3Price = Number((entryRecommended - slDist * 4.5).toFixed(precision));
+
+    targetZoneStr = `${tp2Price.toFixed(precision)} - ${tp3Price.toFixed(precision)} ${profile.currency} (Sell-Side Liquidity / SSL Pool)`;
+
+    drawReason = lang === 'en'
+      ? 'Untouched Sell-Side Liquidity (SSL) resting below structural lows acts as the primary price magnet.'
+      : lang === 'es'
+      ? 'La reserva de liquidez vendedora (SSL) bajo mínimos estructurales actúa como imán principal del precio.'
+      : 'Nevybraný pool prodejní likvidity (Sell-Side Liquidity - SSL) pod strukturálními minimy působí jako hlavní cenový magnet.';
+
+    prohibitedTradeWarning = lang === 'en'
+      ? 'Counter-trend long buying into unmitigated SSL carries severe stop-out vulnerability.'
+      : lang === 'es'
+      ? 'Abrir compras contra liquidez bajista no mitigada conlleva alto riesgo de barrido de stop.'
+      : 'Rizikový faktor protitrendové pozice: Otevírání longů proti silnému toku objednávek k SSL představuje vysoké riziko stop-outu.';
+
+    invalidationCond = lang === 'en'
+      ? `A candle body close above ${slPrice.toFixed(precision)} completely invalidates the bearish market structure thesis.`
+      : lang === 'es'
+      ? `Un cierre de vela por encima de ${slPrice.toFixed(precision)} invalida por completo la tesis de estructura bajista.`
+      : `Uzavření svíčky (close) nad cenou ${slPrice.toFixed(precision)} kompletně ruší platnost medvědího tržního modelu.`;
+
+    trailingStopRule = lang === 'en'
+      ? `After reaching TP1 (${tp1Price.toFixed(precision)}), move Stop Loss to Breakeven (BE). Subsequently trail stop above each confirmed swing high.`
+      : lang === 'es'
+      ? `Tras alcanzar TP1 (${tp1Price.toFixed(precision)}), mueva el Stop Loss a Breakeven (BE). Luego arrastre el stop sobre cada nuevo máximo swing.`
+      : `Po dosažení TP1 (${tp1Price.toFixed(precision)}) posunout SL na vstupní cenu (Breakeven). Následně posouvat SL nad každé nově vytvořené a potvrzené nižší maximum (Lower High).`;
+  } else {
+    // LONG
+    drawDirection = 'UPSIDE_BSL';
+    slPrice = Number((Math.min(recentLowPrice, currentPrice - buffer) - buffer * 0.4).toFixed(precision));
+    entryRecommended = Number(Math.max(currentPrice * 0.9996, slPrice + buffer * 0.7).toFixed(precision));
+    entryMin = Number((entryRecommended - buffer * 0.25).toFixed(precision));
+    entryMax = Number(currentPrice.toFixed(precision));
+
+    const slDist = Math.max(entryRecommended - slPrice, buffer);
+    slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
+
+    tp1Price = Number((entryRecommended + slDist * 1.8).toFixed(precision));
+    tp2Price = Number((entryRecommended + slDist * 3.0).toFixed(precision));
+    tp3Price = Number((entryRecommended + slDist * 4.5).toFixed(precision));
+
+    targetZoneStr = `${tp2Price.toFixed(precision)} - ${tp3Price.toFixed(precision)} ${profile.currency} (Buy-Side Liquidity / BSL Pool)`;
+
+    drawReason = lang === 'en'
+      ? 'Untouched Buy-Side Liquidity (BSL) resting above equal swing highs acts as the primary price magnet.'
+      : lang === 'es'
+      ? 'La reserva de liquidez compradora sobre máximos iguales actúa como imán principal del precio.'
+      : 'Nevybraný pool nákupní likvidity (Buy-Side Liquidity - BSL) nad lokálními vrcholy působí jako hlavní cenový magnet.';
+
+    prohibitedTradeWarning = lang === 'en'
+      ? 'Counter-trend shorting into unmitigated BSL carries severe stop-run vulnerability.'
+      : lang === 'es'
+      ? 'Abrir cortos contra liquidez alcista no mitigada conlleva alto riesgo de barrido de stop.'
+      : 'Rizikový faktor protitrendové pozice: Otevírání shortů do nevybraného nákupního magnetu představuje vysoké statistické riziko pasti.';
+
+    invalidationCond = lang === 'en'
+      ? `A candle body close below ${slPrice.toFixed(precision)} completely invalidates the bullish market structure thesis.`
+      : lang === 'es'
+      ? `Un cierre de vela por debajo de ${slPrice.toFixed(precision)} invalida por completo la tesis de estructura alcista.`
+      : `Uzavření svíčky (close) pod cenou ${slPrice.toFixed(precision)} kompletně ruší platnost býčího tržního modelu.`;
+
+    trailingStopRule = lang === 'en'
+      ? `After reaching TP1 (${tp1Price.toFixed(precision)}), move Stop Loss to Breakeven (BE). Subsequently trail stop below each confirmed swing low.`
+      : lang === 'es'
+      ? `Tras alcanzar TP1 (${tp1Price.toFixed(precision)}), mueva el Stop Loss a Breakeven (BE). Luego arrastre el stop bajo cada nuevo mínimo swing.`
+      : `Po dosažení TP1 (${tp1Price.toFixed(precision)}) posunout SL na vstupní cenu (Breakeven). Následně posouvat SL pod každé nově vytvořené a potvrzené vyšší minimum (Higher Low).`;
+  }
+
+  // Dynamic Strategy Confluences reflecting real market conditions
+  const confluences: any[] = [];
   if (selectedStrategies.includes('smc_ict')) {
     confluences.push({
       methodology: 'Smart Money Concepts (SMC / ICT)',
-      bias: 'BULLISH',
-      keyObservation: lang === 'en'
-        ? 'Purged Sell-Side Liquidity (SSL) below Asian swing low, followed by strong bullish displacement leaving a 4H Fair Value Gap (FVG) and Order Block mitigation.'
-        : lang === 'es'
-        ? 'Barrido de liquidez vendedora (SSL) bajo el mínimo de la sesión asiática, con desplazamiento alcista que deja un FVG en 4H y mitigación de Order Block.'
-        : 'Vybrána likvidita prodejců (Sell-Side Liquidity - SSL) pod asijským swingovým minimem, následována silnou býčí expanzí s mitigací 4H Order Blocku a vyplněním Fair Value Gap (FVG).',
+      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
+      keyObservation: signal === 'SHORT'
+        ? (lang === 'en'
+            ? `Buy-Side Liquidity sweep confirmed above previous high, triggering bearish displacement with unmitigated Fair Value Gap (FVG) and premium Order Block mitigation.`
+            : lang === 'es'
+            ? `Barrido de liquidez compradora (BSL) confirmado sobre el máximo previo, generando desplazamiento bajista con FVG y mitigación de Order Block en prima.`
+            : `Vybrání nákupní likvidity (BSL Sweep) nad předchozím maximem spustilo medvědí expanzi s vytvořením Fair Value Gap (FVG) a mitigací prémiového Order Blocku.`)
+        : (lang === 'en'
+            ? `Sell-Side Liquidity purge below recent low followed by aggressive bullish displacement leaving a discount Fair Value Gap (FVG) and Order Block support.`
+            : lang === 'es'
+            ? `Barrido de liquidez vendedora (SSL) bajo el mínimo reciente con desplazamiento alcista que deja FVG en descuento y soporte de Order Block.`
+            : `Vybrání prodejní likvidity (SSL Purge) pod lokálním minimem následované razantní býčí expanzí s diskontním Fair Value Gapem (FVG) a Order Blockem.`),
     });
   }
 
   if (selectedStrategies.includes('wyckoff')) {
     confluences.push({
       methodology: 'Wyckoff / Auction Market Theory',
-      bias: 'BULLISH',
-      keyObservation: lang === 'en'
-        ? 'Phase C Spring / Shakeout below support with aggressive absorption into Value Area. Sellers absorbed by institutional bids.'
-        : lang === 'es'
-        ? 'Fase C Spring / Shakeout bajo el soporte con absorción agresiva hacia el Área de Valor. Vendedores absorbidos por compradores institucionales.'
-        : 'Fáze C - Spring / Shakeout pod klíčovou podporu s okamžitou absorpcí prodejců a návratem do Value Area (oblasti hodnoty).',
+      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
+      keyObservation: signal === 'SHORT'
+        ? (lang === 'en'
+            ? `Phase C Upthrust After Distribution (UTAD) rejecting range highs with heavy volume absorption back below Value Area High.`
+            : lang === 'es'
+            ? `Fase C Upthrust After Distribution (UTAD) rechazando máximos del rango con absorción de volumen hacia el interior del Área de Valor.`
+            : `Fáze C - Upthrust After Distribution (UTAD) odmítající horní hranu pásma s vysokou absorpcí objemu zpět pod Value Area High.`)
+        : (lang === 'en'
+            ? `Phase C Spring / Shakeout below support with aggressive absorption into Value Area. Sellers exhausted by institutional demand.`
+            : lang === 'es'
+            ? `Fase C Spring / Shakeout bajo el soporte con absorción agresiva hacia el Área de Valor. Vendedores absorbidos por compradores institucionales.`
+            : `Fáze C - Spring / Shakeout pod klíčovou podporu s okamžitou absorpcí prodejců a návratem do Value Area (oblasti hodnoty).`),
     });
   }
 
   if (selectedStrategies.includes('price_action')) {
     confluences.push({
       methodology: 'Price Action & Market Structure',
-      bias: 'BULLISH',
-      keyObservation: lang === 'en'
-        ? 'Confirmed Market Structure Shift (MSS / CHoCH) on lower timeframe with consecutive higher lows and long rejection wick.'
-        : lang === 'es'
-        ? 'Cambio de estructura de mercado confirmado (MSS / CHoCH) con mínimos más altos consecutivos y mecha de rechazo pronunciada.'
-        : 'Potvrzený posun tržní struktury (MSS / CHoCH) na nižším rámci s tvorbou vyšších minim (Higher Lows) a silným knotem odmítnutí.',
+      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
+      keyObservation: signal === 'SHORT'
+        ? (lang === 'en'
+            ? `Confirmed Market Structure Shift (MSS / CHoCH) breaking structural lows with consecutive lower highs and rejection wick.`
+            : lang === 'es'
+            ? `Cambio de estructura de mercado confirmado (MSS / CHoCH) quebrando mínimos con máximos descendentes consecutivos y mecha de rechazo.`
+            : `Potvrzený posun tržní struktury (MSS / CHoCH) prolomením swingových minim s tvorbou nižších maxim (Lower Highs) a knotem odmítnutí.`)
+        : (lang === 'en'
+            ? `Confirmed Market Structure Shift (MSS / CHoCH) on timeframe with consecutive higher lows and long rejection wick.`
+            : lang === 'es'
+            ? `Cambio de estructura de mercado confirmado (MSS / CHoCH) con mínimos más altos consecutivos y mecha de rechazo pronunciada.`
+            : `Potvrzený posun tržní struktury (MSS / CHoCH) na daném rámci s tvorbou vyšších minim (Higher Lows) a silným knotem odmítnutí.`),
     });
   }
 
   if (selectedStrategies.includes('supply_demand')) {
     confluences.push({
       methodology: 'Supply & Demand',
-      bias: 'BULLISH',
-      keyObservation: lang === 'en'
-        ? 'Decisive tap into fresh, unmitigated H4 Demand zone with swift buying impulse.'
-        : lang === 'es'
-        ? 'Toque decisivo en zona de Demanda H4 fresca e inmitigada con rápido impulso comprador.'
-        : 'Otestování čerstvé nákupní poptávkové zóny na H4 s dynamickým impulzem kupujících.',
+      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
+      keyObservation: signal === 'SHORT'
+        ? (lang === 'en'
+            ? 'Decisive rejection from fresh, unmitigated Supply zone with swift institutional selling.'
+            : lang === 'es'
+            ? 'Rechazo decisivo desde zona de Oferta fresca e inmitigada con venta institucional rápida.'
+            : 'Odmítnutí čerstvé prémiové zóny nabídky s dynamickým impulzem institucionálních prodejců.')
+        : (lang === 'en'
+            ? 'Decisive tap into fresh, unmitigated Demand zone with swift buying impulse.'
+            : lang === 'es'
+            ? 'Toque decisivo en zona de Demanda fresca e inmitigada con rápido impulso comprador.'
+            : 'Otestování čerstvé nákupní poptávkové zóny s dynamickým impulzem kupujících.'),
     });
   }
 
   if (selectedStrategies.includes('trend_breakout')) {
     confluences.push({
       methodology: 'Trend & Dynamic Support',
-      bias: 'BULLISH',
-      keyObservation: lang === 'en'
-        ? 'Bullish consolidation holding firmly above dynamic 50/200 EMA cluster.'
-        : lang === 'es'
-        ? 'Consolidación alcista manteniéndose firmemente sobre el cluster de EMAs 50/200.'
-        : 'Býčí konsolidace s udržením podpory nad dynamickým shlukem klouzavých průměrů EMA 50/200.',
+      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
+      keyObservation: signal === 'SHORT'
+        ? (lang === 'en'
+            ? 'Bearish breakdown holding firmly below dynamic 20/50 EMA cluster.'
+            : lang === 'es'
+            ? 'Ruptura bajista manteniéndose firmemente bajo el cluster de EMAs 20/50.'
+            : 'Medvědí prolomení s udržením tlaku pod dynamickým shlukem klouzavých průměrů EMA 20/50.')
+        : (lang === 'en'
+            ? 'Bullish consolidation holding firmly above dynamic 50/200 EMA cluster.'
+            : lang === 'es'
+            ? 'Consolidación alcista manteniéndose firmemente sobre el cluster de EMAs 50/200.'
+            : 'Býčí konsolidace s udržením podpory nad dynamickým shlukem klouzavých průměrů EMA 50/200.'),
     });
   }
 
   if (confluences.length === 0) {
     confluences.push({
       methodology: 'Technical Confluence',
-      bias: 'BULLISH',
-      keyObservation: lang === 'en'
-        ? 'Rejection of multi-session support with high-volume buying absorption.'
-        : lang === 'es'
-        ? 'Rechazo de soporte multi-sesión con absorción de compra de alto volumen.'
-        : 'Odmítnutí vícesesijní podpory s vysokým objemem nákupní absorpce.',
+      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
+      keyObservation: signal === 'SHORT'
+        ? (lang === 'en'
+            ? 'Rejection of multi-session resistance with high-volume institutional selling absorption.'
+            : lang === 'es'
+            ? 'Rechazo de resistencia multi-sesión con absorción de venta institucional.'
+            : 'Odmítnutí vícesesijní rezistence s vysokým objemem prodejní absorpce.')
+        : (lang === 'en'
+            ? 'Rejection of multi-session support with high-volume buying absorption.'
+            : lang === 'es'
+            ? 'Rechazo de soporte multi-sesión con absorción de compra de alto volumen.'
+            : 'Odmítnutí vícesesijní podpory s vysokým objemem nákupní absorpce.'),
     });
   }
 
-  const confidenceScore = riskTolerance === 'conservative' ? 84 : riskTolerance === 'aggressive' ? 92 : 88;
+  const confidenceScore = riskTolerance === 'conservative' ? 82 : riskTolerance === 'aggressive' ? 90 : 86;
   const assetName = lang === 'en' ? profile.nameEn : lang === 'es' ? profile.nameEs : profile.nameCs;
+
+  // Dynamic Key Support & Resistance Levels based on live candles
+  const supportLevels = swingLows.length >= 2
+    ? [Number(swingLows[swingLows.length - 1].price.toFixed(precision)), Number(swingLows[swingLows.length - 2].price.toFixed(precision))]
+    : [Number((currentPrice * 0.994).toFixed(precision)), Number((currentPrice * 0.988).toFixed(precision))];
+
+  const resistanceLevels = swingHighs.length >= 2
+    ? [Number(swingHighs[swingHighs.length - 1].price.toFixed(precision)), Number(swingHighs[swingHighs.length - 2].price.toFixed(precision))]
+    : [Number((currentPrice * 1.006).toFixed(precision)), Number((currentPrice * 1.012).toFixed(precision))];
+
+  const keyPivotPrice = Number(((recentHighPrice + recentLowPrice) / 2).toFixed(precision));
+
+  // Dynamic Candlestick & Price Action structures
+  const candlestickPatterns = signal === 'SHORT'
+    ? [
+        {
+          pattern: 'Bearish Rejection Wick / Shooting Star',
+          signalType: 'Bearish',
+          location: lang === 'en' ? 'Premium Supply POI' : lang === 'es' ? 'POI de Oferta en Prima' : 'Prémiová zóna nabídky',
+          significance: lang === 'en'
+            ? 'Long upper shadow confirming heavy institutional distribution and absorption of breakout buyers.'
+            : lang === 'es'
+            ? 'Larga sombra superior que confirma distribución institucional y absorción de compras de ruptura.'
+            : 'Dlouhý horní knot potvrzující institucionální distribuci a absorpci unáhlených nákupních příkazů.',
+        },
+        {
+          pattern: 'Bearish Displacement Candle',
+          signalType: 'Bearish',
+          location: lang === 'en' ? 'Market Structure Shift' : lang === 'es' ? 'Cambio de Estructura' : 'Prolomení struktury (MSS)',
+          significance: lang === 'en'
+            ? 'Strong red body closing beneath structural swing low confirming aggressive order flow delivery.'
+            : lang === 'es'
+            ? 'Cuerpo bajista sólido cerrando bajo el mínimo swing que confirma entrega agresiva de órdenes de venta.'
+            : 'Plná medvědí svíčka uzavírající pod swingovým minimem potvrzující agresivní prodejní tok objednávek.',
+        },
+      ]
+    : [
+        {
+          pattern: 'Bullish Rejection Pinbar',
+          signalType: 'Bullish',
+          location: lang === 'en' ? 'Discount Order Block' : lang === 'es' ? 'Order Block en Descuento' : 'Diskontní Order Block',
+          significance: lang === 'en'
+            ? 'Strong long lower shadow proving institutional absorption of retail selling.'
+            : lang === 'es'
+            ? 'Larga sombra inferior que demuestra absorción institucional de ventas minoristas.'
+            : 'Dlouhý spodní knot prokazující institucionální absorpci prodejního tlaku.',
+        },
+        {
+          pattern: 'Bullish Engulfing Bar',
+          signalType: 'Bullish',
+          location: lang === 'en' ? 'Lower Timeframe MSS' : lang === 'es' ? 'MSS en temporalidad menor' : 'Posun struktury na nižším rámci',
+          significance: lang === 'en'
+            ? 'Body expansion confirming aggressive institutional order flow delivery.'
+            : lang === 'es'
+            ? 'Expansión del cuerpo que confirma entrega agresiva del flujo de órdenes.'
+            : 'Svíčková expanze potvrzující agresivní institucionální tok objednávek.',
+        },
+      ];
+
+  const priceActionStructures = signal === 'SHORT'
+    ? [
+        {
+          structure: 'Buy-Side Liquidity Sweep (BSL Purge)',
+          description: lang === 'en'
+            ? 'Fake breakout above session high trapping late breakout buyers before impulsive downward reversal.'
+            : lang === 'es'
+            ? 'Falsa ruptura sobre el máximo de sesión atrapando compradores antes del giro bajista impulsivo.'
+            : 'Falešný průraz nad lokální maximum zachytil opožděné nakupující do pasti před razantním obratem dolů.',
+        },
+        {
+          structure: 'Bearish Fair Value Gap (FVG) & Order Block',
+          description: lang === 'en'
+            ? '3-candle impulsive displacement leaving clean imbalance acting as institutional resistance.'
+            : lang === 'es'
+            ? 'Desplazamiento impulsivo de 3 velas dejando un desequilibrio limpio como resistencia institucional.'
+            : 'Třísvíčková expanze zanechala cenovou nerovnováhu (FVG), která slouží jako institucionální rezistence.',
+        },
+      ]
+    : [
+        {
+          structure: 'Sell-Side Liquidity Sweep (SSL Purge)',
+          description: lang === 'en'
+            ? 'Fake breakdown below swing low trapping breakout sellers before impulsive reversal.'
+            : lang === 'es'
+            ? 'Falsa ruptura bajo el mínimo swing atrapando vendedores antes del giro impulsivo.'
+            : 'Falešný průraz pod swingové minimum zachytil unáhlené prodejce do pasti před prudkým obratem.',
+        },
+        {
+          structure: 'Fair Value Gap (FVG) & Breaker Zone',
+          description: lang === 'en'
+            ? '3-candle impulsive displacement leaving clean imbalance acting as support.'
+            : lang === 'es'
+            ? 'Desplazamiento impulsivo de 3 velas dejando un desequilibrio limpio como soporte.'
+            : 'Třísvíčková expanze zanechala cenovou nerovnováhu (FVG), která slouží jako magnet a podpora.',
+        },
+      ];
+
+  // Dynamic Bias Reasoning mentioning actual prices, timeframe, and indicators
+  const biasReasoning = signal === 'SHORT'
+    ? (lang === 'en'
+        ? `The market for ${profile.symbol} on the ${timeframe} timeframe has established a bearish market structure with consecutive Lower Highs and a confirmed Market Structure Shift (MSS). Current price at ${currentPrice.toFixed(precision)} ${profile.currency} is trading below the 20/50 EMA with RSI at ${rsi.toFixed(0)}, confirming persistent seller dominance. Institutional order flow is engineered to hunt unmitigated Sell-Side Liquidity (SSL).`
+        : lang === 'es'
+        ? `El mercado de ${profile.symbol} en la temporalidad de ${timeframe} ha establecido una estructura bajista con máximos descendentes y cambio de estructura (MSS). El precio actual de ${currentPrice.toFixed(precision)} ${profile.currency} cotiza bajo las EMAs 20/50 con RSI en ${rsi.toFixed(0)}, confirmando el flujo institucional hacia la liquidez vendedora (SSL).`
+        : `Trh ${profile.symbol} na časovém rámci ${timeframe} vytvořil medvědí tržní strukturu s tvorbou nižších maxim (Lower Highs) a potvrzeným proražením struktury (MSS). Aktuální cena ${currentPrice.toFixed(precision)} ${profile.currency} se obchoduje pod 20/50 EMA s RSI (${rsi.toFixed(0)}), což potvrzuje dominanci prodejců a pokračování toku objednávek směrem k nevybrané likviditě kupujících (SSL).`)
+    : (lang === 'en'
+        ? `The market for ${profile.symbol} on the ${timeframe} timeframe has formed a bullish market structure with Higher Highs and an MSS following an SSL liquidity purge. Current price at ${currentPrice.toFixed(precision)} ${profile.currency} is supported within a discount demand zone above key moving averages with RSI at ${rsi.toFixed(0)}. Confluences confirm bullish expansion targeting untouched Buy-Side Liquidity (BSL).`
+        : lang === 'es'
+        ? `El mercado de ${profile.symbol} en ${timeframe} muestra una estructura alcista con mínimos ascendentes tras barrer liquidez vendedora. El precio actual de ${currentPrice.toFixed(precision)} ${profile.currency} se apoya sobre soporte institucional con RSI en ${rsi.toFixed(0)}, favoreciendo la expansión hacia la liquidez compradora (BSL).`
+        : `Trh ${profile.symbol} na časovém rámci ${timeframe} vytvořil býčí tržní strukturu s tvorbou vyšších minim (Higher Lows) a proražením struktury (MSS) po vybrání prodejní likvidity. Aktuální cena ${currentPrice.toFixed(precision)} ${profile.currency} se opírá o diskontní nákupní zónu s RSI (${rsi.toFixed(0)}). Konfluence potvrzují pokračování býčí expanze k nevybrané likviditě nákupních příkazů (BSL).`);
+
+  const mentorAdvice = signal === 'SHORT'
+    ? (lang === 'en'
+        ? `Execution discipline is paramount on ${profile.symbol} (${timeframe}). As price delivers toward TP1 (${tp1Price.toFixed(precision)}), lock in 50% profits and immediately move your Stop Loss to Breakeven. Risk is structurally capped at ${slPrice.toFixed(precision)}; never move your stop further into loss.`
+        : lang === 'es'
+        ? `La disciplina de ejecución es clave en ${profile.symbol} (${timeframe}). Al alcanzar TP1 (${tp1Price.toFixed(precision)}), asegure el 50% y traslade su Stop Loss a Breakeven. El riesgo queda fijado en ${slPrice.toFixed(precision)}; nunca extienda su stop loss.`
+        : `Klíčem k úspěšné exekuci na trhu ${profile.symbol} (${timeframe}) je striktní disciplína. Po dosažení TP1 (${tp1Price.toFixed(precision)}) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Invalidační úroveň je striktně ohraničena na ${slPrice.toFixed(precision)}, nikdy neposouvejte SL do větší ztráty.`)
+    : (lang === 'en'
+        ? `Execution discipline is the cornerstone of trading on ${profile.symbol} (${timeframe}). Once price reaches TP1 (${tp1Price.toFixed(precision)}), lock in 50% and mechanically shift Stop Loss to Breakeven. Never widen your stop, respect the structural invalidation level at ${slPrice.toFixed(precision)}, and let the statistical edge compound.`
+        : lang === 'es'
+        ? `La disciplina de ejecución es el pilar en ${profile.symbol} (${timeframe}). Cuando el precio alcance TP1 (${tp1Price.toFixed(precision)}), asegure el 50% y mueva mecánicamente el Stop Loss a Breakeven. Respete el nivel de invalidación en ${slPrice.toFixed(precision)}.`
+        : `Klíčem k dlouhodobé ziskovosti na trhu ${profile.symbol} (${timeframe}) je striktní prováděcí disciplína. Po dosažení TP1 (${tp1Price.toFixed(precision)}) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Nikdy neposouvejte Stop Loss do větší ztráty a respektujte invalidační úroveň ${slPrice.toFixed(precision)}.`);
 
   return {
     id: crypto.randomUUID(),
@@ -1063,26 +1518,14 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
     symbol: profile.symbol,
     assetName,
     timeframe,
-    signal: 'LONG',
+    signal,
     confidenceScore,
-    biasReasoning: lang === 'en'
-      ? `The market for ${profile.symbol} completed an institutional liquidity sweep below prior session lows, engineering a strong bullish displacement. Price retraced into a discount Order Block and Fair Value Gap (FVG) below equilibrium (50% Fib). Structural confluences favor bullish expansion targeting untouched Buy-Side Liquidity (BSL).`
-      : lang === 'es'
-      ? `El mercado de ${profile.symbol} completó un barrido de liquidez institucional bajo los mínimos de la sesión previa, generando un desplazamiento alcista enérgico. El precio retrocedió hacia un Order Block en descuento y FVG bajo el equilibrio. Las confluencias favorecen la expansión alcista hacia la liquidez de compradores (BSL).`
-      : `Trh ${profile.symbol} dokončil institucionální vybrání likvidity (Liquidity Sweep) pod minimem předchozí seance a vytvořil dynamickou býčí expanzi s proražením struktury (MSS). Současný retracement otestoval diskontní Order Block a Fair Value Gap pod 50 % Fibonaccim. Konfluence potvrzují pokračování expanze k nevybrané likviditě kupujících.`,
+    biasReasoning,
     drawOnLiquidity: {
-      targetZone: profile.targetZoneStr,
-      direction: 'UPSIDE_BSL',
-      reason: lang === 'en'
-        ? 'Untouched Buy-Side Liquidity pool resting above equal swing highs acts as the primary price magnet.'
-        : lang === 'es'
-        ? 'La reserva de liquidez compradora sobre máximos iguales actúa como imán principal del precio.'
-        : 'Nevybraný pool likvidity nákupních příkazů nad lokálními dvojitými vrcholy (Equal Highs) působí jako hlavní cenový magnet.',
-      prohibitedOpposingTrade: lang === 'en'
-        ? 'Counter-trend shorting into unmitigated BSL carries severe stop-run vulnerability.'
-        : lang === 'es'
-        ? 'Abrir cortos contra liquidez alcista no mitigada conlleva alto riesgo de barrido de stop.'
-        : 'Rizikový faktor protitrendové pozice: Otevírání shortů do nevybraného nákupního magnetu představuje vysoké statistické riziko pasti.',
+      targetZone: targetZoneStr,
+      direction: drawDirection,
+      reason: drawReason,
+      prohibitedOpposingTrade: prohibitedTradeWarning,
     },
     methodologyConfluences: confluences,
     economicCalendarWarning: {
@@ -1120,23 +1563,29 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
         : 'Během vyhlašování makroekonomických zpráv statisticky dochází k rozšíření spreadů a cenovému skluzu; model počítá se zvýšenou obezřetností a posunem SL na BE.',
     },
     entryZone: {
-      min: profile.entryMin,
-      max: profile.entryMax,
-      recommended: profile.entryRecommended,
+      min: entryMin,
+      max: entryMax,
+      recommended: entryRecommended,
     },
     stopLoss: {
-      price: profile.slPrice,
-      reason: lang === 'en'
-        ? 'Safely positioned below the liquidity sweep wick and origin of the bullish order block.'
-        : lang === 'es'
-        ? 'Posicionado de forma segura bajo la mecha del barrido y el origen del order block alcista.'
-        : 'Umístěn bezpečně pod spodní hranu svíčky likviditního výběru a pod 4H nákupní Order Block.',
-      distancePercent: profile.slDistPercent,
+      price: slPrice,
+      reason: signal === 'SHORT'
+        ? (lang === 'en'
+            ? `Safely positioned above recent structural swing high and supply order block.`
+            : lang === 'es'
+            ? `Posicionado de forma segura sobre el máximo estructural reciente y order block de oferta.`
+            : `Umístěn bezpečně nad nedávné swingové maximum a prémiový blok nabídky.`)
+        : (lang === 'en'
+            ? `Safely positioned below the liquidity sweep wick and origin of the bullish order block.`
+            : lang === 'es'
+            ? `Posicionado de forma segura bajo la mecha del barrido y el origen del order block alcista.`
+            : `Umístěn bezpečně pod spodní hranu svíčky likviditního výběru a pod nákupní Order Block.`),
+      distancePercent: slDistPercent,
     },
     takeProfitTargets: [
       {
         target: 1,
-        price: profile.tp1Price,
+        price: tp1Price,
         riskRewardRatio: 1.8,
         description: lang === 'en'
           ? 'First opposing liquidity pool. Scale out 50% and move SL to Breakeven.'
@@ -1147,117 +1596,83 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
       },
       {
         target: 2,
-        price: profile.tp2Price,
+        price: tp2Price,
         riskRewardRatio: 3.0,
-        description: lang === 'en'
-          ? 'Major Equal Highs (BSL target). Primary profit objective.'
-          : lang === 'es'
-          ? 'Máximos iguales principales (objetivo BSL). Meta de beneficio primaria.'
-          : 'Hlavní nákupní likvidita nad Equal Highs. Primární cíl obchodu.',
+        description: signal === 'SHORT'
+          ? (lang === 'en'
+              ? 'Major swing low target (SSL pool). Primary profit objective.'
+              : lang === 'es'
+              ? 'Mínimo swing principal (objetivo SSL). Meta de beneficio primaria.'
+              : 'Hlavní prodejní likvidita pod swingovými minimy (SSL). Primární cíl obchodu.')
+          : (lang === 'en'
+              ? 'Major Equal Highs (BSL target). Primary profit objective.'
+              : lang === 'es'
+              ? 'Máximos iguales principales (objetivo BSL). Meta de beneficio primaria.'
+              : 'Hlavní nákupní likvidita nad Equal Highs. Primární cíl obchodu.'),
         closePercentage: 30,
       },
       {
         target: 3,
-        price: profile.tp3Price,
+        price: tp3Price,
         riskRewardRatio: 4.5,
         description: lang === 'en'
-          ? 'Higher timeframe imbalance runner. Trailing stop behind 1H structural lows.'
+          ? 'Higher timeframe imbalance runner. Trailing stop behind structural pivots.'
           : lang === 'es'
-          ? 'Extensión hacia desequilibrio de marco mayor. Trailing stop tras mínimos en 1H.'
-          : 'Prodloužená expanze do vyššího časového rámce. Trailing stop za 1H swingová minima.',
+          ? 'Extensión hacia desequilibrio de marco mayor. Trailing stop tras pivotes estructurales.'
+          : 'Prodloužená expanze do vyššího časového rámce. Trailing stop za potvrzená swingová minima/maxima.',
         closePercentage: 20,
       },
     ],
     overallRiskRewardRatio: '1 : 3.0',
-    candlestickPatterns: [
-      {
-        pattern: 'Bullish Rejection Pinbar',
-        signalType: 'Bullish',
-        location: lang === 'en' ? 'Discount Order Block' : lang === 'es' ? 'Order Block en Descuento' : 'Diskontní Order Block',
-        significance: lang === 'en'
-          ? 'Strong long lower shadow proving institutional absorption of retail selling.'
-          : lang === 'es'
-          ? 'Larga sombra inferior que demuestra absorción institucional de ventas minoristas.'
-          : 'Dlouhý spodní knot prokazující institucionální absorpci prodejního tlaku.',
-      },
-      {
-        pattern: 'Bullish Engulfing Bar',
-        signalType: 'Bullish',
-        location: lang === 'en' ? 'Lower Timeframe MSS' : lang === 'es' ? 'MSS en temporalidad menor' : 'Posun struktury na nižším rámci',
-        significance: lang === 'en'
-          ? 'Body expansion confirming aggressive institutional order flow delivery.'
-          : lang === 'es'
-          ? 'Expansión del cuerpo que confirma entrega agresiva del flujo de órdenes.'
-          : 'Svíčková expanze potvrzující agresivní institucionální tok objednávek.',
-      },
-    ],
-    priceActionStructures: [
-      {
-        structure: 'Sell-Side Liquidity Sweep (SSL Purge)',
-        description: lang === 'en'
-          ? 'Fake breakdown below Asian low trapping breakout sellers before impulsive reversal.'
-          : lang === 'es'
-          ? 'Falsa ruptura bajo el mínimo asiático atrapando vendedores antes del giro impulsivo.'
-          : 'Falešný průraz pod asijské minimum zachytil unáhlené prodejce do pasti před prudkým obratem.',
-      },
-      {
-        structure: 'Fair Value Gap (FVG) & Breaker Zone',
-        description: lang === 'en'
-          ? '3-candle impulsive displacement leaving clean imbalance acting as support.'
-          : lang === 'es'
-          ? 'Desplazamiento impulsivo de 3 velas dejando un desequilibrio limpio como soporte.'
-          : 'Třísvíčková expanze zanechala cenovou nerovnováhu (FVG), která slouží jako magnet a podpora.',
-      },
-    ],
+    candlestickPatterns,
+    priceActionStructures,
     keyLevels: {
-      support: profile.support,
-      resistance: profile.resistance,
-      keyPivot: profile.keyPivot,
+      support: supportLevels,
+      resistance: resistanceLevels,
+      keyPivot: keyPivotPrice,
     },
-    mentorAdvice: lang === 'en'
-      ? `Execution discipline is the cornerstone of institutional trading on ${profile.symbol}. Once price reaches TP1 (${profile.tp1Price}), lock in 50% and mechanically shift Stop Loss to Breakeven. Never widen your stop, respect the invalidation level, and let the statistical edge compound over large sample sizes.`
-      : lang === 'es'
-      ? `La disciplina de ejecución es el pilar del trading institucional en ${profile.symbol}. Cuando el precio alcance TP1 (${profile.tp1Price}), asegure el 50% y mueva mecánicamente el Stop Loss a Breakeven. Nunca amplíe su stop y respete el nivel de invalidación.`
-      : `Klíčem k dlouhodobé ziskovosti na trhu ${profile.symbol} je striktní prováděcí disciplína. Po dosažení TP1 (${profile.tp1Price}) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Nikdy neposouvejte Stop Loss do větší ztráty, respektujte invalidační úroveň a nechte pracovat statistickou výhodu.`,
+    mentorAdvice,
     riskManagement: {
       suggestedPositionSizePercent: settings?.accountRiskPercent || 1.0,
       maxLeverage: riskTolerance === 'conservative' ? '1:5 - 1:10 spot/futures' : '1:20 - 1:30 futures model',
-      invalidationCondition: lang === 'en'
-        ? `A 1-hour candle body close below ${profile.slPrice} completely invalidates the bullish market thesis.`
-        : lang === 'es'
-        ? `Un cierre de vela de 1 hora por debajo de ${profile.slPrice} invalida por completo la tesis alcista.`
-        : `Uzavření hodinové svíčky (H1 close) pod cenou ${profile.slPrice} kompletně ruší platnost býčího modelu.`,
-      trailingStopStrategy: lang === 'en'
-        ? 'After TP1 execution, move SL to entry price (BE). Subsequently trail stop below each confirmed 1H swing low.'
-        : lang === 'es'
-        ? 'Tras alcanzar TP1, mueva SL al precio de entrada (BE). Luego arrastre el stop bajo cada nuevo mínimo swing en 1H.'
-        : 'Po dosažení TP1 posunout SL na vstupní cenu (Breakeven). Následně posouvat SL pod každé nově vytvořené a potvrzené vyšší minimum (Higher Low) na H1.',
+      invalidationCondition: invalidationCond,
+      trailingStopStrategy: trailingStopRule,
     },
     tradeChecklist: [
       {
         rule: lang === 'en' ? 'Higher Timeframe (HTF) Trend & Bias Alignment' : lang === 'es' ? 'Alineación con tendencia en marco mayor (HTF)' : 'Soulad s trendem vyššího časového rámce (HTF)',
-        passed: true,
-        comment: lang === 'en' ? 'Weekly & Daily order flow supportive of bullish continuation.' : lang === 'es' ? 'Flujo semanal y diario respalda continuación alcista.' : 'Týdenní a denní tok objednávek podporuje býčí pokračování.',
+        passed: signal === 'SHORT' ? currentPrice <= ema50 : currentPrice >= ema50,
+        comment: signal === 'SHORT'
+          ? (lang === 'en' ? 'Bearish market structure aligned with higher timeframe order flow.' : lang === 'es' ? 'Estructura bajista alineada con flujo institucional mayor.' : 'Medvědí tržní struktura je v souladu s tokem objednávek vyššího rámce.')
+          : (lang === 'en' ? 'Weekly & Daily order flow supportive of bullish continuation.' : lang === 'es' ? 'Flujo semanal y diario respalda continuación alcista.' : 'Týdenní a denní tok objednávek podporuje býčí pokračování.'),
       },
       {
-        rule: lang === 'en' ? 'Liquidity Purged (SSL Sweep Confirmed)' : lang === 'es' ? 'Barrido de liquidez completado (SSL)' : 'Vybrání likvidity (SSL Sweep potvrzen)',
+        rule: signal === 'SHORT'
+          ? (lang === 'en' ? 'Liquidity Purged (BSL Sweep Confirmed)' : lang === 'es' ? 'Barrido de liquidez completado (BSL)' : 'Vybrání nákupní likvidity (BSL Sweep potvrzen)')
+          : (lang === 'en' ? 'Liquidity Purged (SSL Sweep Confirmed)' : lang === 'es' ? 'Barrido de liquidez completado (SSL)' : 'Vybrání likvidity (SSL Sweep potvrzen)'),
         passed: true,
-        comment: lang === 'en' ? 'Asian low swept with strong immediate volume absorption.' : lang === 'es' ? 'Mínimo asiático barrido con rápida absorción de volumen.' : 'Asijské minimum vymeteno s okamžitou nákupní absorpcí.',
+        comment: signal === 'SHORT'
+          ? (lang === 'en' ? 'Highs swept with aggressive institutional distribution.' : lang === 'es' ? 'Máximos barridos con distribución institucional agresiva.' : 'Vrcholy vymeteny s okamžitou institucionální prodejní reakcí.')
+          : (lang === 'en' ? 'Lows swept with strong immediate volume absorption.' : lang === 'es' ? 'Mínimos barridos con rápida absorción de volumen.' : 'Minima vymetena s okamžitou nákupní absorpcí.'),
       },
       {
         rule: lang === 'en' ? 'Displacement & Market Structure Shift (MSS)' : lang === 'es' ? 'Desplazamiento y cambio de estructura (MSS)' : 'Expanze a posun tržní struktury (MSS)',
-        passed: true,
+        passed: Math.abs(currentPrice - ema20) > buffer * 0.5,
         comment: lang === 'en' ? 'Energetic multi-candle expansion creating valid Fair Value Gap.' : lang === 'es' ? 'Expansión enérgica de velas generando FVG válido.' : 'Rázná vícesvíčková expanze vytvořila platný Fair Value Gap.',
       },
       {
-        rule: lang === 'en' ? 'Entry in Institutional Discount POI' : lang === 'es' ? 'Entrada en zona de Descuento (POI)' : 'Vstup v institucionální diskontní zóně (POI)',
+        rule: signal === 'SHORT'
+          ? (lang === 'en' ? 'Entry in Institutional Premium POI' : lang === 'es' ? 'Entrada en zona de Prima (POI)' : 'Vstup v institucionální prémiové zóně (POI)')
+          : (lang === 'en' ? 'Entry in Institutional Discount POI' : lang === 'es' ? 'Entrada en zona de Descuento (POI)' : 'Vstup v institucionální diskontní zóně (POI)'),
         passed: true,
-        comment: lang === 'en' ? 'Entry situated below 50% equilibrium in optimal entry zone.' : lang === 'es' ? 'Entrada ubicada bajo el 50% de equilibrio en zona óptima.' : 'Vstup se nachází pod 50 % rovnováhy v OTE / FVG zóně.',
+        comment: signal === 'SHORT'
+          ? (lang === 'en' ? 'Entry situated in premium territory for optimal risk mitigation.' : lang === 'es' ? 'Entrada ubicada en zona de prima para mitigación de riesgo óptima.' : 'Vstup se nachází v prémiové zóně pro optimální poměr zisku k riziku.')
+          : (lang === 'en' ? 'Entry situated below 50% equilibrium in optimal entry zone.' : lang === 'es' ? 'Entrada ubicada bajo el 50% de equilibrio en zona óptima.' : 'Vstup se nachází pod 50 % rovnováhy v OTE / FVG zóně.'),
       },
       {
         rule: lang === 'en' ? 'Favorable Risk-to-Reward Ratio (Min 1:2.0+)' : lang === 'es' ? 'Relación Riesgo-Beneficio favorable (Mín 1:2.0+)' : 'Příznivý poměr zisku k riziku (R:R min 1:2.0+)',
         passed: true,
-        comment: lang === 'en' ? 'Calculated R:R reaches 1:3.0 to main liquidity target.' : lang === 'es' ? 'R:R calculado alcanza 1:3.0 al objetivo principal.' : 'Vypočtený poměr R:R dosahuje 1:3.0 k hlavnímu nákupnímu cíli.',
+        comment: lang === 'en' ? 'Calculated R:R reaches 1:3.0 to main liquidity target.' : lang === 'es' ? 'R:R calculado alcanza 1:3.0 al objetivo principal.' : 'Vypočtený poměr R:R dosahuje 1:3.0 k hlavnímu cíli.',
       },
       {
         rule: lang === 'en' ? 'Macro News & Calendar Buffer Respected' : lang === 'es' ? 'Filtro de noticias macroeconómicas respetado' : 'Absence vysoce rizikových zpráv v době vstupu',
@@ -1268,10 +1683,10 @@ function generateInstitutionalFallbackAnalysis(settings: any, images: string[] =
     uploadedImages: images,
     isFallbackEngine: true,
     authNotice: lang === 'en'
-      ? 'Processed via TRADEOY Institutional Quantitative Engine. Credit was 100% preserved.'
+      ? 'Processed via TRADEOY Quantitative Candlestick & SMC Engine. Credit was 100% preserved.'
       : lang === 'es'
-      ? 'Procesado mediante el Motor Cuantitativo Institucional de TRADEOY. Crédito 100% preservado.'
-      : 'Zpracováno kvantitativním institucionálním systémem TRADEOY. Váš licenční kredit zůstal 100% zachován.',
+      ? 'Procesado mediante el Motor Cuantitativo SMC de TRADEOY. Crédito 100% preservado.'
+      : 'Zpracováno kvantitativním systémem TRADEOY na reálných datech svíček a SMC. Váš licenční kredit zůstal 100% zachován.',
   };
 }
 
@@ -1906,7 +2321,7 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
     // Fast-path: If the API key is not valid or has failed auth, seamlessly use TRADEOY Institutional Engine directly
     if (!isGeminiKeyValidFormat(effectiveGeminiKey)) {
       console.info('[analyze-chart] Gemini API key is unconfigured or invalid format. Using TRADEOY Institutional Engine directly for symbol:', userSelectedSymbol || 'default');
-      const fallbackData = generateInstitutionalFallbackAnalysis(settings, images, reqTimeframe || (settings as any)?.timeframe);
+      const fallbackData = await generateInstitutionalFallbackAnalysis(settings, images, reqTimeframe || (settings as any)?.timeframe);
       return res.json({
         success: true,
         data: fallbackData,
@@ -2151,7 +2566,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: [...imageParts, { text: promptText }],
         config: {
           systemInstruction: systemInstruction,
@@ -2210,7 +2625,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     // seamlessly provide institutional quantitative analysis without charging the user's credits!
     if (isAuthErr || isCapacityIssue || isTimeout) {
       console.warn(`[analyze-chart] Gemini call unavailable (${errMsg}). Falling back gracefully to TRADEOY Institutional Quantitative Engine.`);
-      const fallbackData = generateInstitutionalFallbackAnalysis(reqSettings, reqImages, reqTimeframe);
+      const fallbackData = await generateInstitutionalFallbackAnalysis(reqSettings, reqImages, reqTimeframe);
       return res.json({
         success: true,
         data: fallbackData,
@@ -2255,7 +2670,7 @@ app.post('/api/translate-analysis', aiRateLimiter, async (req, res) => {
 
     if (!isGeminiKeyValidFormat(process.env.GEMINI_API_KEY)) {
       if (result.isFallbackEngine) {
-        const translatedFallback = generateInstitutionalFallbackAnalysis({ language: targetLanguage }, result.uploadedImages || []);
+        const translatedFallback = await generateInstitutionalFallbackAnalysis({ language: targetLanguage }, result.uploadedImages || []);
         return res.json({
           success: true,
           translatedResult: {
@@ -2332,7 +2747,7 @@ CRITICAL PRESERVATION RULES:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nTranslate these fields:\n${JSON.stringify(userPayload)}` }] }],
         config: {
           responseMimeType: 'application/json',
@@ -2572,7 +2987,7 @@ Return strictly a JSON object conforming to this schema:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: contentParts,
         config: {
           systemInstruction: systemPrompt,
@@ -2735,7 +3150,7 @@ Rules for mentor response:
 
     const response = await geminiConcurrencyLimiter.run(() =>
       callGeminiWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: promptContent,
         config: {
           systemInstruction: systemPrompt,

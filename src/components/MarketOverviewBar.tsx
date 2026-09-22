@@ -474,13 +474,13 @@ export const MarketOverviewBar: React.FC<MarketOverviewBarProps> = ({
   };
 
   return (
-    <div className={`w-full rounded-2xl shadow-xl overflow-hidden mb-6 transition-all duration-300 border ${
+    <div className={`w-full rounded-2xl shadow-xl overflow-hidden mb-3.5 sm:mb-6 transition-all duration-300 border ${
       isLight
         ? 'bg-[#f1f5f9] border-slate-300/80 shadow-slate-300/30'
         : 'bg-[#111116] border-white/[0.08]'
     }`}>
       {/* Top Header Bar */}
-      <div className={`px-3.5 sm:px-5 py-2.5 border-b flex flex-wrap items-center justify-between gap-2.5 ${
+      <div className={`px-3 sm:px-5 py-2 sm:py-2.5 border-b flex flex-wrap items-center justify-between gap-2 sm:gap-2.5 ${
         isLight
           ? 'bg-slate-200/90 border-slate-300/90'
           : 'bg-gradient-to-r from-[#14141c] via-[#121217] to-[#14141c] border-white/[0.06]'

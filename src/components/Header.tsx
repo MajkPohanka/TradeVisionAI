@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
         : 'bg-[#0c0c0e] border-white/[0.08] text-[#f5f5f7]'
     }`}>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between min-h-[3.5rem] sm:min-h-[4rem] py-2 gap-2 sm:gap-4">
+        <div className="flex items-center justify-between min-h-[3rem] sm:min-h-[4rem] py-1.5 sm:py-2 gap-1.5 sm:gap-4">
           {/* Logo & Brand */}
           <button
             id="app-header-logo-btn"

@@ -633,15 +633,15 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       {/* 1. Page Header & Synchronized Workflow Control Header */}
       <div className="space-y-3.5 pb-2">
         {/* Top Synchronized Bar: Title + Badges + Action Buttons cleanly aligned without overflow */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4 w-full">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 sm:gap-4 w-full">
           
           {/* Left Block: Title and Holding Period Badge in ONE single horizontal line */}
-          <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
-            <h1 className={`text-xl sm:text-2xl font-black tracking-tight whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            <h1 className={`text-lg sm:text-2xl font-black tracking-tight whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {t.uploaderTitle}
             </h1>
 
-            <span className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border shrink-0 whitespace-nowrap ${
+            <span className={`inline-flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border shrink-0 whitespace-nowrap ${
               isLight
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs'
                 : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-xs'
@@ -652,15 +652,15 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           </div>
 
           {/* Right Block: Action Toolbar Buttons (Flush right alignment with cards below, no horizontal overflow) */}
-          <div className="flex items-center gap-2 flex-wrap justify-start xl:justify-end w-full xl:w-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-start xl:justify-end w-full xl:w-auto">
             {/* Ctrl+V / ⌘+V Shortcut Button */}
-            <div className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-bold border transition-colors flex items-center space-x-2 shrink-0 ${
+            <div className={`h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-bold border transition-colors flex items-center space-x-1.5 sm:space-x-2 shrink-0 ${
               isLight
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-2xs'
                 : 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300 shadow-sm'
             }`}>
-              <span className="font-mono font-black text-xs">Ctrl+V / ⌘+V</span>
-              <span className={`font-sans font-medium text-[11px] hidden 2xl:inline ${
+              <span className="font-mono font-black text-[11px] sm:text-xs">Ctrl+V / ⌘+V</span>
+              <span className={`font-sans font-medium text-[10px] sm:text-[11px] hidden 2xl:inline ${
                 isLight ? 'text-emerald-900' : 'text-emerald-300/90'
               }`}>{t.pasteScreenshotHint}</span>
             </div>
@@ -672,14 +672,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                 const el = document.getElementById('live-tradingview-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
-              className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap border flex items-center space-x-2 shrink-0 ${
+              className={`h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-semibold transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap border flex items-center space-x-1.5 sm:space-x-2 shrink-0 ${
                 isLight
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
                   : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/25'
               }`}
               title={language === 'cs' ? 'Přejít na živý TradingView graf' : language === 'es' ? 'Ir al gráfico en vivo' : 'Jump to live chart'}
             >
-              <TrendingUp className={`w-4 h-4 shrink-0 ${isLight ? 'text-white' : 'text-emerald-400'}`} />
+              <TrendingUp className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isLight ? 'text-white' : 'text-emerald-400'}`} />
               <span>{language === 'cs' ? 'Živý TradingView' : language === 'es' ? 'TradingView en Vivo' : 'Live TradingView'}</span>
             </button>
 
@@ -688,14 +688,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap flex items-center space-x-2 shrink-0 ${
+                className={`h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-semibold border transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap flex items-center space-x-1.5 sm:space-x-2 shrink-0 ${
                   isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
                     : 'bg-[#18181c] hover:bg-[#222226] text-white border-white/10'
                 }`}
                 title={t.analysisSettingsTooltip}
               >
-                <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />
+                <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                 <span>{t.analysisSettingsBtn}</span>
               </button>
             )}
@@ -704,7 +704,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
             <button
               type="button"
               onClick={() => setShowGuide(!showGuide)}
-              className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold border transition cursor-pointer active:scale-95 whitespace-nowrap flex items-center space-x-2 shrink-0 ${
+              className={`h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-semibold border transition cursor-pointer active:scale-95 whitespace-nowrap flex items-center space-x-1.5 sm:space-x-2 shrink-0 ${
                 showGuide
                   ? isLight
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
@@ -714,7 +714,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                   : 'bg-[#18181c] text-[#a1a1a6] border-white/10 hover:text-white hover:bg-[#222226]'
               }`}
             >
-              <HelpCircle className={`w-4 h-4 shrink-0 ${isLight ? 'text-emerald-600' : 'text-cyan-400'}`} />
+              <HelpCircle className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isLight ? 'text-emerald-600' : 'text-cyan-400'}`} />
               <span>{t.timeframeGuideBtn}</span>
               {showGuide ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
             </button>
@@ -724,14 +724,14 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               <button
                 type="button"
                 onClick={() => setShowConfirmResetModal(true)}
-                className={`h-9 sm:h-10 px-3.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap border flex items-center space-x-2 shrink-0 ${
+                className={`h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-semibold transition cursor-pointer active:scale-95 shadow-2xs whitespace-nowrap border flex items-center space-x-1.5 sm:space-x-2 shrink-0 ${
                   isLight
                     ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
                     : 'bg-red-500/10 hover:bg-red-500/20 text-red-300 border-red-500/25'
                 }`}
                 title={t.clearAndNewAnalysis}
               >
-                <RotateCcw className="w-4 h-4 text-red-500 shrink-0" />
+                <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 shrink-0" />
                 <span>{t.clearAndNewAnalysis}</span>
               </button>
             )}
@@ -739,15 +739,15 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
         </div>
 
         {/* Second Synchronized Row: Full-width instruction banner card */}
-        <div className={`p-3 sm:p-3.5 rounded-2xl border text-xs sm:text-sm leading-relaxed flex items-center space-x-3 transition-all ${
+        <div className={`p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border text-xs sm:text-sm leading-relaxed flex items-center space-x-2.5 sm:space-x-3 transition-all ${
           isLight
             ? 'bg-slate-50 border-slate-200/90 text-slate-700 shadow-2xs'
             : 'bg-[#121216] border-white/10 text-[#a1a1a6] shadow-sm'
         }`}>
-          <div className={`p-2 rounded-xl shrink-0 ${
+          <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 ${
             isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
           }`}>
-            <Upload className="w-4 h-4" />
+            <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </div>
           <p className="font-medium text-xs sm:text-sm leading-normal flex-1">
             {t.uploaderSubtitle}
@@ -855,7 +855,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
               }`}
             >
               {/* Slot Header */}
-              <div className={`p-4 border-b flex items-center justify-between transition-colors ${
+              <div className={`p-3 sm:p-4 border-b flex items-center justify-between transition-colors ${
                 isLight
                   ? isSelected
                     ? 'bg-emerald-100/70 border-emerald-200'
@@ -1027,7 +1027,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
                       e.stopPropagation();
                       triggerUploadForSlot(idx, false);
                     }}
-                    className={`border border-dashed rounded-xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[160px] group ${
+                    className={`border border-dashed rounded-xl p-3.5 sm:p-5 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[130px] sm:min-h-[160px] group ${
                       isLight
                         ? isSelected
                           ? 'border-emerald-500 bg-emerald-50/60'

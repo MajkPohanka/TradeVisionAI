@@ -6,6 +6,26 @@
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light dark;
   -webkit-tap-highlight-color: transparent;
+  font-size: 16px;
+}
+
+/* Mobile responsive base scale - ensures comfortable viewport fit matching mobile overview without being oversized */
+@media screen and (max-width: 640px) {
+  :root {
+    font-size: 14.5px;
+  }
+}
+@media screen and (max-width: 380px) {
+  :root {
+    font-size: 13.5px;
+  }
+}
+
+/* Prevent iOS Safari from auto-zooming into inputs when tapped */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Base HTML & Body defaults - Default to Gentle Light Theme */
@@ -124,7 +144,11 @@ html.theme-light body {
 }
 
 /* Light Mode Text High-Contrast Rules */
-[data-theme="light"] .text-white:not([class*="bg-emerald"]):not([class*="bg-teal"]):not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-black"]):not([class*="from-"]):not(.keep-white) {
+.keep-white {
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .text-white:not([class*="bg-emerald"]):not([class*="bg-teal"]):not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-indigo"]):not([class*="bg-amber"]):not([class*="bg-black"]):not([class*="bg-slate"]):not([class*="bg-zinc"]):not([class*="bg-gray"]):not([class*="bg-neutral"]):not([class*="from-"]):not(.keep-white) {
   color: #0f172a !important;
 }
 

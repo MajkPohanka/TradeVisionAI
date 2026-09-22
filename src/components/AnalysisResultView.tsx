@@ -679,13 +679,17 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   onClick={() => setChartViewMode('snapshot')}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
                     chartViewMode === 'snapshot'
-                      ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-black border-white shadow-xs')
-                      : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] border-white/[0.08]')
+                      ? (isLight
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white keep-white border-emerald-600 shadow-sm'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20')
+                      : (isLight
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-slate-300'
+                          : 'bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white border-white/15')
                   }`}
                   title="Zobrazit původní analyzovaný screenshot s hladinami"
                 >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>Snímek s hladinami</span>
+                  <Camera className="w-3.5 h-3.5 shrink-0" />
+                  <span className={chartViewMode === 'snapshot' && isLight ? 'keep-white' : ''}>Snímek s hladinami</span>
                 </button>
               )}
 
@@ -697,13 +701,17 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 }}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
                   chartViewMode === 'hd_chart'
-                    ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-black border-white shadow-xs')
-                    : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] border-white/[0.08]')
+                    ? (isLight
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white keep-white border-emerald-600 shadow-sm'
+                        : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20')
+                    : (isLight
+                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-slate-300'
+                        : 'bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white border-white/15')
                 }`}
                 title="Generovat detailní svíčkový graf s hladinami"
               >
-                <BarChart2 className="w-3.5 h-3.5" />
-                <span>Kompletní graf</span>
+                <BarChart2 className="w-3.5 h-3.5 shrink-0" />
+                <span className={chartViewMode === 'hd_chart' && isLight ? 'keep-white' : ''}>Kompletní graf</span>
               </button>
 
               <button
@@ -711,13 +719,17 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 onClick={() => setChartViewMode('live_tv')}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
                   chartViewMode === 'live_tv'
-                    ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-white text-black border-white shadow-xs')
-                    : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/[0.06] hover:bg-white/[0.12] text-[#86868b] border-white/[0.08]')
+                    ? (isLight
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white keep-white border-emerald-600 shadow-sm'
+                        : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20')
+                    : (isLight
+                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-slate-300'
+                        : 'bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white border-white/15')
                 }`}
                 title="Otevřít živý interaktivní graf TradingView pro tento symbol"
               >
-                <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-                <span>Živý TradingView</span>
+                <Radio className={`w-3.5 h-3.5 shrink-0 ${chartViewMode === 'live_tv' ? (isLight ? 'text-white keep-white' : 'text-slate-950') : 'text-rose-500 animate-pulse'}`} />
+                <span className={chartViewMode === 'live_tv' && isLight ? 'keep-white' : ''}>Živý TradingView</span>
               </button>
             </div>
 
@@ -1403,11 +1415,15 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                     onClick={() => setChartViewMode('snapshot')}
                     className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
                       chartViewMode === 'snapshot'
-                        ? (isLight ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-black border-white')
-                        : (isLight ? 'bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300' : 'bg-white/10 text-white/70 hover:text-white border-white/10')
+                        ? (isLight
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white keep-white border-emerald-600 shadow-sm font-extrabold'
+                            : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20 font-extrabold')
+                        : (isLight
+                            ? 'bg-slate-100 text-slate-800 hover:text-slate-950 border-slate-300'
+                            : 'bg-white/10 text-slate-200 hover:text-white border-white/15')
                     }`}
                   >
-                    Snímek s hladinami
+                    <span className={chartViewMode === 'snapshot' && isLight ? 'keep-white' : ''}>Snímek s hladinami</span>
                   </button>
                 )}
                 <button
@@ -1418,11 +1434,15 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   }}
                   className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
                     chartViewMode === 'hd_chart'
-                      ? (isLight ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-black border-white')
-                      : (isLight ? 'bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300' : 'bg-white/10 text-white/70 hover:text-white border-white/10')
+                      ? (isLight
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white keep-white border-emerald-600 shadow-sm font-extrabold'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20 font-extrabold')
+                      : (isLight
+                          ? 'bg-slate-100 text-slate-800 hover:text-slate-950 border-slate-300'
+                          : 'bg-white/10 text-slate-200 hover:text-white border-white/15')
                   }`}
                 >
-                  Kompletní graf
+                  <span className={chartViewMode === 'hd_chart' && isLight ? 'keep-white' : ''}>Kompletní graf</span>
                 </button>
               </div>
             </div>

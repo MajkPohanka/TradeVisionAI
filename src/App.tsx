@@ -547,7 +547,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 space-y-3 sm:space-y-6 relative z-10">
         {/* Interactive Top Market Overview Bar (Indices, Gold, Crypto, Forex) */}
         <MarketOverviewBar
           language={settings.language}
@@ -558,7 +558,7 @@ export default function App() {
 
         <ErrorBoundary fallbackTitle="Chyba v modulu analýzy / Chart Analyzer Module Error">
           {activeTab === 'analyzer' && (
-            <div className="space-y-8">
+            <div className="space-y-4 sm:space-y-8">
               {/* Primary Workflow: Dedicated 3-Slot Timeframe Uploader */}
               <ChartUploader
                 images={images}

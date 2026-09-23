@@ -69,10 +69,20 @@ export function localizeEconomicTitle(rawTitle: string, lang: string = 'cs'): st
       .replace(/\bPress Conference\b/gi, 'Tisková konference')
       .replace(/\bMeeting Minutes\b/gi, 'Zápis z jednání')
       .replace(/\bPrelim\b/gi, 'Předběžný')
-      .replace(/\bFlash\b/gi, 'Bleskový odhad');
+      .replace(/\bFlash\b/gi, 'Bleskový odhad')
+      .replace(/\bEmployment Change\b/gi, 'Změna zaměstnanosti')
+      .replace(/\bBond Auction\b/gi, 'Aukce dluhopisů')
+      .replace(/\bSpeaks\b/gi, 'Projev / Vystoupení')
+      .replace(/\bPolicy Rate\b/gi, 'Základní sazba')
+      .replace(/\bMonetary Policy Assessment\b/gi, 'Hodnocení měnové politiky');
   } else if (lang === 'es') {
     replaced = replaced
       .replace(/\bNon-Farm Employment Change\b/gi, 'Nóminas no agrícolas (NFP)')
+      .replace(/\bEmployment Change\b/gi, 'Variación del empleo')
+      .replace(/\bBond Auction\b/gi, 'Subasta de bonos')
+      .replace(/\bSpeaks\b/gi, 'Discurso')
+      .replace(/\bPolicy Rate\b/gi, 'Tipo de interés oficial')
+      .replace(/\bMonetary Policy Assessment\b/gi, 'Evaluación de política monetaria')
       .replace(/\bUnemployment Rate\b/gi, 'Tasa de desempleo')
       .replace(/\bUnemployment Claims\b/gi, 'Peticiones de desempleo')
       .replace(/\bInitial Jobless Claims\b/gi, 'Peticiones iniciales de desempleo')

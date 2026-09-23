@@ -5,6 +5,7 @@ import {
   TrendingDown,
   PauseCircle,
   ShieldAlert,
+  ShieldCheck,
   Target,
   CheckCircle2,
   XCircle,
@@ -1035,55 +1036,97 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
       {/* 4. ECONOMIC CALENDAR WARNING BANNER */}
       {result.economicCalendarWarning && (
-        <div className={`rounded-3xl p-5 sm:p-6 shadow-xl space-y-3 border ${
-          isLight
-            ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-md'
-            : 'bg-[#121216] border-amber-500/30 text-white shadow-xl'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center space-x-2 font-bold text-xs ${
-              isLight ? 'text-amber-800' : 'text-amber-400'
+        (() => {
+          const isHigh = !!result.economicCalendarWarning.hasHighImpactNewsThisWeek;
+          const hasEvents = (result.economicCalendarWarning.upcomingNewsEvents || []).length > 0;
+          return (
+            <div className={`rounded-3xl p-5 sm:p-6 shadow-xl space-y-3 border transition-colors ${
+              isHigh
+                ? (isLight
+                    ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-md'
+                    : 'bg-[#121216] border-amber-500/30 text-white shadow-xl')
+                : hasEvents
+                ? (isLight
+                    ? 'bg-sky-50/80 border-sky-200 text-sky-950 shadow-xs'
+                    : 'bg-[#121216] border-sky-500/25 text-white shadow-lg')
+                : (isLight
+                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 shadow-xs'
+                    : 'bg-[#121216] border-emerald-500/20 text-white shadow-md')
             }`}>
-              <ShieldAlert className={`w-4 h-4 ${isLight ? 'text-amber-700' : 'text-amber-400'}`} />
-              <span>{t.calendarTitle}</span>
-            </div>
-            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-              isLight
-                ? 'bg-amber-200 text-amber-900 border-amber-300'
-                : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-            }`}>
-              HIGH VOLATILITY RISK
-            </span>
-          </div>
-
-          <p className={`text-xs leading-relaxed ${
-            isLight ? 'text-amber-900/90 font-medium' : 'text-[#a1a1a6]'
-          }`}>
-            {result.economicCalendarWarning.riskAdvice}
-          </p>
-
-          {result.economicCalendarWarning.upcomingNewsEvents && result.economicCalendarWarning.upcomingNewsEvents.length > 0 && (
-            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t ${
-              isLight ? 'border-amber-200' : 'border-white/[0.08]'
-            }`}>
-              {result.economicCalendarWarning.upcomingNewsEvents.map((ev, i) => (
-                <div key={i} className={`p-3 rounded-2xl text-xs space-y-1 border ${
-                  isLight
-                    ? 'bg-white border-amber-200 shadow-xs'
-                    : 'bg-black/50 border-white/[0.06]'
+              <div className="flex items-center justify-between">
+                <div className={`flex items-center space-x-2 font-bold text-xs ${
+                  isHigh
+                    ? (isLight ? 'text-amber-800' : 'text-amber-400')
+                    : hasEvents
+                    ? (isLight ? 'text-sky-800' : 'text-sky-400')
+                    : (isLight ? 'text-emerald-800' : 'text-emerald-400')
                 }`}>
-                  <div className={`flex items-center justify-between font-bold ${
-                    isLight ? 'text-slate-900' : 'text-white'
-                  }`}>
-                    <span>{ev.title} ({ev.currency})</span>
-                    <span className={`text-[10px] font-mono ${isLight ? 'text-amber-700 font-bold' : 'text-amber-400'}`}>{ev.date}</span>
-                  </div>
-                  <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>{ev.warningText}</p>
+                  {isHigh ? (
+                    <ShieldAlert className={`w-4 h-4 ${isLight ? 'text-amber-700' : 'text-amber-400'}`} />
+                  ) : hasEvents ? (
+                    <Radio className={`w-4 h-4 ${isLight ? 'text-sky-600' : 'text-sky-400'}`} />
+                  ) : (
+                    <ShieldCheck className={`w-4 h-4 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                  )}
+                  <span>{t.calendarTitle}</span>
                 </div>
-              ))}
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                  isHigh
+                    ? (isLight
+                        ? 'bg-amber-200 text-amber-900 border-amber-300'
+                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30')
+                    : hasEvents
+                    ? (isLight
+                        ? 'bg-sky-100 text-sky-900 border-sky-300'
+                        : 'bg-sky-500/15 text-sky-300 border-sky-500/30')
+                    : (isLight
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30')
+                }`}>
+                  {isHigh
+                    ? (t.calendarHighVolatility || 'HIGH VOLATILITY RISK')
+                    : hasEvents
+                    ? (t.calendarModerateSchedule || 'MODERATE SCHEDULE')
+                    : (t.calendarClear || 'CALENDAR CLEAR')}
+                </span>
+              </div>
+
+              <p className={`text-xs leading-relaxed ${
+                isLight ? (isHigh ? 'text-amber-900/90 font-medium' : 'text-slate-700 font-medium') : 'text-[#a1a1a6]'
+              }`}>
+                {result.economicCalendarWarning.riskAdvice}
+              </p>
+
+              {hasEvents && (
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t ${
+                  isHigh
+                    ? (isLight ? 'border-amber-200' : 'border-white/[0.08]')
+                    : (isLight ? 'border-sky-200/80' : 'border-white/[0.08]')
+                }`}>
+                  {result.economicCalendarWarning.upcomingNewsEvents.map((ev, i) => (
+                    <div key={i} className={`p-3 rounded-2xl text-xs space-y-1 border ${
+                      isLight
+                        ? (isHigh ? 'bg-white border-amber-200 shadow-xs' : 'bg-white border-slate-200 shadow-xs')
+                        : 'bg-black/50 border-white/[0.06]'
+                    }`}>
+                      <div className={`flex items-center justify-between font-bold ${
+                        isLight ? 'text-slate-900' : 'text-white'
+                      }`}>
+                        <span>{ev.title} ({ev.currency})</span>
+                        <span className={`text-[10px] font-mono ${
+                          ev.impact === 'HIGH'
+                            ? (isLight ? 'text-amber-700 font-bold' : 'text-amber-400')
+                            : (isLight ? 'text-sky-700 font-bold' : 'text-sky-400')
+                        }`}>{ev.date}</span>
+                      </div>
+                      <p className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>{ev.warningText}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()
       )}
 
       {/* 5. MULTI-STRATEGY METHODOLOGY CONFLUENCES BREAKDOWN */}

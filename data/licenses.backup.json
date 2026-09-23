@@ -1460,13 +1460,13 @@
   },
   {
     "key": "TRADEOY-LXYQ-RDT9-APH3",
-    "credits": 1,
+    "credits": 0,
     "tier": "starter",
     "email": "concurrency-pentest@tradeoy.com",
     "totalPurchased": 2,
-    "totalUsed": 1,
+    "totalUsed": 2,
     "createdAt": 1789736771783,
     "stripeSessionIds": [],
-    "lastUsedAt": 1789736771783
+    "lastUsedAt": 1789736771784
   }
 ]

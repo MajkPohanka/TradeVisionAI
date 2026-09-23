@@ -907,6 +907,25 @@ const FALLBACK_ASSET_PROFILES: Record<string, AssetFallbackProfile> = {
     resistance: [0.89400, 0.90100],
     keyPivot: 0.88700,
   },
+  audusd: {
+    symbol: 'AUD/USD',
+    nameCs: 'Australský dolar (AUD/USD)',
+    nameEn: 'Australian Dollar (AUD/USD)',
+    nameEs: 'Dólar Australiano (AUD/USD)',
+    currency: 'USD',
+    entryRecommended: 0.65820,
+    entryMin: 0.65680,
+    entryMax: 0.65920,
+    slPrice: 0.65340,
+    slDistPercent: 0.73,
+    tp1Price: 0.66450,
+    tp2Price: 0.66900,
+    tp3Price: 0.67400,
+    targetZoneStr: '0.66900 - 0.67400 USD (BSL Pool)',
+    support: [0.65340, 0.65550],
+    resistance: [0.66900, 0.67400],
+    keyPivot: 0.66100,
+  },
 };
 
 function detectFallbackAssetProfile(settings: any, images: string[] = []): AssetFallbackProfile {
@@ -925,6 +944,7 @@ function detectFallbackAssetProfile(settings: any, images: string[] = []): Asset
   if (query.includes('nasdaq') || query.includes('us100') || query.includes('ndx')) return FALLBACK_ASSET_PROFILES.nasdaq;
   if (query.includes('dow') || query.includes('us30') || query.includes('dji')) return FALLBACK_ASSET_PROFILES.dow;
   if (query.includes('dax') || query.includes('ger40') || query.includes('de40')) return FALLBACK_ASSET_PROFILES.dax;
+  if (query.includes('aud')) return FALLBACK_ASSET_PROFILES.audusd;
   if (query.includes('gbp')) return FALLBACK_ASSET_PROFILES.gbpusd;
   if (query.includes('jpy') || query.includes('usdjpy')) return FALLBACK_ASSET_PROFILES.usdjpy;
   if (query.includes('chf') || query.includes('usdchf')) return FALLBACK_ASSET_PROFILES.usdchf;
@@ -1018,6 +1038,226 @@ function getAssetPrecision(symbol: string, currentPrice: number): number {
   return 5;
 }
 
+interface ForexFactoryRawItem {
+  title: string;
+  country: string;
+  date: string;
+  impact: string;
+  forecast?: string;
+  previous?: string;
+}
+
+let cachedFfFeed: { data: ForexFactoryRawItem[]; expiresAt: number } | null = null;
+
+async function fetchLiveForexFactoryCalendar(): Promise<ForexFactoryRawItem[]> {
+  if (cachedFfFeed && Date.now() < cachedFfFeed.expiresAt && cachedFfFeed.data.length > 0) {
+    return cachedFfFeed.data;
+  }
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const items: ForexFactoryRawItem[] = await res.json();
+      if (Array.isArray(items) && items.length > 0) {
+        cachedFfFeed = { data: items, expiresAt: Date.now() + 15 * 60 * 1000 };
+        return items;
+      }
+    }
+  } catch (err) {
+    console.warn('[ForexFactory] Feed fetch failed or timed out:', err);
+  }
+  return cachedFfFeed?.data || [];
+}
+
+function getRelevantCurrenciesForAsset(symbol: string): string[] {
+  const s = String(symbol || '').toUpperCase();
+  const set = new Set<string>();
+
+  if (
+    s.includes('USD') ||
+    s.includes('USDT') ||
+    s.includes('BTC') ||
+    s.includes('ETH') ||
+    s.includes('SOL') ||
+    s.includes('XRP') ||
+    s.includes('XAU') ||
+    s.includes('XAG') ||
+    s.includes('GOLD') ||
+    s.includes('SILVER') ||
+    s.includes('OIL') ||
+    s.includes('WTI') ||
+    s.includes('BRENT') ||
+    s.includes('SPX') ||
+    s.includes('NDX') ||
+    s.includes('US30') ||
+    s.includes('US100') ||
+    s.includes('US500') ||
+    s.includes('DOW') ||
+    s.includes('NASDAQ')
+  ) {
+    set.add('USD');
+  }
+  if (s.includes('EUR') || s.includes('DE40') || s.includes('GER40') || s.includes('DAX')) {
+    set.add('EUR');
+  }
+  if (s.includes('GBP') || s.includes('UK100')) {
+    set.add('GBP');
+  }
+  if (s.includes('JPY') || s.includes('JP225') || s.includes('NIKKEI')) {
+    set.add('JPY');
+  }
+  if (s.includes('CHF')) {
+    set.add('CHF');
+  }
+  if (s.includes('AUD')) {
+    set.add('AUD');
+  }
+  if (s.includes('CAD')) {
+    set.add('CAD');
+  }
+  if (s.includes('NZD')) {
+    set.add('NZD');
+  }
+
+  if (set.size === 0) {
+    set.add('USD');
+  }
+  return Array.from(set);
+}
+
+async function getRealEconomicCalendarWarning(symbol: string, lang: string = 'cs'): Promise<{
+  hasHighImpactNewsThisWeek: boolean;
+  upcomingNewsEvents: Array<{
+    id: string;
+    date: string;
+    currency: string;
+    title: string;
+    impact: 'HIGH' | 'MEDIUM' | 'LOW';
+    warningText: string;
+  }>;
+  riskAdvice: string;
+}> {
+  const items = await fetchLiveForexFactoryCalendar();
+  const relevantCurrencies = getRelevantCurrenciesForAsset(symbol);
+  const now = new Date();
+
+  const matchingEvents: Array<{ item: ForexFactoryRawItem; evDate: Date; impactWeight: number }> = [];
+
+  for (const item of items) {
+    if (!item.date || !item.country) continue;
+    const countryUpper = item.country.toUpperCase();
+    if (!relevantCurrencies.includes(countryUpper)) continue;
+
+    const evDate = new Date(item.date);
+    const diffMs = evDate.getTime() - now.getTime();
+
+    // Include events from -2 hours ago up to +36 hours
+    if (diffMs < -2 * 60 * 60 * 1000 || diffMs > 36 * 60 * 60 * 1000) continue;
+
+    const impactUpper = (item.impact || '').toUpperCase();
+    if (impactUpper !== 'HIGH' && impactUpper !== 'MEDIUM') continue;
+
+    const impactWeight = impactUpper === 'HIGH' ? 2 : 1;
+    matchingEvents.push({ item, evDate, impactWeight });
+  }
+
+  // Sort by impact weight desc, then by date asc
+  matchingEvents.sort((a, b) => {
+    if (b.impactWeight !== a.impactWeight) return b.impactWeight - a.impactWeight;
+    return a.evDate.getTime() - b.evDate.getTime();
+  });
+
+  const hasHighImpact = matchingEvents.some(m => m.impactWeight === 2);
+  const topEvents = matchingEvents.slice(0, 3);
+
+  const weekdayNames: Record<string, string[]> = {
+    cs: ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'],
+    es: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+    en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  };
+
+  const formattedEvents = topEvents.map((m, idx) => {
+    const { item, evDate } = m;
+    const isToday = evDate.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = evDate.toDateString() === tomorrow.toDateString();
+
+    const hours = String(evDate.getHours()).padStart(2, '0');
+    const minutes = String(evDate.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+
+    let dateLabel = '';
+    if (isToday) {
+      dateLabel = lang === 'en' ? `Today ${timeStr}` : lang === 'es' ? `Hoy ${timeStr}` : `Dnes ${timeStr}`;
+    } else if (isTomorrow) {
+      dateLabel = lang === 'en' ? `Tomorrow ${timeStr}` : lang === 'es' ? `Mañana ${timeStr}` : `Zítra ${timeStr}`;
+    } else {
+      const dayName = (weekdayNames[lang] || weekdayNames.cs)[evDate.getDay()];
+      dateLabel = `${dayName} ${timeStr}`;
+    }
+
+    const localizedTitle = localizeEconomicTitle(item.title, lang);
+    const isHigh = (item.impact || '').toUpperCase() === 'HIGH';
+
+    let warningText = '';
+    if (isHigh) {
+      warningText = lang === 'en'
+        ? `High institutional volatility expected. Spread widening anticipated around ${timeStr}.`
+        : lang === 'es'
+        ? `Se espera alta volatilidad institucional. Ampliación de spreads alrededor de las ${timeStr}.`
+        : `Očekává se skokové rozšíření spreadů a vysoká volatilita v ${timeStr}. Doporučeno vyhnout se unáhleným vstupům.`;
+    } else {
+      warningText = lang === 'en'
+        ? `Moderate volatility impact on ${item.country} currency pairs.`
+        : lang === 'es'
+        ? `Impacto moderado en pares de ${item.country}.`
+        : `Střední vliv na volatilitu u měnových párů s ${item.country}.`;
+    }
+
+    return {
+      id: `ff-${idx + 1}`,
+      date: dateLabel,
+      currency: item.country,
+      title: localizedTitle,
+      impact: isHigh ? ('HIGH' as const) : ('MEDIUM' as const),
+      warningText,
+    };
+  });
+
+  let riskAdvice = '';
+  if (hasHighImpact) {
+    riskAdvice = lang === 'en'
+      ? 'High-impact macro news scheduled in the calendar. During releases, institutional spreads widen; models account for structural stop loss placement beyond liquidity levels.'
+      : lang === 'es'
+      ? 'Noticias macroeconómicas de alto impacto programadas. Durante la publicación los spreads se amplían; el modelo cuenta con protección de Stop Loss tras la liquidez.'
+      : 'V ekonomickém kalendáři jsou evidovány zprávy nejvyššího dopadu (červené zprávy). Během vyhlašování dochází k rozšíření spreadů a cenovému skluzu; model počítá se zvýšenou obezřetností a posunem SL na BE.';
+  } else if (formattedEvents.length > 0) {
+    riskAdvice = lang === 'en'
+      ? 'No high-impact (red-folder) news scheduled for this asset today. Standard liquidity conditions apply with moderate scheduled releases.'
+      : lang === 'es'
+      ? 'No hay noticias de alto impacto (carpeta roja) programadas para este activo hoy. Se aplican condiciones estándar de liquidez.'
+      : 'Pro tento instrument dnes nejsou v ekonomickém kalendáři hlášeny žádné zprávy nejvyššího dopadu (červené zprávy). Na programu jsou zprávy středního vlivu se standardní tržní likviditou.';
+  } else {
+    riskAdvice = lang === 'en'
+      ? 'No major macro events scheduled in the economic calendar for this asset. Market order flow is driven purely by technical liquidity structure.'
+      : lang === 'es'
+      ? 'No hay eventos macro programados en el calendario económico para este activo. El flujo de órdenes responde a estructura puramente técnica.'
+      : 'V ekonomickém kalendáři nejsou pro tento instrument dnes plánovány žádné rizikové makro události. Trh se pohybuje čistě podle technické struktury a toku likvidity.';
+  }
+
+  return {
+    hasHighImpactNewsThisWeek: hasHighImpact,
+    upcomingNewsEvents: formattedEvents,
+    riskAdvice,
+  };
+}
+
 async function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): Promise<any> {
   const lang = settings?.language || 'cs';
   const holdingPeriod = settings?.holdingPeriod || 'intraday';
@@ -1027,6 +1267,7 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     : ['smc_ict', 'price_action', 'wyckoff'];
 
   const profile = detectFallbackAssetProfile(settings, images);
+  const economicCalendarWarning = await getRealEconomicCalendarWarning(profile.symbol, lang);
 
   // Top-Down sequence corresponding to 3 slots: Slot 01 (HTF) + Slot 02 (MTF) + Slot 03 (LTF)
   const slotMapping: Record<string, string[]> = {
@@ -1528,40 +1769,7 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       prohibitedOpposingTrade: prohibitedTradeWarning,
     },
     methodologyConfluences: confluences,
-    economicCalendarWarning: {
-      hasHighImpactNewsThisWeek: true,
-      upcomingNewsEvents: [
-        {
-          id: 'fb-1',
-          date: lang === 'en' ? 'Today 14:30' : lang === 'es' ? 'Hoy 14:30' : 'Dnes 14:30',
-          currency: 'USD',
-          title: lang === 'en' ? 'US Core CPI / PPI Inflation' : lang === 'es' ? 'IPC Subyacente / Inflación EE.UU.' : 'US Jádrová inflace (CPI / PPI)',
-          impact: 'HIGH',
-          warningText: lang === 'en'
-            ? 'Expect heightened spread widening and volatility. Do not enter within 5 mins of release.'
-            : lang === 'es'
-            ? 'Espere ampliación de spreads y alta volatilidad. Evite entradas 5 min antes y después.'
-            : 'Očekává se skokové rozšíření spreadů. Vyvarujte se otevírání nových pozic 5 min před/po vyhlášení.',
-        },
-        {
-          id: 'fb-2',
-          date: lang === 'en' ? 'Thursday 20:00' : lang === 'es' ? 'Jueves 20:00' : 'Čtvrtek 20:00',
-          currency: 'USD',
-          title: lang === 'en' ? 'FOMC Interest Rate Decision' : lang === 'es' ? 'Decisión de Tipos del FOMC' : 'Rozhodnutí o sazbách FOMC Fed',
-          impact: 'HIGH',
-          warningText: lang === 'en'
-            ? 'Institutional macro catalyst. Enforce breakeven stop loss protection.'
-            : lang === 'es'
-            ? 'Catalizador macro institucional. Asegure SL en punto de equilibrio.'
-            : 'Klíčový makroekonomický katalyzátor. Zajistěte Stop Loss na Breakeven.',
-        },
-      ],
-      riskAdvice: lang === 'en'
-        ? 'Macro news releases create volatile liquidity sweeps. Ensure stops are mechanically positioned beyond structural pivots.'
-        : lang === 'es'
-        ? 'Los anuncios macroeconómicos generan barridos volátiles. Mantenga los stops protegidos tras niveles estructurales.'
-        : 'Během vyhlašování makroekonomických zpráv statisticky dochází k rozšíření spreadů a cenovému skluzu; model počítá se zvýšenou obezřetností a posunem SL na BE.',
-    },
+    economicCalendarWarning,
     entryZone: {
       min: entryMin,
       max: entryMax,
@@ -2414,8 +2622,16 @@ User Preferences & Execution Constraints:
 
 ${langPrompt}`;
 
+    const liveCalendarWarning = await getRealEconomicCalendarWarning(userSelectedSymbol || 'BTC', langCode);
+
     const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
 ${userSelectedSymbol ? `TARGET ASSET / SYMBOL CONTEXT: The user is currently analyzing "${userSelectedSymbol}". If the uploaded chart corresponds to or shows this asset (or related pair like BTC/USD, BTCUSDT), ensure the returned "symbol" reflects this asset accurately and all prices match the chart price scale!` : ''}
+REAL FOREXFACTORY CALENDAR FEED CONTEXT:
+${liveCalendarWarning.upcomingNewsEvents.length > 0 
+  ? `Events: ${JSON.stringify(liveCalendarWarning.upcomingNewsEvents)}. Has High Impact: ${liveCalendarWarning.hasHighImpactNewsThisWeek}.` 
+  : `Calendar is clear of high-impact events for this asset today.`}
+STRICT RULE: Only reference real events from ForexFactory. If there are no high-impact events today, set hasHighImpactNewsThisWeek to false. NEVER fabricate or hallucinate CPI, NFP, or FOMC rate decisions if not present in the feed!
+
 CRITICAL ASSET, TIMEFRAME & PRICE OCR INSTRUCTION:
 - Ticker / Symbol: Look at the top-left TradingView title / watermark / broker symbol (e.g. XAUUSD / GOLD / US100 / NAS100 / BTCUSD / EURUSD / US30). Read the EXACT real symbol from the image. If the user context is provided above ("${userSelectedSymbol || ''}"), prioritize that asset.
 - Timeframe Detection: Check EACH uploaded chart image individually for its specific timeframe label in the top bar and background watermark (e.g., 4H / 1H / 15m / 5m / 1m / Daily). If 3 charts were uploaded (e.g., HTF 1H, MTF 15M, LTF 5M), list the exact sequence corresponding to each image in top-down sequential order: e.g. "H1 + M15 + M5" or "4H + 15M + 5M". NEVER output reverse order (like "M5 + M15") and NEVER omit any uploaded chart timeframe! Always output in top-down sequential order matching the uploaded charts (HTF + MTF + LTF).
@@ -2453,14 +2669,14 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     }
   ],
   "economicCalendarWarning": {
-    "hasHighImpactNewsThisWeek": true,
+    "hasHighImpactNewsThisWeek": boolean (true only if verified high-impact red events are present),
     "upcomingNewsEvents": [
       {
         "id": "1",
-        "date": "Today / This week",
+        "date": "Exact event timing from feed e.g. Today 15:45",
         "currency": "USD / EUR / GBP / etc",
-        "title": "US CPI / NFP / FOMC / Core PPI",
-        "impact": "HIGH",
+        "title": "Real title from feed in requested language",
+        "impact": "HIGH" | "MEDIUM",
         "warningText": "Specific warning regarding volatility, spread widening, or news sweep in requested language"
       }
     ],
@@ -2584,6 +2800,23 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
       parsedData.timeframe = sortServerTimeframes(parsedData.timeframe);
     } else if (reqTimeframe) {
       parsedData.timeframe = sortServerTimeframes(reqTimeframe);
+    }
+
+    // Ensure economicCalendarWarning is authentically grounded in ForexFactory and free from hallucinated CPI/FOMC
+    const detectedAssetSymbol = parsedData.symbol || userSelectedSymbol || 'BTC';
+    const verifiedCalendarWarning = await getRealEconomicCalendarWarning(detectedAssetSymbol, langCode);
+
+    if (
+      !parsedData.economicCalendarWarning ||
+      !Array.isArray(parsedData.economicCalendarWarning.upcomingNewsEvents) ||
+      parsedData.economicCalendarWarning.upcomingNewsEvents.some((ev: any) =>
+        /(CPI|FOMC|NFP|Interest Rate|Fed|Inflace|Sazby)/i.test(ev.title || '') &&
+        !verifiedCalendarWarning.upcomingNewsEvents.some((rev: any) =>
+          /(CPI|FOMC|NFP|Interest Rate|Fed|Inflace|Sazby)/i.test(rev.title || '')
+        )
+      )
+    ) {
+      parsedData.economicCalendarWarning = verifiedCalendarWarning;
     }
 
     // Commit reservation permanently upon successful AI completion
@@ -3237,71 +3470,63 @@ app.post('/api/economic-calendar', async (req, res) => {
     let realEvents: any[] = [];
     let liveFetchedSuccess = false;
 
-    // Attempt to fetch live ForexFactory JSON feed with 4000ms network timeout
+    // Use cached/live ForexFactory JSON feed
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-      const ffRes = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (ffRes.ok) {
-        const ffData = await ffRes.json();
-        if (Array.isArray(ffData)) {
-          const matchingFF = ffData.filter((item: any) => {
-            if (!item.date) return false;
-            const itemDate = new Date(item.date);
-            return (
-              itemDate.getDate() === targetDay &&
+      const ffData = await fetchLiveForexFactoryCalendar();
+      if (Array.isArray(ffData) && ffData.length > 0) {
+        const targetIso = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+        const matchingFF = ffData.filter((item: any) => {
+          if (!item.date) return false;
+          const isoPrefix = item.date.split('T')[0];
+          const itemDate = new Date(item.date);
+          return (
+            isoPrefix === targetIso ||
+            (itemDate.getDate() === targetDay &&
               itemDate.getMonth() + 1 === targetMonth &&
-              itemDate.getFullYear() === targetYear
-            );
+              itemDate.getFullYear() === targetYear)
+          );
+        });
+
+        if (matchingFF.length > 0) {
+          liveFetchedSuccess = true;
+          realEvents = matchingFF.map((item: any, idx: number) => {
+            const itemDate = new Date(item.date);
+            const hoursStr = String(itemDate.getHours()).padStart(2, '0');
+            const minsStr = String(itemDate.getMinutes()).padStart(2, '0');
+            const timeFormatted = `${hoursStr}:${minsStr}`;
+            const impactUpper = (item.impact || 'LOW').toUpperCase();
+            const curr = item.country || 'USD';
+
+            let warningText = '';
+            if (impactUpper === 'HIGH') {
+              warningText = langCode === 'en'
+                ? `Critical news release for ${curr}! Expect elevated volatility and wide spreads at ${timeFormatted}.`
+                : langCode === 'es'
+                ? `¡Noticia crítica para ${curr}! Se espera alta volatilidad y spreads amplios a las ${timeFormatted}.`
+                : `Kritická zpráva pro ${curr}! Očekávejte zvýšenou volatilitu a rozšířené spready v ${timeFormatted}.`;
+            } else if (impactUpper === 'MEDIUM') {
+              warningText = langCode === 'en'
+                ? `Moderate impact on ${curr} currency pairs.`
+                : langCode === 'es'
+                ? `Impacto moderado en pares con ${curr}.`
+                : `Střední vliv na měnové páry s ${curr}.`;
+            }
+
+            return {
+              id: String(idx + 1),
+              date: `${targetDate} ${timeFormatted}`,
+              currency: curr,
+              title: localizeEconomicTitle(item.title, langCode),
+              impact: impactUpper === 'HIGH' ? 'HIGH' : impactUpper === 'MEDIUM' ? 'MEDIUM' : 'LOW',
+              forecast: item.forecast || 'N/A',
+              previous: item.previous || 'N/A',
+              warningText,
+            };
           });
-
-          if (matchingFF.length > 0) {
-            liveFetchedSuccess = true;
-            realEvents = matchingFF.map((item: any, idx: number) => {
-              const itemDate = new Date(item.date);
-              const hoursStr = String(itemDate.getHours()).padStart(2, '0');
-              const minsStr = String(itemDate.getMinutes()).padStart(2, '0');
-              const timeFormatted = `${hoursStr}:${minsStr}`;
-              const impactUpper = (item.impact || 'LOW').toUpperCase();
-              const curr = item.country || 'USD';
-
-              let warningText = '';
-              if (impactUpper === 'HIGH') {
-                warningText = langCode === 'en'
-                  ? `Critical news release for ${curr}! Expect elevated volatility and wide spreads at ${timeFormatted}.`
-                  : langCode === 'es'
-                  ? `¡Noticia crítica para ${curr}! Se espera alta volatilidad y spreads amplios a las ${timeFormatted}.`
-                  : `Kritická zpráva pro ${curr}! Očekávejte zvýšenou volatilitu a rozšířené spready v ${timeFormatted}.`;
-              } else if (impactUpper === 'MEDIUM') {
-                warningText = langCode === 'en'
-                  ? `Moderate impact on ${curr} currency pairs.`
-                  : langCode === 'es'
-                  ? `Impacto moderado en pares con ${curr}.`
-                  : `Střední vliv na měnové páry s ${curr}.`;
-              }
-
-              return {
-                id: String(idx + 1),
-                date: `${targetDate} ${timeFormatted}`,
-                currency: curr,
-                title: localizeEconomicTitle(item.title, langCode),
-                impact: impactUpper === 'HIGH' ? 'HIGH' : impactUpper === 'MEDIUM' ? 'MEDIUM' : 'LOW',
-                forecast: item.forecast || 'N/A',
-                previous: item.previous || 'N/A',
-                warningText,
-              };
-            });
-          }
         }
       }
     } catch (ffErr) {
-      console.warn('ForexFactory live feed fetch failed or timed out, falling back to AI generator:', ffErr);
+      console.warn('ForexFactory live feed processing error:', ffErr);
     }
 
     let finalEvents = realEvents;
@@ -3318,17 +3543,17 @@ app.post('/api/economic-calendar', async (req, res) => {
           1: [ // Monday
             { time: '10:00', curr: 'EUR', title: 'Sentix Investor Confidence', impact: 'MEDIUM', forecast: '-8.2', previous: '-9.5' },
             { time: '16:00', curr: 'USD', title: 'ISM Services Employment', impact: 'MEDIUM', forecast: '51.2', previous: '50.8' },
-            { time: '17:30', curr: 'USD', title: 'FOMC Member Speech & Market Outlook', impact: 'HIGH', forecast: '-', previous: '-' },
+            { time: '17:30', curr: 'USD', title: 'FOMC Member Speech & Market Outlook', impact: 'LOW', forecast: '-', previous: '-' },
           ],
           2: [ // Tuesday
             { time: '08:00', curr: 'GBP', title: 'Claimant Count Change / Unemployment Rate', impact: 'HIGH', forecast: '4.4%', previous: '4.4%' },
             { time: '14:30', curr: 'USD', title: 'Building Permits & Housing Starts', impact: 'MEDIUM', forecast: '1.41M', previous: '1.40M' },
-            { time: '16:00', curr: 'USD', title: 'CB Consumer Confidence', impact: 'HIGH', forecast: '103.5', previous: '100.3' },
+            { time: '16:00', curr: 'USD', title: 'CB Consumer Confidence', impact: 'MEDIUM', forecast: '103.5', previous: '100.3' },
           ],
           3: [ // Wednesday
-            { time: '14:30', curr: 'USD', title: 'Core CPI m/m & Consumer Price Index y/y', impact: 'HIGH', forecast: '3.1%', previous: '3.2%' },
-            { time: '16:30', curr: 'USD', title: 'Crude Oil Inventories', impact: 'MEDIUM', forecast: '-1.4M', previous: '+1.2M' },
-            { time: '20:00', curr: 'USD', title: 'FOMC Meeting Minutes / Rate Decision', impact: 'HIGH', forecast: '5.25%', previous: '5.25%' },
+            { time: '10:00', curr: 'EUR', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '52.1', previous: '51.8' },
+            { time: '15:45', curr: 'USD', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '53.6', previous: '53.2' },
+            { time: '16:30', curr: 'USD', title: 'Crude Oil Inventories', impact: 'LOW', forecast: '-1.4M', previous: '+1.2M' },
           ],
           4: [ // Thursday
             { time: '14:15', curr: 'EUR', title: 'ECB Main Refinancing Rate & Monetary Policy Statement', impact: 'HIGH', forecast: '3.75%', previous: '3.75%' },

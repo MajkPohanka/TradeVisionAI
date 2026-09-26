@@ -210,7 +210,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const uploadedImages = currentResult.uploadedImages || [];
-  const [chartViewMode, setChartViewMode] = useState<'snapshot' | 'hd_chart' | 'live_tv'>(
+  const [chartViewMode, setChartViewMode] = useState<'snapshot' | 'hd_chart'>(
     uploadedImages.length > 0 ? 'snapshot' : 'hd_chart'
   );
   const [hdChartUrl, setHdChartUrl] = useState<string | null>(null);
@@ -714,24 +714,6 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 <BarChart2 className="w-3.5 h-3.5 shrink-0" />
                 <span className={chartViewMode === 'hd_chart' && isLight ? 'keep-white' : ''}>Kompletní graf</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setChartViewMode('live_tv')}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer border ${
-                  chartViewMode === 'live_tv'
-                    ? (isLight
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white keep-white border-emerald-600 shadow-sm'
-                        : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20')
-                    : (isLight
-                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border-slate-300'
-                        : 'bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white border-white/15')
-                }`}
-                title="Otevřít živý interaktivní graf TradingView pro tento symbol"
-              >
-                <Radio className={`w-3.5 h-3.5 shrink-0 ${chartViewMode === 'live_tv' ? (isLight ? 'text-white keep-white' : 'text-slate-950') : 'text-rose-500 animate-pulse'}`} />
-                <span className={chartViewMode === 'live_tv' && isLight ? 'keep-white' : ''}>Živý TradingView</span>
-              </button>
             </div>
 
             {/* Overlay toggle & Fullscreen Maximize button */}
@@ -896,7 +878,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             )}
 
             {/* 2. HD CANDLESTICK GENERATED CHART */}
-            {(chartViewMode === 'hd_chart' || !currentImage || imageLoadError) && chartViewMode !== 'live_tv' && (
+            {(chartViewMode === 'hd_chart' || !currentImage || imageLoadError) && (
               <div className="relative w-full h-full flex items-center justify-center">
                 {hdChartUrl ? (
                   <div
@@ -933,19 +915,6 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                     </button>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* 3. LIVE TRADINGVIEW EMBED */}
-            {chartViewMode === 'live_tv' && (
-              <div className="relative w-full h-full">
-                <iframe
-                  title="TradingView Live Chart"
-                  src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_analysis_embed&symbol=${encodeURIComponent(
-                    (result.symbol || 'BINANCE:BTCUSDT').replace(/\s+/g, '')
-                  )}&interval=${encodeURIComponent(getTradingViewInterval(displayResult.timeframe || result.timeframe))}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=${isLight ? 'light' : 'dark'}&style=1&timezone=exchange`}
-                  className="w-full h-full border-0"
-                />
               </div>
             )}
           </div>

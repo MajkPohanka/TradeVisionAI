@@ -127,6 +127,9 @@ export function formatMentorPrice(val?: number, symbol?: string): string {
 export type MentorIntent =
   | 'WHY_SIGNAL'
   | 'ENTRY_TIMING'
+  | 'ACTION_NOW'
+  | 'USER_WANTS_LONG'
+  | 'USER_WANTS_SHORT'
   | 'STOP_LOSS'
   | 'TAKE_PROFIT'
   | 'BREAKEVEN'
@@ -137,34 +140,74 @@ export type MentorIntent =
   | 'PSYCHOLOGY'
   | 'REVERSAL_WHAT_IF'
   | 'CLOSE_PARTIALS'
+  | 'MARKET_OPINION'
+  | 'CONFIRMATION_OR_ACK'
   | 'GREETING_OR_THANKS'
   | 'GENERAL_OVERVIEW';
 
 export function classifyMentorIntent(question: string): MentorIntent {
   const q = (question || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // 1. Breakeven management (checked early so "ochrana na vstupu" isn't swallowed by entry)
+  // 1. User wants to go LONG (counter-trend or directional intent)
+  if (
+    /(chci.*(long|nakup|koupit)|jdu.*(long|nakup|koupit)|sel\s*bych.*(long|nakup)|radsi.*(long|nakup)|co.*(koupit|nakupovat|longovat)|chcu.*(long|nakup)|kupuji|nakupuji|longuji|want.*(long|buy)|quiero.*(comprar|long))/.test(q) ||
+    /\b(chci\s+long|jdu\s+long|jdem\s+long|longovat|nakoupit)\b/.test(q)
+  ) {
+    return 'USER_WANTS_LONG';
+  }
+
+  // 2. User wants to go SHORT (counter-trend or directional intent)
+  if (
+    /(chci.*(short|prodej|prodat)|jdu.*(short|prodej|prodat)|sel\s*bych.*(short|prodej)|radsi.*(short|prodej)|co.*(prodat|shortovat)|chcu.*(short|prodej)|prodavam|shortuji|want.*(short|sell)|quiero.*(vender|short))/.test(q) ||
+    /\b(chci\s+short|jdu\s+short|jdem\s+short|shortovat|prodat)\b/.test(q)
+  ) {
+    return 'USER_WANTS_SHORT';
+  }
+
+  // 3. Action right now / immediate execution query
+  if (
+    /(a\s*ted|co\s*ted|co\s*(mam|mamka|delat|ucinit)|jak\s*(postupovat|dal|pokracovat)|jaky\s*je\s*dalsi\s*krok|co\s*ted\s*hned|kam\s*ted|what\s*now|what\s*should\s*i\s*do|que\s*hago\s*ahora)/.test(q) ||
+    /^(a\s*ted|co\s*ted|jak\s*ted|ted\s*co)\b/.test(q)
+  ) {
+    return 'ACTION_NOW';
+  }
+
+  // 4. Confirmation / acknowledgment
+  if (
+    /^(jojo|jo|ok|okej|dobre|fajn|diky|dekuji|jasne|super|chvalim|rozumim|chapu|parada|supr|presne|presne\s*tak)\b/.test(q)
+  ) {
+    return 'CONFIRMATION_OR_ACK';
+  }
+
+  // 5. Market opinion / outlook
+  if (
+    /(jak\s*to\s*vidis|co\s*si\s*myslis|bude\s*to\s*(rust|padat|stoupat|klesat)|vyjde\s*to|mas\s*pravdu|veris\s*tomu|tvuj\s*nazor|how\s*do\s*you\s*see|que\s*opinas)/.test(q)
+  ) {
+    return 'MARKET_OPINION';
+  }
+
+  // 6. Breakeven management
   if (
     /(breakeven|break\s*even|\bbe\b|posun.*(vstup|be)|ochran|chranit)/.test(q)
   ) {
     return 'BREAKEVEN';
   }
 
-  // 2. Stop loss & invalidation
+  // 7. Stop loss & invalidation
   if (
     /(\bsl\b|stop\s*loss|stoploss|stopk|invalida|kam\s*dat\s*stop|kde\s*dat\s*stop)/.test(q)
   ) {
     return 'STOP_LOSS';
   }
 
-  // 3. Take profit & targets
+  // 8. Take profit & targets
   if (
     /(\btp\b|\btp[123]\b|take\s*profit|takeprofit|profit|zisk|cíl|cil|target|kam\s*mirit|kde\s*vybrat|kde\s*zavrit)/.test(q)
   ) {
     return 'TAKE_PROFIT';
   }
 
-  // 4. Why this signal / direction
+  // 9. Why this signal / direction
   if (
     /(proc.*(long|short|nakup|prodej|proda|buy|sell)|(proc|duvod|jakto|logik|vysvetli).*(signal|obchod|setup|pozic)|why\s*(long|short|buy|sell|this)|por\s*que\s*(long|short|comprar|vender)|proc\s+zrovna|proc\s+vlastne|proc\s+ted)/.test(q) ||
     /^(proc|why|por que)\b/.test(q)
@@ -172,7 +215,7 @@ export function classifyMentorIntent(question: string): MentorIntent {
     return 'WHY_SIGNAL';
   }
 
-  // 5. Entry timing & execution
+  // 10. Entry timing & execution
   if (
     /(kdy.*(vstup|vstoup|open|koup|proda)|vstup.*(hned|ted|market)|(pozde|cas).*(vstup|vstoup)|cekat.*(pullback|retest)|vstupni\s*zon|casovan|kde.*(vstup|vstoup)|when\s*to\s*enter|enter\s*now|cuando\s*entrar)/.test(q) ||
     /\b(vstup|vstoupit|vstoupime|vstupni|entry)\b/.test(q)
@@ -180,59 +223,58 @@ export function classifyMentorIntent(question: string): MentorIntent {
     return 'ENTRY_TIMING';
   }
 
-  // 6. Risk sizing & lots
+  // 11. Risk sizing & lots
   if (
     /(lot|risk|kapital|velikost.*pozic|position\s*size|paka|leverage|marz|margin|drawdown|prop\s*firm)/.test(q)
   ) {
     return 'RISK_LOTS';
   }
 
-  // 7. Timeframes & Multi-timeframe analysis
+  // 12. Timeframes & Multi-timeframe analysis
   if (
     /(timeframe|casovy\s*ramec|\b1m\b|\b5m\b|\b15m\b|\b1h\b|\b4h\b|\bd1\b|denni|tydenni|weekly|daily|scalp|swing|intraday)/.test(q)
   ) {
     return 'TIMEFRAME';
   }
 
-  // 8. SMC / Price action mechanics
+  // 13. SMC / Price action mechanics
   if (
     /(fvg|fair\s*value\s*gap|order\s*block|orderblock|sweep|likvidit|liquidity|mss|bos|choch|discount|premium|wyckoff|imbalance|nerovnovah|ote|fibonacci)/.test(q)
   ) {
     return 'SMC_CONCEPTS';
   }
 
-  // 9. Macro & News
+  // 14. Macro & News
   if (
     /(zprav|novink|kalendar|nfp|cpi|fomc|sazb|inflac|vyhlasen|high\s*impact|tier-1|fundament|news|noticia)/.test(q)
   ) {
     return 'NEWS_MACRO';
   }
 
-  // 10. Psychology & Emotions
+  // 15. Psychology & Emotions
   if (
     /(strach|fomo|psycholog|disciplin|chamtiv|emoc|prodelal|ztratil|serie\s*ztrat|revenge|pomst|overtrading|nervoz|tilt|fear|greed|miedo)/.test(q)
   ) {
     return 'PSYCHOLOGY';
   }
 
-  // 11. Partial closes & scaling
+  // 16. Partial closes & scaling
   if (
     /(zavrit\s*(cel|cast)|vybrat\s*vse|scale\s*out|nechat\s*bezet|runner|parcial|scale\s*in)/.test(q)
   ) {
     return 'CLOSE_PARTIALS';
   }
 
-  // 12. Reversal / What if
+  // 17. Reversal / What if
   if (
     /(co\s*kdyz|otoci|pujde\s*proti|propad|zvrat|falesny\s*pruraz|protipohyb|what\s*if|reversal|que\s*pasa\s*si)/.test(q)
   ) {
     return 'REVERSAL_WHAT_IF';
   }
 
-  // 13. Greeting or thanks
+  // 18. Greeting or thanks
   if (
-    /^(ahoj|cau|dobry\s*den|hello|hi|hola)\b/.test(q) ||
-    /(diky|dekuji|dik|super|jasne|rozumim|chapu|thanks|gracias)/.test(q)
+    /^(ahoj|cau|dobry\s*den|hello|hi|hola)\b/.test(q)
   ) {
     return 'GREETING_OR_THANKS';
   }
@@ -490,6 +532,111 @@ V této analýze systém vyhodnotil klíčové institucionální struktury:
 3. **Běžec (TP3 - ${tp3Str})**: Ponechte 20 % pozice otevřené s posuvným Stop Lossem (Trailing Stop) pod/nad každé nové potvrzené swingové minimum/maximum.`;
       }
 
+      case 'ACTION_NOW': {
+        return `### ⏱️ Co přesně udělat právě teď na ${symbol}?
+
+Zde je konkrétní akční plán pro tuto chvíli krok za krokem:
+
+1. **Krok 1 — Zkontrolujte polohu ceny vůči vstupní zóně**:
+   - Naše doporučená vstupní zóna je **${entryRangeStr}** (ideální cena pro vstup: **${entryStr}**).
+   - **Pokud se cena nachází v této zóně**: Zadejte Limitní pokyn (Limit Order) na ${entryStr} s předem nastaveným Stop Lossem na **${slStr}**.
+   - **Pokud cena již vystřelila směrem k TP1 (${tp1Str})**: Zákaz vstupu tržním příkazem (Market)! Nikdy nehoňte ujetý vlak (FOMO). Vyčkejte na klidný návrat ceny (retest / retracement).
+
+2. **Krok 2 — Nastavte ochranu kapitálu (Stop Loss)**:
+   - Okamžitě zadejte pevný Stop Loss na **${slStr}** (vzdálenost: **${slDistPercent} %**).
+   - Neponechávejte pozici bez zadaného SL ani na minutu.
+
+3. **Krok 3 — Přednastavte výběr zisku (Take Profit)**:
+   - Zadejte TP1 na **${tp1Str}** pro uzavření 50 % pozice.
+   - Zadejte TP2 na **${tp2Str}** pro dalších 30 % pozice.
+
+4. **Krok 4 — Přepněte se do režimu trpělivosti**:
+   - Po zadání objednávek neměňte pravidla za chodu. Stop Loss posunete na Breakeven (${entryStr}) **výhradně až po dosažení TP1**.`;
+      }
+
+      case 'USER_WANTS_LONG': {
+        if (isShort) {
+          return `### ⚠️ Pozor: Model má na ${symbol} signál SHORT, nikoliv LONG!
+
+Vnímám, že byste rád vstoupil do **LONGU (nákupu)**, ale z pohledu institucionální aukční teorie a řízení rizika je potřeba zvážit následující:
+
+1. **Obchodujete přímo proti institucionálnímu toku objednávek**:
+   - Model na ${symbol} identifikoval medvědí distribuci po výběru nákupní likvidity (BSL Sweep).
+   - Velcí hráči momentálně tlačí cenu směrem dolů k výběru prodejní likvidity pod **${tp1Str}** a **${tp2Str}**.
+
+2. **Kdy by byl nákup (LONG) přípustný?**:
+   - Pouze v případě, že by cena na nižším rámci (např. 5M/15M) vytvořila potvrzený **Bullish MSS** (Market Structure Shift) a uzavřela svíčkou nad úrovní naší invalidace **${slStr}**.
+   - Dokud je cena pod touto hranicí, každý růst je z institucionálního pohledu pouhým návratem (pullbackem) do prémiového Order Blocku před dalším poklesem.
+
+3. **Psychologická past "Chci jít Long"**:
+   - V tradingu je nebezpečné mít osobní přání ("chci, aby to šlo nahoru"). Trh nezajímá, co si přejeme, trh se řídí pouze likviditou a toky objednávek.
+   - Otevření longu do silného prodejního toku bez potvrzení nese vysoké riziko rychlého zasažení Stop Lossu.
+
+4. **Doporučený postup mentora**:
+   - Pokud chcete být v souladu s modelem, vyčkejte na náš doporučený prodejní limit v zóně **${entryRangeStr}** se Stop Lossem na **${slStr}**.
+   - Pokud přesto chcete zkusit protitrendový long, snižte riziko na maximálně 0.25–0.5 % účtu a Stop Loss umístěte striktně pod nejnižší lokální dno!`;
+        }
+        return `### 🧭 Nákupní pozice (LONG) na ${symbol} — Potvrzení & Postup
+
+Ano! Signál na ${symbol} je **LONG**, takže váš záměr je v naprostém souladu s aktuálním modelem institucionálního toku objednávek.
+
+1. **Optimální provedení**:
+   - Nevstupujte zběsile za Market, pokud se cena nachází výše.
+   - Zadejte nákupní Limit (Buy Limit) do diskontního pásma **${entryRangeStr}** (ideálně na **${entryStr}**).
+2. **Kde je ochrana kapitálu**:
+   - Stop Loss umístěte na **${slStr}** (odstup: **${slDistPercent} %**).
+3. **Výstupní cíle**:
+   - První realizace (50 %): **${tp1Str}** — zde okamžitě přesuňte Stop Loss na Breakeven.
+   - Hlavní cíl (30 %): **${tp2Str}**.`;
+      }
+
+      case 'USER_WANTS_SHORT': {
+        if (isLong) {
+          return `### ⚠️ Pozor: Model má na ${symbol} signál LONG, nikoliv SHORT!
+
+Vnímám, že byste rád vstoupil do **SHORTU (prodeje)**, ale aktuální model má opačný pohled:
+
+1. **Riziko protitrendového prodeje**:
+   - Trh vybral prodejní likviditu (SSL Sweep) a akumuluje objednávky pro růst k nákupním magnetům **${tp1Str}** a **${tp2Str}**.
+   - Prodej do diskontní poptávky představuje vysoké statistické riziko stop-outu.
+2. **Kdy by dával prodej smysl?**:
+   - Až v momentě, kdy cena zlomí strukturu směrem dolů (Bearish MSS) a uzavře pod invalidační hladinou **${slStr}**.
+3. **Rada mentora**:
+   - Chcete-li disciplinovaně chránit svůj účet, nehledejte prodeje v diskontní zóně kupujících.`;
+        }
+        return `### 🧭 Prodejní pozice (SHORT) na ${symbol} — Potvrzení & Postup
+
+Ano! Signál na ${symbol} je **SHORT**, takže váš záměr prodávat je v plném souladu s aktuálním institucionálním modelem.
+
+1. **Exekuce prodeje**:
+   - Zadejte prodejní Limit (Sell Limit) do prémiového pásma **${entryRangeStr}** (ideálně **${entryStr}**).
+2. **Ochrana kapitálu**:
+   - Stop Loss musí být pevně na **${slStr}** (odstup: **${slDistPercent} %**).
+3. **Cíle zisku**:
+   - První výběr zisku na **${tp1Str}** a následný posun na Breakeven.
+   - Hlavní likviditní cíl na **${tp2Str}**.`;
+      }
+
+      case 'CONFIRMATION_OR_ACK': {
+        return `Rozumím! Skvěle, že máme plán sladěný.
+
+Pamatujte na 3 zlatá pravidla pro tento obchod na **${symbol}**:
+1. **Trpělivost na vstup**: Exekuce v pásmu **${entryRangeStr}** (doporučeno: **${entryStr}**).
+2. **Nekompromisní Stop Loss**: Žádné posouvání do ztráty pod/nad **${slStr}**.
+3. **Pravidlo pro Breakeven**: SL posouváme na vstupní cenu **výhradně až po zásahu TP1 (${tp1Str})**.
+
+Máte-li jakýkoliv další dotaz k tomuto setupu nebo řízení pozice, stačí napsat!`;
+      }
+
+      case 'MARKET_OPINION': {
+        return `### 🔍 Jak vidím aktuální příležitost na ${symbol} (${rawSignal})?
+
+Z pohledu institucionální aukční teorie a statistického edge:
+- **Předpoklad modelu**: Model dává signálu **${rawSignal}** spolehlivost **${analysis?.confidenceScore || 85} %** s poměrem R:R **${rrRatio}**.
+- **Proč má tento obchod výhodu**: Vstup v zóně **${entryRangeStr}** nabízí asymetrickou příležitost. Riskujeme ${slDistPercent} % k hladině invalidace (${slStr}), zatímco cílujeme zisk k magnetu likvidity na **${tp2Str}**.
+- **Pravděpodobnostní realita**: Žádný model na světě nemá 100% jistotu. Profesionální trading spočívá v tom, že i když má obchod 70–80% pravděpodobnost úspěchu, pevně chráníme kapitál na ${slStr} pro případ, že trh tentokrát zrealizuje menšinový scénář.`;
+      }
+
       case 'GREETING_OR_THANKS': {
         return `Zdravím tě! Jsem tvůj AI Trading Mentor pro **${symbol}** (${timeframe}). 
 Momentálně máme na grafu signál **${rawSignal}** se vstupní zónou **${entryStr}**, Stop Lossem na **${slStr}** a cílem TP1 na **${tp1Str}**.
@@ -499,21 +646,28 @@ Můžeš se mě zeptat na cokoliv:
 - Kdy přesně vstoupit a jak nastavit limitní pokyn?
 - Kdy posunout Stop Loss na Breakeven?
 - Kolik lotů nastavit pro tvůj kapitál?
-- Jak funguje Price Action / SMC na tomto setupu?
+- Co když chci jít opačným směrem (např. do Longu)?
 
 Jsem tu, abych ti pomohl exekuovat obchod s chladnou hlavou a institucionální disciplínou!`;
       }
 
       default: {
-        return `### 🏛️ Mentorské zhodnocení situace na ${symbol} (${timeframe})
+        return `### 💬 Odpověď mentora k ${symbol} (${rawSignal})
 
-- **Směr a Signál**: **${rawSignal}** (spolehlivost modelu: **${analysis?.confidenceScore || 85} %**).
+K vašemu dotazu: *„${question.trim()}“*
+
+Pokud se podíváme na aktuální stav trhu na **${symbol}** (${timeframe}):
+- **Aktivní směr modelu**: **${rawSignal}** (spolehlivost **${analysis?.confidenceScore || 85} %**).
 - **Vstupní pásmo**: **${entryRangeStr}** (doporučeno: **${entryStr}**).
 - **Ochrana kapitálu (SL)**: **${slStr}** (vzdálenost: **${slDistPercent} %**).
-- **Výběr zisku (TP1 / TP2)**: První cíl **${tp1Str}**, hlavní cíl **${tp2Str}** (celkový poměr **${rrRatio}**).
-- **Doporučený postup**: Nevstupujte zbrkle tržním příkazem. Zadejte limitní pokyn na vstupní úroveň a po zasažení TP1 okamžitě uzamkněte zisk a posuňte Stop Loss na Breakeven.
+- **Výběr zisku (TP1 / TP2)**: První cíl **${tp1Str}**, hlavní cíl **${tp2Str}** (R:R **${rrRatio}**).
 
-Máte doplňující dotaz k řízení této pozice nebo metodice SMC? Rád vám situaci detailně vysvětlím.`;
+Můžete se mě konkrétně zeptat na:
+- *Co mám teď přesně udělat?*
+- *Proč máme signál ${rawSignal}?*
+- *Chci jít opačným směrem — jaká jsou rizika?*
+- *Kdy mám posunout Stop Loss na Breakeven?*
+- *Kolik lotů otevřít pro můj účet?*`;
       }
     }
   }
@@ -586,13 +740,64 @@ Overall Risk-to-Reward ratio: **${rrRatio}**.
 - **Leverage Rule**: Keep real leverage between 1:5 and 1:20 for ${holdingPeriod} setups. Position size controls risk, not leverage.`;
       }
 
-      default: {
-        return `### 🏛️ Mentor Outlook for ${symbol} (${timeframe})
-- **Signal**: **${rawSignal}** (Confidence: **${analysis?.confidenceScore || 85}%**).
-- **Entry Zone**: **${entryRangeStr}** (Recommended: **${entryStr}**).
+      case 'ACTION_NOW': {
+        return `### ⏱️ Immediate Execution Plan for ${symbol}
+1. **Entry Zone Verification**: Recommended entry is **${entryRangeStr}** (optimal price: **${entryStr}**).
+2. **Execution Rule**: If price is inside this zone, place a Limit Order at **${entryStr}** with Stop Loss at **${slStr}**.
+3. **No Market Chase**: If price has already departed towards TP1 (${tp1Str}), do not chase with market orders. Wait for the retracement.
+4. **Capital Protection**: Never enter without a predefined Stop Loss.`;
+      }
+
+      case 'USER_WANTS_LONG': {
+        if (isShort) {
+          return `### ⚠️ Advisory Notice: Current Model is SHORT, Not LONG on ${symbol}!
+Going Long against institutional order flow presents heightened risk:
+1. **Order Flow Mismatch**: Price has swept Buy-Side Liquidity and institutions are distributing down to ${tp1Str} and ${tp2Str}.
+2. **Invalidation Requirement**: A Long setup requires price to break and close above **${slStr}** (Bullish MSS). Below this level, rallies are merely pullbacks into supply.
+3. **Guidance**: Stay aligned with the primary model or wait for confirmed low-timeframe reversal structure.`;
+        }
+        return `### 🧭 Long Position Plan on ${symbol}
+Yes! A Long execution is aligned with the active institutional model.
+- **Entry Zone**: **${entryRangeStr}** (recommended: **${entryStr}**).
 - **Stop Loss**: **${slStr}** (${slDistPercent}% risk).
-- **Target**: TP1 **${tp1Str}**, TP2 **${tp2Str}** (R:R **${rrRatio}**).
-- **Guidance**: Execute patiently with limit orders and strictly shift Stop Loss to Breakeven only after TP1 is achieved.`;
+- **Targets**: TP1 **${tp1Str}** (take 50% & move to Breakeven), TP2 **${tp2Str}**.`;
+      }
+
+      case 'USER_WANTS_SHORT': {
+        if (isLong) {
+          return `### ⚠️ Advisory Notice: Current Model is LONG, Not SHORT on ${symbol}!
+Shorting into discount accumulation carries severe stop-out vulnerability.
+- Wait for a confirmed break below **${slStr}** before considering bearish exposure.`;
+        }
+        return `### 🧭 Short Position Plan on ${symbol}
+Yes! A Short execution is aligned with the active institutional model.
+- **Entry Zone**: **${entryRangeStr}** (recommended: **${entryStr}**).
+- **Stop Loss**: **${slStr}** (${slDistPercent}% risk).
+- **Targets**: TP1 **${tp1Str}** (take 50% & move to Breakeven), TP2 **${tp2Str}**.`;
+      }
+
+      case 'CONFIRMATION_OR_ACK': {
+        return `Understood! Keep executing your planned rules with discipline on **${symbol}**:
+1. Execute limit orders in **${entryRangeStr}**.
+2. Protect capital at **${slStr}**.
+3. Move Stop Loss to Breakeven only after hitting TP1 (**${tp1Str}**).`;
+      }
+
+      default: {
+        return `### 💬 Mentor Perspective on ${symbol} (${rawSignal})
+Regarding your question: *"${question.trim()}"*
+
+Current setup context for **${symbol}** (${timeframe}):
+- **Active Bias**: **${rawSignal}** (${analysis?.confidenceScore || 85}% confidence)
+- **Entry Zone**: **${entryRangeStr}** (recommended: **${entryStr}**)
+- **Stop Loss**: **${slStr}** (${slDistPercent}%)
+- **Targets**: TP1 **${tp1Str}**, TP2 **${tp2Str}** (R:R **${rrRatio}**)
+
+Feel free to ask about:
+- *What should I do right now?*
+- *Why is the signal ${rawSignal}?*
+- *When should I move Stop Loss to Breakeven?*
+- *What position size should I use?*`;
       }
     }
   }
@@ -618,13 +823,40 @@ Overall Risk-to-Reward ratio: **${rrRatio}**.
 3. Al tocar TP1, cierre el 50% de la posición y asegure una operación 100% libre de riesgo.`;
       }
 
+      case 'ACTION_NOW': {
+        return `### ⏱️ Plan de Acción Inmediato para ${symbol}
+1. **Verificar Zona de Entrada**: Rango recomendado **${entryRangeStr}** (precio óptimo: **${entryStr}**).
+2. **Regla de Ejecución**: Si el precio cotiza en la zona, sitúe una orden límite en **${entryStr}** con Stop Loss en **${slStr}**.
+3. **No perseguir el precio**: Si ya se expandió hacia TP1 (${tp1Str}), espere el retroceso.`;
+      }
+
+      case 'USER_WANTS_LONG': {
+        if (isShort) {
+          return `### ⚠️ Advertencia: El modelo actual indica SHORT en ${symbol}!
+Comprar contra el flujo institucional implica alto riesgo de stop-out. Espere una confirmación clara por encima de **${slStr}** antes de considerar compras.`;
+        }
+        return `### 🧭 Confirmación de Compra (LONG) en ${symbol}
+El objetivo comprador coincide con el modelo institucional. Ejecute en **${entryRangeStr}** con SL en **${slStr}**.`;
+      }
+
+      case 'USER_WANTS_SHORT': {
+        if (isLong) {
+          return `### ⚠️ Advertencia: El modelo actual indica LONG en ${symbol}!
+Vender en zona de demanda institucional conlleva elevado riesgo.`;
+        }
+        return `### 🧭 Confirmación de Venta (SHORT) en ${symbol}
+El objetivo vendedor coincide con el modelo institucional. Ejecute en **${entryRangeStr}** con SL en **${slStr}**.`;
+      }
+
       default: {
-        return `### 🏛️ Orientación del Mentor para ${symbol} (${timeframe})
-- **Dirección**: **${rawSignal}** (Confianza: **${analysis?.confidenceScore || 85}%**).
-- **Entrada**: **${entryRangeStr}** (Recomendada: **${entryStr}**).
-- **Stop Loss**: **${slStr}** (Riesgo: **${slDistPercent}%**).
-- **Objetivos**: TP1 en **${tp1Str}**, TP2 en **${tp2Str}** (R:R **${rrRatio}**).
-- **Consejo**: Ejecute con órdenes límite y gestione la posición con estricta disciplina.`;
+        return `### 💬 Perspectiva del Mentor para ${symbol} (${rawSignal})
+Sobre su consulta: *"${question.trim()}"*
+
+Contexto actual para **${symbol}** (${timeframe}):
+- **Dirección**: **${rawSignal}** (${analysis?.confidenceScore || 85}% de confianza)
+- **Entrada**: **${entryRangeStr}** (óptimo: **${entryStr}**)
+- **Stop Loss**: **${slStr}** (${slDistPercent}%)
+- **Objetivos**: TP1 **${tp1Str}**, TP2 **${tp2Str}** (R:R **${rrRatio}**)`;
       }
     }
   }

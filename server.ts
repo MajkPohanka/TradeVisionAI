@@ -17,6 +17,10 @@ import {
 import { fetchLiveMarketOverview } from './server/marketOverview';
 import { getChartCandles } from './server/chartCandles';
 import { localizeEconomicTitle } from './server/economicLocalization';
+import {
+  generateDynamicMentorAnswer,
+  generateDynamicAnalysisMentorAdvice,
+} from './server/tradingMentorEngine';
 
 export { localizeEconomicTitle };
 
@@ -1740,17 +1744,25 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
         ? `El mercado de ${profile.symbol} en ${timeframe} muestra una estructura alcista con mínimos ascendentes tras barrer liquidez vendedora. El precio actual de ${currentPrice.toFixed(precision)} ${profile.currency} se apoya sobre soporte institucional con RSI en ${rsi.toFixed(0)}, favoreciendo la expansión hacia la liquidez compradora (BSL).`
         : `Trh ${profile.symbol} na časovém rámci ${timeframe} vytvořil býčí tržní strukturu s tvorbou vyšších minim (Higher Lows) a proražením struktury (MSS) po vybrání prodejní likvidity. Aktuální cena ${currentPrice.toFixed(precision)} ${profile.currency} se opírá o diskontní nákupní zónu s RSI (${rsi.toFixed(0)}). Konfluence potvrzují pokračování býčí expanze k nevybrané likviditě nákupních příkazů (BSL).`);
 
-  const mentorAdvice = signal === 'SHORT'
-    ? (lang === 'en'
-        ? `Execution discipline is paramount on ${profile.symbol} (${timeframe}). As price delivers toward TP1 (${tp1Price.toFixed(precision)}), lock in 50% profits and immediately move your Stop Loss to Breakeven. Risk is structurally capped at ${slPrice.toFixed(precision)}; never move your stop further into loss.`
-        : lang === 'es'
-        ? `La disciplina de ejecución es clave en ${profile.symbol} (${timeframe}). Al alcanzar TP1 (${tp1Price.toFixed(precision)}), asegure el 50% y traslade su Stop Loss a Breakeven. El riesgo queda fijado en ${slPrice.toFixed(precision)}; nunca extienda su stop loss.`
-        : `Klíčem k úspěšné exekuci na trhu ${profile.symbol} (${timeframe}) je striktní disciplína. Po dosažení TP1 (${tp1Price.toFixed(precision)}) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Invalidační úroveň je striktně ohraničena na ${slPrice.toFixed(precision)}, nikdy neposouvejte SL do větší ztráty.`)
-    : (lang === 'en'
-        ? `Execution discipline is the cornerstone of trading on ${profile.symbol} (${timeframe}). Once price reaches TP1 (${tp1Price.toFixed(precision)}), lock in 50% and mechanically shift Stop Loss to Breakeven. Never widen your stop, respect the structural invalidation level at ${slPrice.toFixed(precision)}, and let the statistical edge compound.`
-        : lang === 'es'
-        ? `La disciplina de ejecución es el pilar en ${profile.symbol} (${timeframe}). Cuando el precio alcance TP1 (${tp1Price.toFixed(precision)}), asegure el 50% y mueva mecánicamente el Stop Loss a Breakeven. Respete el nivel de invalidación en ${slPrice.toFixed(precision)}.`
-        : `Klíčem k dlouhodobé ziskovosti na trhu ${profile.symbol} (${timeframe}) je striktní prováděcí disciplína. Po dosažení TP1 (${tp1Price.toFixed(precision)}) okamžitě realizujte 50 % zisku a posuňte Stop Loss na úroveň vstupu (Breakeven). Nikdy neposouvejte Stop Loss do větší ztráty a respektujte invalidační úroveň ${slPrice.toFixed(precision)}.`);
+  const mentorAdvice = generateDynamicAnalysisMentorAdvice({
+    symbol: profile.symbol,
+    assetName,
+    timeframe,
+    signal,
+    currentPrice,
+    entryRecommended,
+    entryMin,
+    entryMax,
+    slPrice,
+    tp1Price,
+    tp2Price,
+    tp3Price,
+    rsi,
+    biasReasoning: biasReasoning || '',
+    lang,
+    holdingPeriod,
+    riskTolerance,
+  });
 
   return {
     id: crypto.randomUUID(),
@@ -1898,92 +1910,13 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   };
 }
 
-function generateFallbackMentorAnswer(question: string, currentAnalysis: any, settings: any): string {
-  const lang = settings?.language || 'cs';
-  const qLower = (question || '').toLowerCase();
-
-  const isSl = qLower.includes('sl') || qLower.includes('stop') || qLower.includes('inval') || qLower.includes('ztrát');
-  const isTp = qLower.includes('tp') || qLower.includes('profit') || qLower.includes('cíl') || qLower.includes('target') || qLower.includes('zisk');
-  const isBe = qLower.includes('breakeven') || qLower.includes('be') || qLower.includes('posun') || qLower.includes('ochran');
-  const isRisk = qLower.includes('risk') || qLower.includes('lot') || qLower.includes('kapitál') || qLower.includes('pozic') || qLower.includes('velikost');
-  const isTimeframe = qLower.includes('timeframe') || qLower.includes('tf') || qLower.includes('rámec') || qLower.includes('1m') || qLower.includes('5m') || qLower.includes('4h');
-
-  if (lang === 'en') {
-    if (isSl) {
-      return `### Institutional Stop Loss & Invalidation Framework
-In institutional trading, a Stop Loss is not an arbitrary threshold—it is the precise price level where the structural premise of your trade becomes invalid.
-1. **Structural Invalidation**: In the current setup, the invalidation point sits strictly below the origin of the liquidity sweep and bullish order block (1.08480). If price closes below this level, the order flow narrative is broken.
-2. **Execution Rule**: Never widen your Stop Loss during an active trade. Widenings reflect emotional aversion to taking a loss, violating statistical risk models. Accept predefined risk before clicking enter.`;
-    }
-    if (isTp || isBe) {
-      return `### Profit Taking & Breakeven Management Strategy
-A professional scaling-out framework balances capital protection with asymmetric reward:
-1. **Take Profit 1 (TP1 - 1.09150)**: Liquidate 50% of position size upon tapping the first opposing internal liquidity pool. This immediately locks in a risk-free trade.
-2. **Shift to Breakeven**: Once TP1 is achieved, immediately move your Stop Loss to the exact entry price (plus spread). The trade is now free of downside risk.
-3. **Runners (TP2 & TP3)**: Let the remaining 50% capture the larger Draw on Liquidity (1.09480) with a trailing stop behind consecutive 1H higher lows.`;
-    }
-    if (isRisk) {
-      return `### Mathematical Position Sizing & Capital Preservation
-1. **Fixed Risk Formula**: Lot size must be dynamically computed: 
-   \`Position Size = (Account Balance × Risk %) / (Stop Loss in Pips × Pip Value)\`
-2. **Prop Firm Standard**: Stick strictly to 0.5% – 1.0% risk per execution. This guarantees surviving consecutive drawdown clusters without jeopardizing your account equity.`;
-    }
-    return `### Institutional Mentor Guidance
-Based on the current technical chart and institutional auction theory:
-- **Directional Bias**: Order flow is currently aligned with the bullish Draw on Liquidity. The sweep of session lows followed by energetic displacement creates a high-probability context.
-- **Patience & Execution**: Wait for price to mitigate the discount Point of Interest (FVG/OTE) rather than chasing green candles at premium prices.
-- **Trading Mindset**: Consistent profitability is an outcome of executing your edge over 50-100 trades with robotic discipline, irrespective of the result of any single trade.`;
-  }
-
-  if (lang === 'es') {
-    if (isSl) {
-      return `### Marco Institucional de Stop Loss e Invalidación
-En el trading institucional, el Stop Loss no es un número al azar, sino el punto donde la tesis estructural queda invalidada.
-1. **Invalidación Estructural**: En esta configuración, la invalidación se sitúa bajo el origen del barrido de liquidez (1.08480). Si una vela cierra por debajo, el flujo institucional queda cancelado.
-2. **Regla de Oro**: Nunca amplíe su Stop Loss durante una operación activa. Acepte el riesgo predefinido antes de entrar.`;
-    }
-    if (isTp || isBe) {
-      return `### Gestión de Salidas y Breakeven
-1. **Toma de Beneficio 1 (TP1 - 1.09150)**: Cierre el 50% de la posición al tocar la primera reserva de liquidez opuesta.
-2. **Mover a Breakeven**: Al alcanzarse TP1, traslade mecánicamente el Stop Loss al precio de entrada más spread. La operación queda protegida a riesgo cero.
-3. **Dejar correr el resto (TP2 y TP3)**: Permita que el 50% restante busque la liquidez principal con trailing stop tras mínimos en 1H.`;
-    }
-    return `### Orientación del Mentor Institucional
-- **Sesgo Direccional**: El flujo de órdenes favorece el objetivo de liquidez alcista tras el barrido del mínimo de sesión.
-- **Disciplina**: Espere que el precio visite la zona de descuento (FVG/OTE) y evite comprar en zonas de precio premium.
-- **Psicología**: La consistencia nace de ejecutar su plan con disciplina durante una serie amplia de operaciones.`;
-  }
-
-  // Czech default
-  if (isSl) {
-    return `### Institucionální pravidla pro Stop Loss a Invalidační úroveň
-V institucionálním tradingu není Stop Loss náhodným číslem—je to přesná cenová úroveň, kde přestává platit tržní hypotéza vašeho obchodu.
-1. **Strukturální invalidace**: V aktuálním modelu je Stop Loss bezpečně umístěn pod svíčku výběru likvidity (1.08480). Pokud hodinová svíčka uzavře pod touto úrovní, nákupní model je kompletně zneplatněn a je nutné trh opustit s minimální kontrolovanou ztrátou.
-2. **Železné pravidlo**: Nikdy neposouvejte Stop Loss do větší ztráty během otevřeného obchodu. Posunutí SL je projevem emočního selhání a popřením statistického řízení rizika.`;
-  }
-  if (isTp || isBe) {
-    return `### Strategie výběru zisku a posunu na Breakeven
-Institucionální přístup k realizaci zisku maximalizuje kapitálovou ochranu při zachování asymetrického zisku:
-1. **Take Profit 1 (TP1 - 1.09150)**: Při dosažení prvního interního nákupního magnetu realizujte 50 % objemu pozice. Tím si zafixujete čistý zisk a získáte psychologickou převahu.
-2. **Okamžitý posun na Breakeven**: Ihned po zasažení TP1 posuňte Stop Loss na úroveň vstupu (plus spread). Od tohoto momentu je obchod zcela bezrizikový.
-3. **Běžec (TP2 & TP3)**: Zbývající polovinu pozice nechte pracovat směrem k hlavní nákupní likviditě (1.09480) a Stop Loss postupně posouvejte (trailing stop) pod každé nové potvrzené Higher Low.`;
-  }
-  if (isRisk) {
-    return `### Matematika pozic a řízení kapitálu (Position Sizing)
-1. **Výpočet velikosti pozice**: Velikost pozice v lotech musí přesně odpovídat vzdálenosti Stop Lossu:
-   \`Velikost pozice (loty) = (Kapitál na účtu × % rizika) / (Vzdálenost SL v pipech × Hodnota pipu)\`
-2. **Pravidlo kapitálové ochrany**: Udržujte stabilní riziko 0.5 % až 1.0 % na jeden obchod. Tento přístup vám zaručí bezpečné přečkání série ztrát bez ohrožení drawdownu.`;
-  }
-  if (isTimeframe) {
-    return `### Práce s časovými rámci (Fraktální struktura trhu)
-1. **Vyšší rámce dominují (4H / D1)**: Určují celkový tok institucionálních objednávek a primární magnet likvidity (Draw on Liquidity).
-2. **Nižší rámce pro časování (M5 / M15)**: Slouží výhradně pro přesný vstup do pozice po potvrzení reakce na Order Block nebo FVG. Nikdy neobchodujte signály na 1M/5M v rozporu se strukturou na 4H.`;
-  }
-  return `### Rady AI Trading Mentora
-Podle aktuálního grafu a mikrostruktury toku objednávek:
-- **Směrové vychýlení (Bias)**: Trh dokončil manipulativní fázi pod asijským minimem a struktura favorizuje pokračování expanze k nákupní likviditě (Equal Highs).
-- **Trpělivost při vstupu**: Nevstupujte zbrkle na vrcholu zelených svíček v prémiové zóně. Počkejte na klidný retracement do diskontní zóny (FVG / OTE 0.618 - 0.705).
-- **Tradingová psychologie**: Vaším cílem není mít pravdu v každém jednotlivém obchodu, ale disciplinovaně realizovat svou statistickou výhodu přes sérii desítek obchodů.`;
+function generateFallbackMentorAnswer(
+  question: string,
+  currentAnalysis: any,
+  settings: any,
+  chatHistory: any[] = []
+): string {
+  return generateDynamicMentorAnswer(question, currentAnalysis, settings, chatHistory);
 }
 
 function generateFallbackAuditData(trades: any[] = [], settings: any): any {
@@ -3327,7 +3260,7 @@ app.post('/api/ask-mentor', aiRateLimiter, async (req, res) => {
     const effectiveGeminiKey = (settings as any)?.customApiKey || process.env.GEMINI_API_KEY;
     if (!isGeminiKeyValidFormat(effectiveGeminiKey)) {
       console.info('[ask-mentor] Gemini API key is unconfigured or invalid format. Using TRADEOY Mentor Engine directly.');
-      const answer = generateFallbackMentorAnswer(question, currentAnalysis, settings);
+      const answer = generateFallbackMentorAnswer(question, currentAnalysis, settings, chatHistory);
       return res.json({
         success: true,
         answer,
@@ -3371,8 +3304,8 @@ Rules for mentor response:
     let promptContent = '';
     if (Array.isArray(chatHistory) && chatHistory.length > 0) {
       const formattedHistory = chatHistory
-        .filter((m: any) => m && m.text && typeof m.text === 'string')
-        .map((m: any) => `${m.sender === 'user' ? 'User' : 'Mentor'}: ${m.text}`)
+        .filter((m: any) => m && (m.text || m.content))
+        .map((m: any) => `${m.sender === 'user' || m.role === 'user' ? 'User' : 'Mentor'}: ${m.text || m.content}`)
         .join('\n');
       if (formattedHistory.trim()) {
         promptContent += `Chat History:\n${formattedHistory}\n\n`;
@@ -3387,7 +3320,7 @@ Rules for mentor response:
         contents: promptContent,
         config: {
           systemInstruction: systemPrompt,
-          temperature: 0.5,
+          temperature: 0.7,
         },
       })
     );
@@ -3405,31 +3338,17 @@ Rules for mentor response:
   } catch (error: any) {
     const errMsg = error?.message || String(error);
 
-    const isAuthErr = isGeminiAuthError(error);
-    const isPrepaymentDepleted = errMsg.includes('prepayment credits are depleted') || errMsg.includes('billing#prepay');
-    const isRateLimit = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota') || errMsg.includes('Quota exceeded');
-    const isCapacityIssue = isPrepaymentDepleted || isRateLimit;
-
     const reqQuestion = req.body?.question || '';
     const reqAnalysis = req.body?.currentAnalysis || null;
     const reqSettings = req.body?.settings || {};
+    const reqChatHistory = Array.isArray(req.body?.chatHistory) ? req.body.chatHistory : [];
 
-    if (isAuthErr || isCapacityIssue) {
-      console.warn(`[ask-mentor] Gemini unavailable (${errMsg}). Falling back to TRADEOY Mentor Engine.`);
-      const answer = generateFallbackMentorAnswer(reqQuestion, reqAnalysis, reqSettings);
-      return res.json({
-        success: true,
-        answer,
-        isFallbackEngine: true,
-      });
-    }
-
-    console.error('Error asking mentor:', error);
-
-    res.status(500).json({
-      success: false,
-      error: 'Došlo k neočekávané chybě při komunikaci s AI Mentorem.',
-      details: errMsg,
+    console.warn(`[ask-mentor] Gemini unavailable or failed (${errMsg}). Seamlessly providing TRADEOY Mentor Engine answer.`);
+    const answer = generateFallbackMentorAnswer(reqQuestion, reqAnalysis, reqSettings, reqChatHistory);
+    return res.json({
+      success: true,
+      answer,
+      isFallbackEngine: true,
     });
   }
 });
@@ -3449,8 +3368,9 @@ app.post('/api/economic-calendar', async (req, res) => {
     const now = new Date();
     const defaultDate = `${now.getDate()}.${now.getMonth() + 1}.${now.getFullYear()}`;
     const targetDate = date || defaultDate;
+    const isWeekly = String(targetDate).toUpperCase() === 'WEEK' || String(targetDate).toUpperCase() === 'WEEKLY' || String(targetDate).toLowerCase().includes('week') || String(targetDate).toLowerCase().includes('týden');
     const langCode = language || 'cs';
-    const cacheKey = `${targetDate}_${langCode}_${symbol || 'ALL'}`;
+    const cacheKey = `${isWeekly ? 'WEEK' : targetDate}_${langCode}_${symbol || 'ALL'}`;
 
     // Return from cache if fresh
     const cached = calendarCache.get(cacheKey);
@@ -3462,11 +3382,6 @@ app.post('/api/economic-calendar', async (req, res) => {
       });
     }
 
-    const dateParts = targetDate.split('.').map((p: string) => parseInt(p.trim(), 10));
-    const targetDay = dateParts[0];
-    const targetMonth = dateParts[1];
-    const targetYear = dateParts[2] || now.getFullYear();
-
     let realEvents: any[] = [];
     let liveFetchedSuccess = false;
 
@@ -3474,55 +3389,106 @@ app.post('/api/economic-calendar', async (req, res) => {
     try {
       const ffData = await fetchLiveForexFactoryCalendar();
       if (Array.isArray(ffData) && ffData.length > 0) {
-        const targetIso = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
-        const matchingFF = ffData.filter((item: any) => {
-          if (!item.date) return false;
-          const isoPrefix = item.date.split('T')[0];
-          const itemDate = new Date(item.date);
-          return (
-            isoPrefix === targetIso ||
-            (itemDate.getDate() === targetDay &&
-              itemDate.getMonth() + 1 === targetMonth &&
-              itemDate.getFullYear() === targetYear)
-          );
-        });
-
-        if (matchingFF.length > 0) {
+        if (isWeekly) {
           liveFetchedSuccess = true;
-          realEvents = matchingFF.map((item: any, idx: number) => {
+          const dayNamesCs = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+          const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const dayNamesEs = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+          realEvents = ffData
+            .filter((item: any) => item.date && item.country)
+            .map((item: any, idx: number) => {
+              const itemDate = new Date(item.date);
+              const hoursStr = String(itemDate.getHours()).padStart(2, '0');
+              const minsStr = String(itemDate.getMinutes()).padStart(2, '0');
+              const timeFormatted = `${hoursStr}:${minsStr}`;
+              const dayName = langCode === 'en' ? dayNamesEn[itemDate.getDay()] : langCode === 'es' ? dayNamesEs[itemDate.getDay()] : dayNamesCs[itemDate.getDay()];
+              const dateShort = `${dayName} ${itemDate.getDate()}.${itemDate.getMonth() + 1}.`;
+              const impactUpper = (item.impact || 'LOW').toUpperCase();
+              const curr = item.country || 'USD';
+
+              let warningText = '';
+              if (impactUpper === 'HIGH') {
+                warningText = langCode === 'en'
+                  ? `Critical news release for ${curr}! Expect elevated volatility on ${dateShort} at ${timeFormatted}.`
+                  : langCode === 'es'
+                  ? `¡Noticia crítica para ${curr}! Se espera alta volatilidad el ${dateShort} a las ${timeFormatted}.`
+                  : `Kritická zpráva pro ${curr}! Očekávejte zvýšenou volatilitu ${dateShort} v ${timeFormatted}.`;
+              } else if (impactUpper === 'MEDIUM') {
+                warningText = langCode === 'en'
+                  ? `Moderate impact on ${curr} currency pairs on ${dateShort}.`
+                  : langCode === 'es'
+                  ? `Impacto moderado en pares con ${curr} el ${dateShort}.`
+                  : `Střední vliv na měnové páry s ${curr} dne ${dateShort}.`;
+              }
+
+              return {
+                id: String(idx + 1),
+                date: `${dateShort} ${timeFormatted}`,
+                dayLabel: dateShort,
+                currency: curr,
+                title: localizeEconomicTitle(item.title, langCode),
+                impact: impactUpper === 'HIGH' ? 'HIGH' : impactUpper === 'MEDIUM' ? 'MEDIUM' : 'LOW',
+                forecast: item.forecast || 'N/A',
+                previous: item.previous || 'N/A',
+                warningText,
+              };
+            });
+        } else {
+          const dateParts = targetDate.split('.').map((p: string) => parseInt(p.trim(), 10));
+          const targetDay = dateParts[0];
+          const targetMonth = dateParts[1];
+          const targetYear = dateParts[2] || now.getFullYear();
+          const targetIso = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+          const matchingFF = ffData.filter((item: any) => {
+            if (!item.date) return false;
+            const isoPrefix = item.date.split('T')[0];
             const itemDate = new Date(item.date);
-            const hoursStr = String(itemDate.getHours()).padStart(2, '0');
-            const minsStr = String(itemDate.getMinutes()).padStart(2, '0');
-            const timeFormatted = `${hoursStr}:${minsStr}`;
-            const impactUpper = (item.impact || 'LOW').toUpperCase();
-            const curr = item.country || 'USD';
-
-            let warningText = '';
-            if (impactUpper === 'HIGH') {
-              warningText = langCode === 'en'
-                ? `Critical news release for ${curr}! Expect elevated volatility and wide spreads at ${timeFormatted}.`
-                : langCode === 'es'
-                ? `¡Noticia crítica para ${curr}! Se espera alta volatilidad y spreads amplios a las ${timeFormatted}.`
-                : `Kritická zpráva pro ${curr}! Očekávejte zvýšenou volatilitu a rozšířené spready v ${timeFormatted}.`;
-            } else if (impactUpper === 'MEDIUM') {
-              warningText = langCode === 'en'
-                ? `Moderate impact on ${curr} currency pairs.`
-                : langCode === 'es'
-                ? `Impacto moderado en pares con ${curr}.`
-                : `Střední vliv na měnové páry s ${curr}.`;
-            }
-
-            return {
-              id: String(idx + 1),
-              date: `${targetDate} ${timeFormatted}`,
-              currency: curr,
-              title: localizeEconomicTitle(item.title, langCode),
-              impact: impactUpper === 'HIGH' ? 'HIGH' : impactUpper === 'MEDIUM' ? 'MEDIUM' : 'LOW',
-              forecast: item.forecast || 'N/A',
-              previous: item.previous || 'N/A',
-              warningText,
-            };
+            return (
+              isoPrefix === targetIso ||
+              (itemDate.getDate() === targetDay &&
+                itemDate.getMonth() + 1 === targetMonth &&
+                itemDate.getFullYear() === targetYear)
+            );
           });
+
+          if (matchingFF.length > 0) {
+            liveFetchedSuccess = true;
+            realEvents = matchingFF.map((item: any, idx: number) => {
+              const itemDate = new Date(item.date);
+              const hoursStr = String(itemDate.getHours()).padStart(2, '0');
+              const minsStr = String(itemDate.getMinutes()).padStart(2, '0');
+              const timeFormatted = `${hoursStr}:${minsStr}`;
+              const impactUpper = (item.impact || 'LOW').toUpperCase();
+              const curr = item.country || 'USD';
+
+              let warningText = '';
+              if (impactUpper === 'HIGH') {
+                warningText = langCode === 'en'
+                  ? `Critical news release for ${curr}! Expect elevated volatility and wide spreads at ${timeFormatted}.`
+                  : langCode === 'es'
+                  ? `¡Noticia crítica para ${curr}! Se espera alta volatilidad y spreads amplios a las ${timeFormatted}.`
+                  : `Kritická zpráva pro ${curr}! Očekávejte zvýšenou volatilitu a rozšířené spready v ${timeFormatted}.`;
+              } else if (impactUpper === 'MEDIUM') {
+                warningText = langCode === 'en'
+                  ? `Moderate impact on ${curr} currency pairs.`
+                  : langCode === 'es'
+                  ? `Impacto moderado en pares con ${curr}.`
+                  : `Střední vliv na měnové páry s ${curr}.`;
+              }
+
+              return {
+                id: String(idx + 1),
+                date: `${targetDate} ${timeFormatted}`,
+                currency: curr,
+                title: localizeEconomicTitle(item.title, langCode),
+                impact: impactUpper === 'HIGH' ? 'HIGH' : impactUpper === 'MEDIUM' ? 'MEDIUM' : 'LOW',
+                forecast: item.forecast || 'N/A',
+                previous: item.previous || 'N/A',
+                warningText,
+              };
+            });
+          }
         }
       }
     } catch (ffErr) {
@@ -3532,86 +3498,186 @@ app.post('/api/economic-calendar', async (req, res) => {
     let finalEvents = realEvents;
     let marketAdvice = '';
 
-    // Smart fallback generator if ForexFactory live feed is unavailable or empty for selected day
+    // Smart fallback generator if ForexFactory live feed is unavailable or empty
     if (finalEvents.length === 0) {
-      // Deterministic realistic market calendar schedule for major currencies based on day of week
-      const targetJsDate = new Date(targetYear, targetMonth - 1, targetDay);
-      const dayOfWeek = targetJsDate.getDay(); // 0 Sun, 1 Mon, 2 Tue, 3 Wed, 4 Thu, 5 Fri, 6 Sat
-
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        const sampleSchedules: Record<number, Array<{ time: string; curr: string; title: string; impact: string; forecast: string; previous: string }>> = {
-          1: [ // Monday
-            { time: '10:00', curr: 'EUR', title: 'Sentix Investor Confidence', impact: 'MEDIUM', forecast: '-8.2', previous: '-9.5' },
-            { time: '16:00', curr: 'USD', title: 'ISM Services Employment', impact: 'MEDIUM', forecast: '51.2', previous: '50.8' },
-            { time: '17:30', curr: 'USD', title: 'FOMC Member Speech & Market Outlook', impact: 'LOW', forecast: '-', previous: '-' },
-          ],
-          2: [ // Tuesday
-            { time: '08:00', curr: 'GBP', title: 'Claimant Count Change / Unemployment Rate', impact: 'HIGH', forecast: '4.4%', previous: '4.4%' },
-            { time: '14:30', curr: 'USD', title: 'Building Permits & Housing Starts', impact: 'MEDIUM', forecast: '1.41M', previous: '1.40M' },
-            { time: '16:00', curr: 'USD', title: 'CB Consumer Confidence', impact: 'MEDIUM', forecast: '103.5', previous: '100.3' },
-          ],
-          3: [ // Wednesday
-            { time: '10:00', curr: 'EUR', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '52.1', previous: '51.8' },
-            { time: '15:45', curr: 'USD', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '53.6', previous: '53.2' },
-            { time: '16:30', curr: 'USD', title: 'Crude Oil Inventories', impact: 'LOW', forecast: '-1.4M', previous: '+1.2M' },
-          ],
-          4: [ // Thursday
-            { time: '14:15', curr: 'EUR', title: 'ECB Main Refinancing Rate & Monetary Policy Statement', impact: 'HIGH', forecast: '3.75%', previous: '3.75%' },
-            { time: '14:30', curr: 'USD', title: 'Initial Jobless Claims & PPI m/m', impact: 'HIGH', forecast: '225K', previous: '232K' },
-            { time: '14:45', curr: 'EUR', title: 'ECB Press Conference (Lagarde)', impact: 'HIGH', forecast: '-', previous: '-' },
-          ],
-          5: [ // Friday
-            { time: '14:30', curr: 'USD', title: 'Non-Farm Employment Change (NFP) & Unemployment Rate', impact: 'HIGH', forecast: '165K', previous: '142K' },
-            { time: '14:30', curr: 'USD', title: 'Average Hourly Earnings m/m', impact: 'HIGH', forecast: '0.3%', previous: '0.4%' },
-            { time: '16:00', curr: 'USD', title: 'Prelim UoM Consumer Sentiment & Inflation Expectations', impact: 'MEDIUM', forecast: '68.5', previous: '67.9' },
-          ],
+      if (isWeekly) {
+        const sampleSchedules: Record<number, { dayLabelCs: string; dayLabelEn: string; dayLabelEs: string; items: Array<{ time: string; curr: string; title: string; impact: string; forecast: string; previous: string }> }> = {
+          1: {
+            dayLabelCs: 'Po', dayLabelEn: 'Mon', dayLabelEs: 'Lun',
+            items: [
+              { time: '10:00', curr: 'EUR', title: 'Sentix Investor Confidence', impact: 'MEDIUM', forecast: '-8.2', previous: '-9.5' },
+              { time: '16:00', curr: 'USD', title: 'ISM Services Employment', impact: 'MEDIUM', forecast: '51.2', previous: '50.8' },
+              { time: '17:30', curr: 'USD', title: 'FOMC Member Speech & Market Outlook', impact: 'LOW', forecast: '-', previous: '-' },
+            ]
+          },
+          2: {
+            dayLabelCs: 'Út', dayLabelEn: 'Tue', dayLabelEs: 'Mar',
+            items: [
+              { time: '08:00', curr: 'GBP', title: 'Claimant Count Change / Unemployment Rate', impact: 'HIGH', forecast: '4.4%', previous: '4.4%' },
+              { time: '14:30', curr: 'USD', title: 'Building Permits & Housing Starts', impact: 'MEDIUM', forecast: '1.41M', previous: '1.40M' },
+              { time: '16:00', curr: 'USD', title: 'CB Consumer Confidence', impact: 'MEDIUM', forecast: '103.5', previous: '100.3' },
+            ]
+          },
+          3: {
+            dayLabelCs: 'St', dayLabelEn: 'Wed', dayLabelEs: 'Mié',
+            items: [
+              { time: '10:00', curr: 'EUR', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '52.1', previous: '51.8' },
+              { time: '15:45', curr: 'USD', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '53.6', previous: '53.2' },
+              { time: '16:30', curr: 'USD', title: 'Crude Oil Inventories', impact: 'LOW', forecast: '-1.4M', previous: '+1.2M' },
+            ]
+          },
+          4: {
+            dayLabelCs: 'Čt', dayLabelEn: 'Thu', dayLabelEs: 'Jue',
+            items: [
+              { time: '14:15', curr: 'EUR', title: 'ECB Main Refinancing Rate & Monetary Policy Statement', impact: 'HIGH', forecast: '3.75%', previous: '3.75%' },
+              { time: '14:30', curr: 'USD', title: 'Initial Jobless Claims & PPI m/m', impact: 'HIGH', forecast: '225K', previous: '232K' },
+              { time: '14:45', curr: 'EUR', title: 'ECB Press Conference (Lagarde)', impact: 'HIGH', forecast: '-', previous: '-' },
+            ]
+          },
+          5: {
+            dayLabelCs: 'Pá', dayLabelEn: 'Fri', dayLabelEs: 'Vie',
+            items: [
+              { time: '14:30', curr: 'USD', title: 'Non-Farm Employment Change (NFP) & Unemployment Rate', impact: 'HIGH', forecast: '165K', previous: '142K' },
+              { time: '14:30', curr: 'USD', title: 'Average Hourly Earnings m/m', impact: 'HIGH', forecast: '0.3%', previous: '0.4%' },
+              { time: '16:00', curr: 'USD', title: 'Prelim UoM Consumer Sentiment & Inflation Expectations', impact: 'MEDIUM', forecast: '68.5', previous: '67.9' },
+            ]
+          },
         };
 
-        const weekdayEvents = sampleSchedules[dayOfWeek] || sampleSchedules[3];
-        finalEvents = weekdayEvents.map((ev, idx) => {
-          let warningText = '';
-          if (ev.impact === 'HIGH') {
-            warningText = langCode === 'en'
-              ? `Critical institutional news for ${ev.curr}! Expect wide spreads and high volatility at ${ev.time}.`
-              : langCode === 'es'
-              ? `¡Noticia institucional crítica para ${ev.curr}! Volatilidad elevada a las ${ev.time}.`
-              : `Kritická institucionální zpráva pro ${ev.curr}! Očekávejte rozšířené spready a prudké pohyby v ${ev.time}.`;
-          } else {
-            warningText = langCode === 'en'
-              ? `Moderate volatility impact expected on ${ev.curr} pairs.`
-              : langCode === 'es'
-              ? `Impacto moderado en pares con ${ev.curr}.`
-              : `Střední dopad na volatilitu u párů s ${ev.curr}.`;
-          }
+        let counter = 1;
+        finalEvents = [];
+        for (let d = 1; d <= 5; d++) {
+          const daySched = sampleSchedules[d];
+          const dLabel = langCode === 'en' ? daySched.dayLabelEn : langCode === 'es' ? daySched.dayLabelEs : daySched.dayLabelCs;
+          for (const ev of daySched.items) {
+            let warningText = '';
+            if (ev.impact === 'HIGH') {
+              warningText = langCode === 'en'
+                ? `Critical institutional news for ${ev.curr}! Expect wide spreads and high volatility on ${dLabel} at ${ev.time}.`
+                : langCode === 'es'
+                ? `¡Noticia institucional crítica para ${ev.curr}! Volatilidad elevada el ${dLabel} a las ${ev.time}.`
+                : `Kritická institucionální zpráva pro ${ev.curr}! Očekávejte rozšířené spready ${dLabel} v ${ev.time}.`;
+            } else {
+              warningText = langCode === 'en'
+                ? `Moderate volatility impact expected on ${ev.curr} pairs.`
+                : langCode === 'es'
+                ? `Impacto moderado en pares con ${ev.curr}.`
+                : `Střední dopad na volatilitu u párů s ${ev.curr}.`;
+            }
 
-          return {
-            id: String(idx + 1),
-            date: `${targetDate} ${ev.time}`,
-            currency: ev.curr,
-            title: localizeEconomicTitle(ev.title, langCode),
-            impact: ev.impact,
-            forecast: ev.forecast,
-            previous: ev.previous,
-            warningText,
+            finalEvents.push({
+              id: String(counter++),
+              date: `${dLabel} ${ev.time}`,
+              dayLabel: dLabel,
+              currency: ev.curr,
+              title: localizeEconomicTitle(ev.title, langCode),
+              impact: ev.impact,
+              forecast: ev.forecast,
+              previous: ev.previous,
+              warningText,
+            });
+          }
+        }
+      } else {
+        // Deterministic realistic market calendar schedule for major currencies based on day of week
+        const dateParts = targetDate.split('.').map((p: string) => parseInt(p.trim(), 10));
+        const targetDay = dateParts[0];
+        const targetMonth = dateParts[1];
+        const targetYear = dateParts[2] || now.getFullYear();
+        const targetJsDate = new Date(targetYear, targetMonth - 1, targetDay);
+        const dayOfWeek = targetJsDate.getDay(); // 0 Sun, 1 Mon, 2 Tue, 3 Wed, 4 Thu, 5 Fri, 6 Sat
+
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+          const sampleSchedules: Record<number, Array<{ time: string; curr: string; title: string; impact: string; forecast: string; previous: string }>> = {
+            1: [ // Monday
+              { time: '10:00', curr: 'EUR', title: 'Sentix Investor Confidence', impact: 'MEDIUM', forecast: '-8.2', previous: '-9.5' },
+              { time: '16:00', curr: 'USD', title: 'ISM Services Employment', impact: 'MEDIUM', forecast: '51.2', previous: '50.8' },
+              { time: '17:30', curr: 'USD', title: 'FOMC Member Speech & Market Outlook', impact: 'LOW', forecast: '-', previous: '-' },
+            ],
+            2: [ // Tuesday
+              { time: '08:00', curr: 'GBP', title: 'Claimant Count Change / Unemployment Rate', impact: 'HIGH', forecast: '4.4%', previous: '4.4%' },
+              { time: '14:30', curr: 'USD', title: 'Building Permits & Housing Starts', impact: 'MEDIUM', forecast: '1.41M', previous: '1.40M' },
+              { time: '16:00', curr: 'USD', title: 'CB Consumer Confidence', impact: 'MEDIUM', forecast: '103.5', previous: '100.3' },
+            ],
+            3: [ // Wednesday
+              { time: '10:00', curr: 'EUR', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '52.1', previous: '51.8' },
+              { time: '15:45', curr: 'USD', title: 'Flash Manufacturing PMI & Services PMI', impact: 'MEDIUM', forecast: '53.6', previous: '53.2' },
+              { time: '16:30', curr: 'USD', title: 'Crude Oil Inventories', impact: 'LOW', forecast: '-1.4M', previous: '+1.2M' },
+            ],
+            4: [ // Thursday
+              { time: '14:15', curr: 'EUR', title: 'ECB Main Refinancing Rate & Monetary Policy Statement', impact: 'HIGH', forecast: '3.75%', previous: '3.75%' },
+              { time: '14:30', curr: 'USD', title: 'Initial Jobless Claims & PPI m/m', impact: 'HIGH', forecast: '225K', previous: '232K' },
+              { time: '14:45', curr: 'EUR', title: 'ECB Press Conference (Lagarde)', impact: 'HIGH', forecast: '-', previous: '-' },
+            ],
+            5: [ // Friday
+              { time: '14:30', curr: 'USD', title: 'Non-Farm Employment Change (NFP) & Unemployment Rate', impact: 'HIGH', forecast: '165K', previous: '142K' },
+              { time: '14:30', curr: 'USD', title: 'Average Hourly Earnings m/m', impact: 'HIGH', forecast: '0.3%', previous: '0.4%' },
+              { time: '16:00', curr: 'USD', title: 'Prelim UoM Consumer Sentiment & Inflation Expectations', impact: 'MEDIUM', forecast: '68.5', previous: '67.9' },
+            ],
           };
-        });
+
+          const weekdayEvents = sampleSchedules[dayOfWeek] || sampleSchedules[3];
+          finalEvents = weekdayEvents.map((ev, idx) => {
+            let warningText = '';
+            if (ev.impact === 'HIGH') {
+              warningText = langCode === 'en'
+                ? `Critical institutional news for ${ev.curr}! Expect wide spreads and high volatility at ${ev.time}.`
+                : langCode === 'es'
+                ? `¡Noticia institucional crítica para ${ev.curr}! Volatilidad elevada a las ${ev.time}.`
+                : `Kritická institucionální zpráva pro ${ev.curr}! Očekávejte rozšířené spready a prudké pohyby v ${ev.time}.`;
+            } else {
+              warningText = langCode === 'en'
+                ? `Moderate volatility impact expected on ${ev.curr} pairs.`
+                : langCode === 'es'
+                ? `Impacto moderado en pares con ${ev.curr}.`
+                : `Střední dopad na volatilitu u párů s ${ev.curr}.`;
+            }
+
+            return {
+              id: String(idx + 1),
+              date: `${targetDate} ${ev.time}`,
+              currency: ev.curr,
+              title: localizeEconomicTitle(ev.title, langCode),
+              impact: ev.impact,
+              forecast: ev.forecast,
+              previous: ev.previous,
+              warningText,
+            };
+          });
+        }
       }
     }
 
     // Generate or format contextual advice gracefully without failing if AI quota is saturated
     const highImpactCount = finalEvents.filter(e => e.impact === 'HIGH').length;
-    if (highImpactCount > 0) {
-      marketAdvice = langCode === 'en'
-        ? `Elevated macro risk for ${targetDate}: ${highImpactCount} HIGH IMPACT news releases detected. Do not hold unprotected market orders 5 minutes before and after scheduled releases.`
-        : langCode === 'es'
-        ? `Riesgo macro elevado para ${targetDate}: Detectadas ${highImpactCount} noticias de ALTO IMPACTO. No mantenga órdenes sin Stop Loss durante las publicaciones.`
-        : `Zvýšené makroekonomické riziko pro ${targetDate}: Zjištěno ${highImpactCount} zpráv s VYSOKÝM DOPADEM (HIGH IMPACT). Před vyhlášením posuňte Stop Loss na Breakeven nebo nevstupujte 5 min před/po zprávě.`;
+    if (isWeekly) {
+      if (highImpactCount > 0) {
+        marketAdvice = langCode === 'en'
+          ? `Weekly Macro Outlook: ${highImpactCount} HIGH IMPACT events scheduled across this trading week. Plan risk exposure around key session releases.`
+          : langCode === 'es'
+          ? `Perspectiva Macro Semanal: Se programan ${highImpactCount} eventos de ALTO IMPACTO esta semana. Ajuste su exposición de riesgo durante las publicaciones.`
+          : `Týdenní makro výhled: Pro tento obchodní týden je naplánováno ${highImpactCount} zpráv s VYSOKÝM DOPADEM (High Impact). Doporučujeme hlídat klíčové relace a neotevírat nové pozice těsně před vyhlášením.`;
+      } else {
+        marketAdvice = langCode === 'en'
+          ? `Weekly Macro Outlook: Calm macroeconomic week with no critical High Impact announcements.`
+          : langCode === 'es'
+          ? `Perspectiva Macro Semanal: Semana macroeconómica tranquila sin anuncios críticos de alto impacto.`
+          : `Týdenní makro výhled: Klidný týden bez kritických zpráv s vysokým dopadem. Příznivé podmínky pro technické obchodování.`;
+      }
     } else {
-      marketAdvice = langCode === 'en'
-        ? `No critical High-Impact macroeconomic news scheduled for ${targetDate}. Normal technical price action expected.`
-        : langCode === 'es'
-        ? `Sin noticias críticas de alto impacto programadas para ${targetDate}. Comportamiento técnico estándar esperado.`
-        : `Pro datum ${targetDate} nejsou hlášeny žádné kritické zprávy s vysokým dopadem. Očekává se standardní technický vývoj trhu.`;
+      if (highImpactCount > 0) {
+        marketAdvice = langCode === 'en'
+          ? `Elevated macro risk for ${targetDate}: ${highImpactCount} HIGH IMPACT news releases detected. Do not hold unprotected market orders 5 minutes before and after scheduled releases.`
+          : langCode === 'es'
+          ? `Riesgo macro elevado para ${targetDate}: Detectadas ${highImpactCount} noticias de ALTO IMPACTO. No mantenga órdenes sin Stop Loss durante las publicaciones.`
+          : `Zvýšené makroekonomické riziko pro ${targetDate}: Zjištěno ${highImpactCount} zpráv s VYSOKÝM DOPADEM (HIGH IMPACT). Před vyhlášením posuňte Stop Loss na Breakeven nebo nevstupujte 5 min před/po zprávě.`;
+      } else {
+        marketAdvice = langCode === 'en'
+          ? `No critical High-Impact macroeconomic news scheduled for ${targetDate}. Normal technical price action expected.`
+          : langCode === 'es'
+          ? `Sin noticias críticas de alto impacto programadas para ${targetDate}. Comportamiento técnico estándar esperado.`
+          : `Pro datum ${targetDate} nejsou hlášeny žádné kritické zprávy s vysokým dopadem. Očekává se standardní technický vývoj trhu.`;
+      }
     }
 
     // Try optional AI enrichment only if AI client is available and not in cooldown

@@ -142,7 +142,8 @@ const MARKET_PRESETS: MarketPreset[] = [
 ];
 
 const TIMEFRAMES = [
-  { label: '1D', value: 'D', role: 'Macro' },
+  { label: '1W', value: 'W', role: 'Weekly', roleKey: 'tvRoleWeekly' },
+  { label: '1D', value: 'D', role: 'Daily', roleKey: 'tvRoleDaily' },
   { label: '4H', value: '240', role: 'HTF' },
   { label: '1H', value: '60', role: 'HTF/MTF' },
   { label: '30m', value: '30', role: 'MTF' },
@@ -215,8 +216,12 @@ function normalizeIncomingInterval(raw: string): string {
   if (clean === '120' || upper === '2H' || clean === '180' || upper === '3H') return '60';
   // 4h (240)
   if (clean === '240' || clean === '240m' || upper === '4H' || upper === '4HOUR') return '240';
+  // Weekly (W, 1W, WEEKLY)
+  if (upper === 'W' || upper === '1W' || upper === 'WEEKLY' || upper === '1WEEK' || upper === 'WEEK') {
+    return 'W';
+  }
   // Daily (D, 1D, DAILY, 24H, 1DAY)
-  if (upper === 'D' || upper === '1D' || upper === 'DAILY' || upper === '24H' || upper === '1DAY' || upper === 'W' || upper === '1W' || upper === 'M') {
+  if (upper === 'D' || upper === '1D' || upper === 'DAILY' || upper === '24H' || upper === '1DAY' || upper === 'M') {
     return 'D';
   }
 
@@ -1315,6 +1320,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               {TIMEFRAMES.map((tf) => {
                 const currentActiveInterval = intervalRef.current || interval;
                 const isTfSelected = normalizeIncomingInterval(currentActiveInterval) === normalizeIncomingInterval(tf.value);
+                const displayRole = (tf as any).roleKey && (t as any)[(tf as any).roleKey] ? (t as any)[(tf as any).roleKey] : tf.role;
                 return (
                   <button
                     key={tf.value}
@@ -1331,7 +1337,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
                     }`}
                   >
                     <span>{tf.label}</span>
-                    <span className="text-[9px] font-normal opacity-75 ml-1 hidden md:inline">({tf.role})</span>
+                    <span className="text-[9px] font-normal opacity-75 ml-1 hidden md:inline">({displayRole})</span>
                   </button>
                 );
               })}

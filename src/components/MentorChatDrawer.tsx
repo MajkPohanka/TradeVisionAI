@@ -193,7 +193,7 @@ export const MentorChatDrawer: React.FC<MentorChatDrawerProps> = ({
               className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] p-4 rounded-3xl text-xs leading-relaxed ${
+                className={`max-w-[85%] p-4 rounded-3xl text-xs leading-relaxed whitespace-pre-line ${
                   msg.sender === 'user'
                     ? 'bg-white text-black font-semibold rounded-br-xs shadow-md'
                     : 'bg-white/[0.06] border border-white/[0.08] text-[#f5f5f7] rounded-bl-xs shadow-sm'

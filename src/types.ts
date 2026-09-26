@@ -42,6 +42,7 @@ export interface EconomicCalendarEvent {
   forecast?: string;
   previous?: string;
   warningText?: string;
+  dayLabel?: string;
 }
 
 export interface CandlestickPattern {

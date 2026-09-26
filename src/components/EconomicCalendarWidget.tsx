@@ -20,6 +20,39 @@ const getTomorrowFormatted = () => {
   return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
 };
 
+const getWeekRangeFormatted = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0 Sun, 1 Mon...
+  const diffToMon = now.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(now);
+  monday.setDate(diffToMon);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  return `${monday.getDate()}.${monday.getMonth() + 1}. - ${friday.getDate()}.${friday.getMonth() + 1}.${friday.getFullYear()}`;
+};
+
+const DAY_SORT_WEIGHTS: Record<string, number> = {
+  Po: 1, Mon: 1, Lun: 1,
+  Út: 2, Tue: 2, Mar: 2,
+  St: 3, Wed: 3, Mié: 3,
+  Čt: 4, Thu: 4, Jue: 4,
+  Pá: 5, Fri: 5, Vie: 5,
+  So: 6, Sat: 6, Sáb: 6,
+  Ne: 7, Sun: 7, Dom: 7,
+};
+
+const getEventSortWeight = (dateStr: string): number => {
+  let dayWeight = 0;
+  for (const [prefix, weight] of Object.entries(DAY_SORT_WEIGHTS)) {
+    if ((dateStr || '').includes(prefix)) {
+      dayWeight = weight * 10000;
+      break;
+    }
+  }
+  const timeMinutes = getTimeMinutes(dateStr);
+  return dayWeight + timeMinutes;
+};
+
 // Preferred canonical currency order requested by user: EUR, GBP, AUD, USD, JPY, CAD, CHF, NZD
 const PREFERRED_CURRENCY_ORDER = ['EUR', 'GBP', 'AUD', 'USD', 'JPY', 'CAD', 'CHF', 'NZD', 'CNY'];
 
@@ -174,8 +207,8 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({
 
     for (const c of sortedCurrencies) {
       const groupEvents = map.get(c)!;
-      // Sort events within group chronologically by time
-      groupEvents.sort((a, b) => getTimeMinutes(a.date) - getTimeMinutes(b.date));
+      // Sort events within group chronologically by day & time
+      groupEvents.sort((a, b) => getEventSortWeight(a.date) - getEventSortWeight(b.date));
 
       const meta = CURRENCY_METAS[c] || {
         code: c,
@@ -233,7 +266,7 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({
               </span>
             </h3>
             <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>
-              {t.calendarWidgetSubtitle} ({selectedDate})
+              {t.calendarWidgetSubtitle} ({selectedDate === 'WEEK' ? `${t.thisWeek || 'Tento týden'} (${getWeekRangeFormatted()})` : selectedDate})
             </p>
           </div>
         </div>
@@ -357,6 +390,24 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({
             }`}
           >
             🔮 {t.tomorrow} ({getTomorrowFormatted()})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedDate('WEEK');
+              fetchCalendarData('WEEK');
+            }}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-all whitespace-nowrap cursor-pointer active:scale-95 ${
+              selectedDate === 'WEEK'
+                ? (isLight
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs')
+                : (isLight
+                  ? 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  : 'bg-white/[0.06] text-slate-300 border-white/15 hover:text-white hover:bg-white/[0.12]')
+            }`}
+          >
+            📆 {t.thisWeek || 'Tento týden'} (Weekly)
           </button>
         </div>
       </div>
@@ -499,7 +550,7 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({
           <Zap className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
           <div>
             <div className={`font-bold mb-1 ${isLight ? 'text-amber-900 font-extrabold' : 'text-amber-300'}`}>
-              {t.mentorDateAdvice} {selectedDate}:
+              {t.mentorDateAdvice} {selectedDate === 'WEEK' ? (t.thisWeek || 'Tento týden') : selectedDate}:
             </div>
             <p className={`leading-relaxed ${isLight ? 'text-slate-800 font-medium' : 'text-[#a1a1a6]'}`}>{marketAdvice}</p>
           </div>
@@ -581,6 +632,7 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {group.events.map((event) => {
                     const timeStr = extractTimeOnly(event.date);
+                    const dayStr = event.dayLabel || (event.date.includes(' ') && timeStr && !event.date.startsWith(timeStr) ? event.date.substring(0, event.date.indexOf(timeStr)).trim() : '');
 
                     return (
                       <div
@@ -618,7 +670,7 @@ export const EconomicCalendarWidget: React.FC<EconomicCalendarWidgetProps> = ({
                               isLight ? 'text-slate-900' : 'text-[#f5f5f7]'
                             }`}>
                               <Clock className="w-3 h-3 text-slate-400" />
-                              <span>{timeStr || event.date}</span>
+                              <span>{dayStr ? `${dayStr} ${timeStr}` : (timeStr || event.date)}</span>
                             </span>
                           </div>
 

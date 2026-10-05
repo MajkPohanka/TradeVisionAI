@@ -1346,17 +1346,30 @@ function sanitizeAndValidateTradePlan(
   let tp2 = parseNumericPrice(rawTps[1]?.price);
   let tp3 = parseNumericPrice(rawTps[2]?.price);
 
+  const minR1Multiplier = 1.0;
   if (isShort) {
-    if (isNaN(tp1) || tp1 >= entryRec) tp1 = Number((entryRec - slDist * 1.2).toFixed(precision));
-    if (isNaN(tp2) || tp2 >= tp1) tp2 = Number((tp1 - slDist * 0.8).toFixed(precision));
-    if (isNaN(tp3) || tp3 >= tp2) tp3 = Number((tp2 - slDist * 0.8).toFixed(precision));
+    if (isNaN(tp1) || tp1 > entryRec - slDist * minR1Multiplier) {
+      tp1 = Number((entryRec - slDist * 1.1).toFixed(precision));
+    }
+    if (isNaN(tp2) || tp2 >= tp1 - slDist * 0.4) {
+      tp2 = Number((tp1 - slDist * 0.7).toFixed(precision));
+    }
+    if (isNaN(tp3) || tp3 >= tp2 - slDist * 0.4) {
+      tp3 = Number((tp2 - slDist * 0.8).toFixed(precision));
+    }
   } else {
-    if (isNaN(tp1) || tp1 <= entryRec) tp1 = Number((entryRec + slDist * 1.2).toFixed(precision));
-    if (isNaN(tp2) || tp2 <= tp1) tp2 = Number((tp1 + slDist * 0.8).toFixed(precision));
-    if (isNaN(tp3) || tp3 <= tp2) tp3 = Number((tp2 + slDist * 0.8).toFixed(precision));
+    if (isNaN(tp1) || tp1 < entryRec + slDist * minR1Multiplier) {
+      tp1 = Number((entryRec + slDist * 1.1).toFixed(precision));
+    }
+    if (isNaN(tp2) || tp2 <= tp1 + slDist * 0.4) {
+      tp2 = Number((tp1 + slDist * 0.7).toFixed(precision));
+    }
+    if (isNaN(tp3) || tp3 <= tp2 + slDist * 0.4) {
+      tp3 = Number((tp2 + slDist * 0.8).toFixed(precision));
+    }
   }
 
-  const r1 = Math.max(0.5, Number(((Math.abs(tp1 - entryRec)) / slDist).toFixed(1)));
+  const r1 = Math.max(1.0, Number(((Math.abs(tp1 - entryRec)) / slDist).toFixed(1)));
   const r2 = Math.max(r1 + 0.3, Number(((Math.abs(tp2 - entryRec)) / slDist).toFixed(1)));
   const r3 = Math.max(r2 + 0.4, Number(((Math.abs(tp3 - entryRec)) / slDist).toFixed(1)));
 
@@ -1705,19 +1718,31 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   if (signal === 'SHORT') {
     drawDirection = 'DOWNSIDE_SSL';
 
-    // Find true structural swing high above entry (BSL liquidity pool)
-    let structuralHigh = highsAboveCurrent.length > 0
-      ? highsAboveCurrent[highsAboveCurrent.length - 1].price
-      : (candles.length >= 10 ? Math.max(...candles.slice(-20).map((c) => c.high)) : currentPrice * (1 + baseSlPercent / 100));
+    // In Smart Money Concepts (SMC):
+    // Stop Loss for a SHORT is placed directly above the IMMEDIATE local order block / liquidity grab wick
+    // of the recent consolidation (last 6-10 candles), NOT an ancient macro high 20 bars ago!
+    const recentLocalCandles = candles.slice(-10);
+    const localConsolidationHigh = recentLocalCandles.length > 0
+      ? Math.max(...recentLocalCandles.map((c) => c.high))
+      : currentPrice * (1 + baseSlPercent / 100);
 
-    // Ensure structural high is not unrealistically tight
-    const distToHighPercent = ((structuralHigh - currentPrice) / currentPrice) * 100;
-    if (distToHighPercent < baseSlPercent * 0.5) {
-      if (highsAboveCurrent.length >= 2) {
-        structuralHigh = highsAboveCurrent[highsAboveCurrent.length - 2].price;
-      } else {
-        structuralHigh = currentPrice * (1 + baseSlPercent / 100);
+    // Prefer the local swing high closest to entry that offers a secure buffer (0.25% - 1.2% above entry)
+    let structuralHigh = localConsolidationHigh;
+    if (highsAboveCurrent.length > 0) {
+      // Sort swing highs by price ascending (nearest to currentPrice first)
+      const sortedByProximity = [...highsAboveCurrent].sort((a, b) => a.price - b.price);
+      const localSwing = sortedByProximity.find((h) => h.price >= currentPrice * (1 + (baseSlPercent * 0.3) / 100));
+      if (localSwing && localSwing.price <= currentPrice * (1 + (baseSlPercent * 1.5) / 100)) {
+        structuralHigh = localSwing.price;
       }
+    }
+
+    // Ensure structural high is not unrealistically tight or absurdly wide
+    const distToHighPercent = ((structuralHigh - currentPrice) / currentPrice) * 100;
+    if (distToHighPercent < baseSlPercent * 0.4) {
+      structuralHigh = currentPrice * (1 + (baseSlPercent * 0.6) / 100);
+    } else if (distToHighPercent > baseSlPercent * 2.0) {
+      structuralHigh = Math.min(structuralHigh, currentPrice * (1 + (baseSlPercent * 1.4) / 100));
     }
 
     slPrice = Number((structuralHigh + structuralBuffer).toFixed(precision));
@@ -1728,18 +1753,22 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     const slDist = Math.max(slPrice - entryRecommended, currentPrice * (baseSlPercent / 100));
     slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
 
-    // Anchor TP to actual structural chart swing lows if present within realistic reach
-    const eligibleLows = lowsBelowCurrent.map((l) => l.price).filter((p) => p < entryRecommended - slDist * 0.4);
+    // Anchor TP to actual structural chart swing lows with a GUARANTEED minimum 1:1.0 Risk-Reward
+    const minR1Dist = slDist * Math.max(1.0, r1Target);
+    const sortedEligibleLows = lowsBelowCurrent
+      .map((l) => l.price)
+      .filter((p) => p <= entryRecommended - slDist * 0.95)
+      .sort((a, b) => b - a); // highest low nearest to entry first!
 
-    let tp1 = entryRecommended - slDist * r1Target;
-    if (eligibleLows.length > 0 && eligibleLows[0] > entryRecommended - slDist * (r1Target + 0.6)) {
-      tp1 = eligibleLows[0];
+    let tp1 = entryRecommended - minR1Dist;
+    if (sortedEligibleLows.length > 0 && sortedEligibleLows[0] >= entryRecommended - slDist * (r1Target + 0.5)) {
+      tp1 = sortedEligibleLows[0];
     }
     tp1Price = Number(tp1.toFixed(precision));
 
     let tp2 = entryRecommended - slDist * r2Target;
-    const lowerLows = eligibleLows.filter((p) => p < tp1Price * 0.999);
-    if (lowerLows.length > 0 && lowerLows[0] > entryRecommended - slDist * (r2Target + 0.7)) {
+    const lowerLows = sortedEligibleLows.filter((p) => p < tp1Price * 0.999);
+    if (lowerLows.length > 0 && lowerLows[0] >= entryRecommended - slDist * (r2Target + 0.6)) {
       tp2 = lowerLows[0];
     }
     tp2Price = Number(Math.min(tp2, tp1Price - slDist * 0.4).toFixed(precision));
@@ -1776,19 +1805,29 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     // LONG
     drawDirection = 'UPSIDE_BSL';
 
-    // Find true structural swing low below entry (SSL liquidity pool)
-    let structuralLow = lowsBelowCurrent.length > 0
-      ? lowsBelowCurrent[lowsBelowCurrent.length - 1].price
-      : (candles.length >= 10 ? Math.min(...candles.slice(-20).map((c) => c.low)) : currentPrice * (1 - baseSlPercent / 100));
+    // In Smart Money Concepts (SMC):
+    // Stop Loss for a LONG is placed directly below the IMMEDIATE local discount order block / liquidity sweep wick
+    // of the recent consolidation (last 6-10 candles), NOT an ancient macro low 20 bars ago!
+    const recentLocalCandles = candles.slice(-10);
+    const localConsolidationLow = recentLocalCandles.length > 0
+      ? Math.min(...recentLocalCandles.map((c) => c.low))
+      : currentPrice * (1 - baseSlPercent / 100);
 
-    // Ensure structural low is not unrealistically tight
-    const distToLowPercent = ((currentPrice - structuralLow) / currentPrice) * 100;
-    if (distToLowPercent < baseSlPercent * 0.5) {
-      if (lowsBelowCurrent.length >= 2) {
-        structuralLow = lowsBelowCurrent[lowsBelowCurrent.length - 2].price;
-      } else {
-        structuralLow = currentPrice * (1 - baseSlPercent / 100);
+    let structuralLow = localConsolidationLow;
+    if (lowsBelowCurrent.length > 0) {
+      // Sort swing lows by price descending (nearest to currentPrice first)
+      const sortedByProximity = [...lowsBelowCurrent].sort((a, b) => b.price - a.price);
+      const localSwing = sortedByProximity.find((l) => l.price <= currentPrice * (1 - (baseSlPercent * 0.3) / 100));
+      if (localSwing && localSwing.price >= currentPrice * (1 - (baseSlPercent * 1.5) / 100)) {
+        structuralLow = localSwing.price;
       }
+    }
+
+    const distToLowPercent = ((currentPrice - structuralLow) / currentPrice) * 100;
+    if (distToLowPercent < baseSlPercent * 0.4) {
+      structuralLow = currentPrice * (1 - (baseSlPercent * 0.6) / 100);
+    } else if (distToLowPercent > baseSlPercent * 2.0) {
+      structuralLow = Math.max(structuralLow, currentPrice * (1 - (baseSlPercent * 1.4) / 100));
     }
 
     slPrice = Number((structuralLow - structuralBuffer).toFixed(precision));
@@ -1799,18 +1838,22 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     const slDist = Math.max(entryRecommended - slPrice, currentPrice * (baseSlPercent / 100));
     slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
 
-    // Anchor TP to actual structural chart swing highs if present within realistic reach
-    const eligibleHighs = highsAboveCurrent.map((h) => h.price).filter((p) => p > entryRecommended + slDist * 0.4);
+    // Anchor TP to actual structural chart swing highs with a GUARANTEED minimum 1:1.0 Risk-Reward
+    const minR1Dist = slDist * Math.max(1.0, r1Target);
+    const sortedEligibleHighs = highsAboveCurrent
+      .map((h) => h.price)
+      .filter((p) => p >= entryRecommended + slDist * 0.95)
+      .sort((a, b) => a - b); // lowest high nearest to entry first!
 
-    let tp1 = entryRecommended + slDist * r1Target;
-    if (eligibleHighs.length > 0 && eligibleHighs[0] < entryRecommended + slDist * (r1Target + 0.6)) {
-      tp1 = eligibleHighs[0];
+    let tp1 = entryRecommended + minR1Dist;
+    if (sortedEligibleHighs.length > 0 && sortedEligibleHighs[0] <= entryRecommended + slDist * (r1Target + 0.5)) {
+      tp1 = sortedEligibleHighs[0];
     }
     tp1Price = Number(tp1.toFixed(precision));
 
     let tp2 = entryRecommended + slDist * r2Target;
-    const higherHighs = eligibleHighs.filter((p) => p > tp1Price * 1.001);
-    if (higherHighs.length > 0 && higherHighs[0] < entryRecommended + slDist * (r2Target + 0.7)) {
+    const higherHighs = sortedEligibleHighs.filter((p) => p > tp1Price * 1.001);
+    if (higherHighs.length > 0 && higherHighs[0] <= entryRecommended + slDist * (r2Target + 0.6)) {
       tp2 = higherHighs[0];
     }
     tp2Price = Number(Math.max(tp2, tp1Price + slDist * 0.4).toFixed(precision));

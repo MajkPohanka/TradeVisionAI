@@ -66,6 +66,7 @@ const getOverlayLevels = (result: AnalysisResult) => {
     return {
       sl: { top: isShort ? 10 : 88, priceStr: String(result.stopLoss?.price ?? 'N/A') },
       entry: { top: 48, priceStr: String(result.entryZone?.recommended ?? (result.entryZone?.min ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')) },
+      ob: { top: 45, height: 6, hasRange: false, rangeStr: '' },
       tps: tps.map((tp, idx) => {
         let top = 88;
         if (isShort) {
@@ -141,9 +142,25 @@ const getOverlayLevels = (result: AnalysisResult) => {
   const rewardTop = Math.min(entryTop, maxTpTop);
   const rewardHeight = Math.max(2, Math.abs(entryTop - maxTpTop));
 
+  const entryMinPrice = parsePrice(result.entryZone?.min);
+  const entryMaxPrice = parsePrice(result.entryZone?.max);
+  const hasObRange = !isNaN(entryMinPrice) && !isNaN(entryMaxPrice) && entryMinPrice > 0 && entryMaxPrice > 0;
+  const obTop = hasObRange
+    ? Math.min(calcTop(entryMinPrice), calcTop(entryMaxPrice))
+    : Math.max(6, entryTop - 1.5);
+  const obHeight = hasObRange
+    ? Math.max(3, Math.abs(calcTop(entryMinPrice) - calcTop(entryMaxPrice)))
+    : 3;
+
   return {
     sl: { top: slTop, priceStr: String(result.stopLoss?.price ?? 'N/A') },
     entry: { top: entryTop, priceStr: String(result.entryZone?.recommended ?? (result.entryZone?.min ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')) },
+    ob: {
+      top: obTop,
+      height: obHeight,
+      hasRange: hasObRange,
+      rangeStr: hasObRange ? `${Math.min(entryMinPrice, entryMaxPrice)} – ${Math.max(entryMinPrice, entryMaxPrice)}` : '',
+    },
     tps: tpLevels,
     isShort,
     riskTop,
@@ -587,19 +604,24 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   ? 'bg-blue-50/70 border-blue-200 text-slate-900'
                   : 'bg-black/50 border-blue-500/30 text-white'
               }`}>
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-blue-500" />
-                <div className={`text-[10px] font-bold uppercase tracking-wider ${
-                  isLight ? 'text-blue-700' : 'text-blue-400'
-                }`}>{t.entryZone}</div>
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-cyan-500" />
+                <div className={`text-[10px] font-bold uppercase tracking-wider flex items-center justify-between ${
+                  isLight ? 'text-cyan-800' : 'text-cyan-400'
+                }`}>
+                  <span>{t.entryZone}</span>
+                  <span className="text-[9px] font-extrabold bg-cyan-500/20 text-cyan-300 px-1.5 py-0.2 rounded border border-cyan-500/30">
+                    ORDER BLOCK (OB)
+                  </span>
+                </div>
                 <div className={`text-lg font-black mt-0.5 ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}>
                   {result.entryZone?.recommended || (result.entryZone?.min && result.entryZone?.max ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')}
                 </div>
-                <div className={`text-[11px] mt-0.5 ${
+                <div className={`text-[11px] mt-0.5 font-medium ${
                   isLight ? 'text-slate-600' : 'text-[#86868b]'
                 }`}>
-                  Range: {result.entryZone?.min ?? 'N/A'} – {result.entryZone?.max ?? 'N/A'}
+                  Order Block (OB Rozsah): <span className="font-bold text-cyan-400">{result.entryZone?.min ?? 'N/A'} – {result.entryZone?.max ?? 'N/A'}</span>
                 </div>
               </div>
 
@@ -859,6 +881,20 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                         </span>
                       </div>
 
+                      {/* 3.5 Shaded Order Block (OB / POI Zone) */}
+                      <div
+                        className="absolute left-0 right-0 bg-cyan-500/20 border-y border-dashed border-cyan-400/70 pointer-events-none z-15 transition-all duration-300"
+                        style={{
+                          top: `${overlay.ob.top}%`,
+                          height: `${overlay.ob.height}%`,
+                        }}
+                      >
+                        <div className="absolute right-2 top-0.5 bg-black/90 border border-cyan-400/80 text-cyan-200 text-[9px] font-black px-2 py-0.5 rounded shadow-lg flex items-center space-x-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                          <span>ORDER BLOCK (OB / POI){overlay.ob.hasRange ? `: ${overlay.ob.rangeStr}` : ''}</span>
+                        </div>
+                      </div>
+
                       {/* 4. Entry Zone Level Line & Badge (Cyan) */}
                       <div
                         className="absolute left-0 right-0 border-t-[2.5px] border-solid border-cyan-400 flex items-center justify-between px-2 -translate-y-1/2 z-30 transition-all duration-300"
@@ -866,10 +902,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                       >
                         <div className="bg-black/95 border-2 border-cyan-400 text-cyan-100 text-[11px] font-black px-3 py-0.5 rounded-full shadow-2xl flex items-center space-x-1.5">
                           <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                          <span>POI / VSTUP: {overlay.entry.priceStr}</span>
+                          <span>POI / VSTUP (OB): {overlay.entry.priceStr}</span>
                         </div>
                         <span className="bg-black/95 border-2 border-cyan-400 text-cyan-200 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xl">
-                          POI
+                          ORDER BLOCK (POI)
                         </span>
                       </div>
 
@@ -1588,6 +1624,16 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                           </span>
                         </div>
 
+                        {/* Order Block (OB / POI Zone) */}
+                        <div
+                          className="absolute left-2 right-2 bg-cyan-500/25 border-y-2 border-dashed border-cyan-400/80 pointer-events-none z-15"
+                          style={{ top: `${overlay.ob.top}%`, height: `${overlay.ob.height}%` }}
+                        >
+                          <span className="absolute top-1 right-2 text-[10px] font-black text-cyan-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-cyan-400/80 shadow-md">
+                            ORDER BLOCK (OB / POI){overlay.ob.hasRange ? `: ${overlay.ob.rangeStr}` : ''}
+                          </span>
+                        </div>
+
                         {/* Entry Line */}
                         <div
                           className="absolute left-0 right-0 border-t-[3px] border-solid border-cyan-400 flex items-center justify-between px-3 -translate-y-1/2 z-30"
@@ -1595,10 +1641,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                         >
                           <div className="bg-black/95 border-2 border-cyan-400 text-cyan-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl flex items-center space-x-1.5">
                             <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                            <span>POI / VSTUP: {overlay.entry.priceStr}</span>
+                            <span>POI / VSTUP (OB): {overlay.entry.priceStr}</span>
                           </div>
                           <span className="bg-black/95 border-2 border-cyan-400 text-cyan-100 text-xs font-black px-3 py-1 rounded-full shadow-2xl">
-                            POI
+                            ORDER BLOCK (POI)
                           </span>
                         </div>
 

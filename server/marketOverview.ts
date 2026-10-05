@@ -435,8 +435,24 @@ export async function fetchLiveMarketOverview(): Promise<MarketAssetData[]> {
             const meta = data?.chart?.result?.[0]?.meta;
             if (!meta || typeof meta.regularMarketPrice !== 'number') continue;
 
-            const price = meta.regularMarketPrice;
-            const prev = meta.chartPreviousClose || meta.previousClose || price;
+            let price = meta.regularMarketPrice;
+            let prev = meta.chartPreviousClose || meta.previousClose || price;
+
+            // For spot gold, calibrate to true live spot gold feed
+            if (def.id === 'gold') {
+              try {
+                const spotRes = await fetch('https://api.gold-api.com/price/XAU', { signal: AbortSignal.timeout(1500) });
+                if (spotRes.ok) {
+                  const spotData: any = await spotRes.json();
+                  const spotPrice = typeof spotData.price === 'number' ? spotData.price : parseFloat(spotData.price);
+                  if (spotPrice && !isNaN(spotPrice) && spotPrice > 2000 && spotPrice < 6000) {
+                    prev = spotPrice / (1 + (meta.chartPreviousClose ? ((price - meta.chartPreviousClose) / meta.chartPreviousClose) : 0));
+                    price = spotPrice;
+                  }
+                }
+              } catch {}
+            }
+
             const changePercent = prev ? ((price - prev) / prev) * 100 : 0;
             const high = meta.regularMarketDayHigh || price * 1.008;
             const low = meta.regularMarketDayLow || price * 0.992;

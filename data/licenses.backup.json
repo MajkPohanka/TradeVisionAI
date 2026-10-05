@@ -332,9 +332,9 @@
     "tier": "vip_unlimited",
     "email": "majklpohanka@gmail.com",
     "totalPurchased": 999999,
-    "totalUsed": 12,
+    "totalUsed": 15,
     "createdAt": 1788520236015,
-    "lastUsedAt": 1789734747246
+    "lastUsedAt": 1791192484984
   },
   {
     "key": "TRADEOY-VIP-FRIENDS-2026",
@@ -1468,5 +1468,14 @@
     "createdAt": 1789736771783,
     "stripeSessionIds": [],
     "lastUsedAt": 1789736771784
+  },
+  {
+    "key": "TRADEOY-VIP-UNLIMITED",
+    "credits": 999999,
+    "tier": "vip_unlimited",
+    "email": "majklpohanka@gmail.com",
+    "totalPurchased": 999999,
+    "totalUsed": 0,
+    "createdAt": 1790159281843
   }
 ]

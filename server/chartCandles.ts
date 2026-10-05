@@ -370,6 +370,55 @@ export async function getChartCandles(symbol: string, timeframe: string): Promis
     candles = generateSimulatedCandles(resolved.basePrice, 65);
   }
 
+  // 4. Live Spot Price Alignment:
+  // For Gold (XAUUSD) and Silver (XAGUSD), calibrate candles to true spot gold price (aligns with OANDA:XAUUSD)
+  const isGold = resolved.canonicalSymbol === 'XAUUSD' || symbol.toUpperCase().includes('XAU') || symbol.toUpperCase().includes('GOLD');
+  const isSilver = resolved.canonicalSymbol === 'XAGUSD' || symbol.toUpperCase().includes('XAG') || symbol.toUpperCase().includes('SILVER');
+
+  if (isGold) {
+    try {
+      const spotRes = await fetch('https://api.gold-api.com/price/XAU', { signal: AbortSignal.timeout(1200) });
+      if (spotRes.ok) {
+        const spotData = await spotRes.json();
+        const liveSpot = typeof spotData.price === 'number' ? spotData.price : parseFloat(spotData.price);
+        if (liveSpot && !isNaN(liveSpot) && liveSpot > 2000 && liveSpot < 6000) {
+          const lastCandle = candles[candles.length - 1];
+          if (lastCandle && lastCandle.close > 0) {
+            const ratio = liveSpot / lastCandle.close;
+            candles = candles.map((c) => ({
+              ...c,
+              open: parseFloat((c.open * ratio).toFixed(2)),
+              high: parseFloat((c.high * ratio).toFixed(2)),
+              low: parseFloat((c.low * ratio).toFixed(2)),
+              close: parseFloat((c.close * ratio).toFixed(2)),
+            }));
+          }
+        }
+      }
+    } catch {}
+  } else if (isSilver) {
+    try {
+      const spotRes = await fetch('https://api.gold-api.com/price/XAG', { signal: AbortSignal.timeout(1200) });
+      if (spotRes.ok) {
+        const spotData = await spotRes.json();
+        const liveSpot = typeof spotData.price === 'number' ? spotData.price : parseFloat(spotData.price);
+        if (liveSpot && !isNaN(liveSpot) && liveSpot > 10 && liveSpot < 200) {
+          const lastCandle = candles[candles.length - 1];
+          if (lastCandle && lastCandle.close > 0) {
+            const ratio = liveSpot / lastCandle.close;
+            candles = candles.map((c) => ({
+              ...c,
+              open: parseFloat((c.open * ratio).toFixed(3)),
+              high: parseFloat((c.high * ratio).toFixed(3)),
+              low: parseFloat((c.low * ratio).toFixed(3)),
+              close: parseFloat((c.close * ratio).toFixed(3)),
+            }));
+          }
+        }
+      }
+    } catch {}
+  }
+
   const latestCandle = candles[candles.length - 1];
   const firstCandle = candles[0];
   const currentPrice = latestCandle?.close || resolved.basePrice;

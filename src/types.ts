@@ -15,11 +15,13 @@ export interface StrategyPreset {
   customRules: string;
   customMentorPrompt?: string;
   accountRiskPercent: number;
+  riskRewardProfile?: 'conservative' | 'balanced' | 'aggressive';
 }
 
 export interface StrategySettings {
   holdingPeriod: HoldingPeriod;
   riskTolerance: RiskTolerance;
+  riskRewardProfile?: 'conservative' | 'balanced' | 'aggressive';
   strategies: TradingStrategy[]; // multi-select methodologies!
   strategy?: TradingStrategy; // legacy fallback
   customRules: string;
@@ -123,6 +125,7 @@ export interface AnalysisResult {
     comment: string;
   }[];
   uploadedImages: string[]; // base64 or URLs
+  chartPriceRange?: { min: number; max: number };
   userNotes?: string;
   tradeOutcome?: 'PENDING' | 'WIN' | 'LOSS' | 'BREAKEVEN';
   isFallbackEngine?: boolean;

@@ -1263,6 +1263,175 @@ async function getRealEconomicCalendarWarning(symbol: string, lang: string = 'cs
   };
 }
 
+function parseNumericPrice(val: any): number {
+  if (typeof val === 'number') return isFinite(val) ? val : NaN;
+  if (!val) return NaN;
+  const cleaned = String(val).replace(/[^0-9.-]/g, '');
+  const n = parseFloat(cleaned);
+  return isFinite(n) ? n : NaN;
+}
+
+function sanitizeAndValidateTradePlan(
+  data: any,
+  symbol: string = 'BTC',
+  precision: number = 2,
+  candles: any[] = []
+): any {
+  if (!data || typeof data !== 'object') return data;
+
+  const rawSignal = String(data.signal || 'LONG').toUpperCase();
+  const isShort = rawSignal === 'SHORT' || rawSignal === 'SELL' || rawSignal.includes('BEAR');
+  data.signal = isShort ? 'SHORT' : (rawSignal.includes('WAIT') || rawSignal.includes('NEUTRAL') ? 'NEUTRAL_WAIT' : 'LONG');
+
+  let entryRec = parseNumericPrice(data.entryZone?.recommended || data.entryZone?.price || 0);
+  if (isNaN(entryRec) || entryRec <= 0) {
+    entryRec = candles.length > 0 ? candles[candles.length - 1].close : 100;
+  }
+  entryRec = Number(entryRec.toFixed(precision));
+
+  // Determine standard ATR/volatility buffer
+  const defaultDist = candles.length > 0
+    ? Math.max(entryRec * 0.008, Math.abs(candles[candles.length - 1].high - candles[candles.length - 1].low) * 1.2)
+    : entryRec * 0.015;
+
+  let sl = parseNumericPrice(data.stopLoss?.price || 0);
+  if (isShort) {
+    if (isNaN(sl) || sl <= entryRec + defaultDist * 0.2 || sl <= 0) {
+      sl = Number((entryRec + defaultDist).toFixed(precision));
+    }
+  } else {
+    if (isNaN(sl) || sl >= entryRec - defaultDist * 0.2 || sl <= 0) {
+      sl = Number((entryRec - defaultDist).toFixed(precision));
+    }
+  }
+
+  const slDist = Math.max(0.00001, Math.abs(entryRec - sl));
+  const slDistPercent = Number(((slDist / entryRec) * 100).toFixed(2));
+
+  data.stopLoss = {
+    ...data.stopLoss,
+    price: sl,
+    distancePercent: slDistPercent,
+  };
+
+  // Enforce Entry Zone strictly on the correct side of SL
+  let entryMin = parseNumericPrice(data.entryZone?.min);
+  let entryMax = parseNumericPrice(data.entryZone?.max);
+  if (isShort) {
+    if (isNaN(entryMax) || entryMax >= sl || entryMax < entryRec) {
+      entryMax = Number((entryRec + slDist * 0.25).toFixed(precision));
+    }
+    if (isNaN(entryMin) || entryMin > entryRec) {
+      entryMin = Number((entryRec - slDist * 0.2).toFixed(precision));
+    }
+  } else {
+    if (isNaN(entryMin) || entryMin <= sl || entryMin > entryRec) {
+      entryMin = Number((entryRec - slDist * 0.25).toFixed(precision));
+    }
+    if (isNaN(entryMax) || entryMax < entryRec) {
+      entryMax = Number((entryRec + slDist * 0.2).toFixed(precision));
+    }
+  }
+
+  data.entryZone = {
+    ...data.entryZone,
+    recommended: entryRec,
+    min: Math.min(entryMin, entryMax),
+    max: Math.max(entryMin, entryMax),
+  };
+
+  // Enforce Monotonic Take Profit Targets
+  const rawTps = Array.isArray(data.takeProfitTargets) ? data.takeProfitTargets : [];
+  let tp1 = parseNumericPrice(rawTps[0]?.price);
+  let tp2 = parseNumericPrice(rawTps[1]?.price);
+  let tp3 = parseNumericPrice(rawTps[2]?.price);
+
+  if (isShort) {
+    if (isNaN(tp1) || tp1 >= entryRec) tp1 = Number((entryRec - slDist * 1.2).toFixed(precision));
+    if (isNaN(tp2) || tp2 >= tp1) tp2 = Number((tp1 - slDist * 0.8).toFixed(precision));
+    if (isNaN(tp3) || tp3 >= tp2) tp3 = Number((tp2 - slDist * 0.8).toFixed(precision));
+  } else {
+    if (isNaN(tp1) || tp1 <= entryRec) tp1 = Number((entryRec + slDist * 1.2).toFixed(precision));
+    if (isNaN(tp2) || tp2 <= tp1) tp2 = Number((tp1 + slDist * 0.8).toFixed(precision));
+    if (isNaN(tp3) || tp3 <= tp2) tp3 = Number((tp2 + slDist * 0.8).toFixed(precision));
+  }
+
+  const r1 = Math.max(0.5, Number(((Math.abs(tp1 - entryRec)) / slDist).toFixed(1)));
+  const r2 = Math.max(r1 + 0.3, Number(((Math.abs(tp2 - entryRec)) / slDist).toFixed(1)));
+  const r3 = Math.max(r2 + 0.4, Number(((Math.abs(tp3 - entryRec)) / slDist).toFixed(1)));
+
+  data.takeProfitTargets = [
+    {
+      target: 1,
+      price: tp1,
+      riskRewardRatio: r1,
+      description: rawTps[0]?.description || 'První interní likvidita. Realizovat 50 % zisku a posunout SL na Breakeven.',
+      closePercentage: 50,
+    },
+    {
+      target: 2,
+      price: tp2,
+      riskRewardRatio: r2,
+      description: rawTps[1]?.description || 'Hlavní likviditní cíl (Equal Highs/Lows). Primární realizace zisku.',
+      closePercentage: 30,
+    },
+    {
+      target: 3,
+      price: tp3,
+      riskRewardRatio: r3,
+      description: rawTps[2]?.description || 'Prodloužená expanze do vyššího rámce. Trailing stop za swingovou strukturu.',
+      closePercentage: 20,
+    },
+  ];
+
+  data.overallRiskRewardRatio = `1 : ${r2}`;
+
+  // Partition Key Levels strictly
+  if (Array.isArray(data.keyLevels?.support)) {
+    data.keyLevels.support = data.keyLevels.support
+      .map(parseNumericPrice)
+      .filter((p: number) => !isNaN(p) && p < entryRec * 0.9995)
+      .sort((a: number, b: number) => b - a);
+    if (data.keyLevels.support.length === 0) {
+      data.keyLevels.support = [
+        Number((entryRec * 0.992).toFixed(precision)),
+        Number((entryRec * 0.985).toFixed(precision)),
+      ];
+    }
+  }
+  if (Array.isArray(data.keyLevels?.resistance)) {
+    data.keyLevels.resistance = data.keyLevels.resistance
+      .map(parseNumericPrice)
+      .filter((p: number) => !isNaN(p) && p > entryRec * 1.0005)
+      .sort((a: number, b: number) => a - b);
+    if (data.keyLevels.resistance.length === 0) {
+      data.keyLevels.resistance = [
+        Number((entryRec * 1.008).toFixed(precision)),
+        Number((entryRec * 1.015).toFixed(precision)),
+      ];
+    }
+  }
+
+  // Ensure chartPriceRange represents the true candle span
+  if (!data.chartPriceRange || !data.chartPriceRange.min || !data.chartPriceRange.max) {
+    if (candles.length > 0) {
+      const lows = candles.map((c: any) => c.low);
+      const highs = candles.map((c: any) => c.high);
+      data.chartPriceRange = {
+        min: Math.min(...lows),
+        max: Math.max(...highs),
+      };
+    } else {
+      data.chartPriceRange = {
+        min: Number((Math.min(entryRec, sl) * 0.985).toFixed(precision)),
+        max: Number((Math.max(entryRec, sl) * 1.015).toFixed(precision)),
+      };
+    }
+  }
+
+  return data;
+}
+
 async function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): Promise<any> {
   const lang = settings?.language || 'cs';
   const holdingPeriod = settings?.holdingPeriod || 'intraday';
@@ -1298,15 +1467,16 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   }
 
   // Derive normalized single timeframe for live candlestick data fetch
+  // Prioritize primary/dominant structure timeframe (e.g. 4H in H4 + M15 + M5)
   let normalizedTf = '15m';
   const tfUpper = String(timeframe || '15m').toUpperCase();
-  if (tfUpper.includes('1M') && !tfUpper.includes('15M')) normalizedTf = '1m';
-  else if (tfUpper.includes('5M') || tfUpper.includes('M5')) normalizedTf = '5m';
-  else if (tfUpper.includes('15M') || tfUpper.includes('M15')) normalizedTf = '15m';
-  else if (tfUpper.includes('30M') || tfUpper.includes('M30')) normalizedTf = '30m';
-  else if (tfUpper.includes('1H') || tfUpper.includes('H1') || tfUpper.includes('60')) normalizedTf = '1h';
+  if (tfUpper.includes('1D') || tfUpper.includes('D1') || tfUpper.includes('DAILY')) normalizedTf = '1d';
   else if (tfUpper.includes('4H') || tfUpper.includes('H4') || tfUpper.includes('240')) normalizedTf = '4h';
-  else if (tfUpper.includes('1D') || tfUpper.includes('D1') || tfUpper.includes('DAILY')) normalizedTf = '1d';
+  else if (tfUpper.includes('1H') || tfUpper.includes('H1') || tfUpper.includes('60')) normalizedTf = '1h';
+  else if (tfUpper.includes('30M') || tfUpper.includes('M30')) normalizedTf = '30m';
+  else if (tfUpper.includes('15M') || tfUpper.includes('M15')) normalizedTf = '15m';
+  else if (tfUpper.includes('5M') || tfUpper.includes('M5')) normalizedTf = '5m';
+  else if (tfUpper.includes('1M')) normalizedTf = '1m';
 
   // Identify asset query symbol for candlestick engine
   const rawSymbol = String(settings?.symbol || settings?.asset || settings?.name || settings?.ticker || profile.symbol || '').trim();
@@ -1443,13 +1613,45 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     }
   }
 
+  // Asset class & timeframe volatility calibration (eliminates static 0.24% artifact)
+  const isCrypto = lowerQuery.includes('btc') || lowerQuery.includes('eth') || lowerQuery.includes('sol') || lowerQuery.includes('xrp') || profile.symbol.includes('BTC') || profile.symbol.includes('ETH');
+  const isGoldOrMetal = lowerQuery.includes('gold') || lowerQuery.includes('xau') || lowerQuery.includes('silver') || lowerQuery.includes('xag');
+  const isForex = lowerQuery.includes('eur') || lowerQuery.includes('gbp') || lowerQuery.includes('jpy') || lowerQuery.includes('chf') || profile.symbol.includes('EUR') || profile.symbol.includes('GBP');
+  const isIndex = lowerQuery.includes('spx') || lowerQuery.includes('ndx') || lowerQuery.includes('us100') || lowerQuery.includes('us30') || lowerQuery.includes('dax') || lowerQuery.includes('ger40');
+
+  // Baseline structural Stop Loss percentage range based on holding period & asset volatility
+  let baseSlPercent = 1.0;
+  if (isCrypto) {
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.85;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 1.75;
+    else if (holdingPeriod === 'swing') baseSlPercent = 2.85;
+    else baseSlPercent = 3.90;
+  } else if (isGoldOrMetal) {
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.45;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 0.90;
+    else if (holdingPeriod === 'swing') baseSlPercent = 1.70;
+    else baseSlPercent = 2.50;
+  } else if (isForex) {
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.22;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 0.45;
+    else if (holdingPeriod === 'swing') baseSlPercent = 0.85;
+    else baseSlPercent = 1.40;
+  } else if (isIndex) {
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.45;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 0.95;
+    else if (holdingPeriod === 'swing') baseSlPercent = 1.80;
+    else baseSlPercent = 2.80;
+  } else {
+    baseSlPercent = holdingPeriod === 'scalp' ? 0.50 : holdingPeriod === 'intraday' ? 1.05 : 2.10;
+  }
+
   // Calculate mathematically robust Entry, Stop Loss, and TP1/TP2/TP3 targets based on live levels
-  const buffer = Math.max(atr * 1.2, currentPrice * 0.002);
+  const structuralBuffer = Math.max(atr * 0.25, currentPrice * (baseSlPercent * 0.0015));
   let entryRecommended = currentPrice;
   let entryMin = currentPrice;
   let entryMax = currentPrice;
   let slPrice = currentPrice;
-  let slDistPercent = 0.5;
+  let slDistPercent = baseSlPercent;
   let tp1Price = currentPrice;
   let tp2Price = currentPrice;
   let tp3Price = currentPrice;
@@ -1460,22 +1662,90 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   let invalidationCond = '';
   let trailingStopRule = '';
 
-  const recentHighPrice = swingHighs[swingHighs.length - 1]?.price || currentPrice * 1.006;
-  const recentLowPrice = swingLows[swingLows.length - 1]?.price || currentPrice * 0.994;
+  const lowsBelowCurrent = swingLows.filter((l) => l.price < currentPrice * 0.9995);
+  const highsAboveCurrent = swingHighs.filter((h) => h.price > currentPrice * 1.0005);
+  const recentHighPrice = highsAboveCurrent.length > 0
+    ? highsAboveCurrent[highsAboveCurrent.length - 1].price
+    : currentPrice * (1 + baseSlPercent / 100);
+  const recentLowPrice = lowsBelowCurrent.length > 0
+    ? lowsBelowCurrent[lowsBelowCurrent.length - 1].price
+    : currentPrice * (1 - baseSlPercent / 100);
+
+  // Dynamic R:R Multipliers based on User Horizon & Risk Profile (Realistic, high-probability institutional targets)
+  const userRrSetting = String(settings?.riskRewardProfile || settings?.riskRewardRatio || '').toLowerCase();
+  const userHoldingPeriod = String(settings?.holdingPeriod || 'intraday').toLowerCase();
+  const userRiskTolerance = String(settings?.riskTolerance || 'balanced').toLowerCase();
+
+  let r1Target = 1.2;
+  let r2Target = 2.0;
+  let r3Target = 2.8;
+
+  if (userRrSetting.includes('conservative') || userRiskTolerance === 'conservative' || userRrSetting.includes('1:1.5')) {
+    r1Target = 1.0;
+    r2Target = 1.6;
+    r3Target = 2.3;
+  } else if (userRrSetting.includes('aggressive') || userRiskTolerance === 'aggressive') {
+    r1Target = 1.4;
+    r2Target = 2.4;
+    r3Target = 3.4;
+  } else if (userHoldingPeriod === 'scalp') {
+    r1Target = 1.0;
+    r2Target = 1.5;
+    r3Target = 2.0;
+  } else if (userHoldingPeriod === 'swing') {
+    r1Target = 1.2;
+    r2Target = 2.0;
+    r3Target = 2.8;
+  } else if (userHoldingPeriod === 'position') {
+    r1Target = 1.4;
+    r2Target = 2.4;
+    r3Target = 3.4;
+  }
 
   if (signal === 'SHORT') {
     drawDirection = 'DOWNSIDE_SSL';
-    slPrice = Number((Math.max(recentHighPrice, currentPrice + buffer) + buffer * 0.4).toFixed(precision));
-    entryRecommended = Number(Math.min(currentPrice * 1.0004, slPrice - buffer * 0.7).toFixed(precision));
-    entryMin = Number(currentPrice.toFixed(precision));
-    entryMax = Number((entryRecommended + buffer * 0.25).toFixed(precision));
 
-    const slDist = Math.max(slPrice - entryRecommended, buffer);
+    // Find true structural swing high above entry (BSL liquidity pool)
+    let structuralHigh = highsAboveCurrent.length > 0
+      ? highsAboveCurrent[highsAboveCurrent.length - 1].price
+      : (candles.length >= 10 ? Math.max(...candles.slice(-20).map((c) => c.high)) : currentPrice * (1 + baseSlPercent / 100));
+
+    // Ensure structural high is not unrealistically tight
+    const distToHighPercent = ((structuralHigh - currentPrice) / currentPrice) * 100;
+    if (distToHighPercent < baseSlPercent * 0.5) {
+      if (highsAboveCurrent.length >= 2) {
+        structuralHigh = highsAboveCurrent[highsAboveCurrent.length - 2].price;
+      } else {
+        structuralHigh = currentPrice * (1 + baseSlPercent / 100);
+      }
+    }
+
+    slPrice = Number((structuralHigh + structuralBuffer).toFixed(precision));
+    entryRecommended = Number(currentPrice.toFixed(precision));
+    entryMin = Number((currentPrice - structuralBuffer * 0.3).toFixed(precision));
+    entryMax = Number((currentPrice + structuralBuffer * 0.6).toFixed(precision));
+
+    const slDist = Math.max(slPrice - entryRecommended, currentPrice * (baseSlPercent / 100));
     slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
 
-    tp1Price = Number((entryRecommended - slDist * 1.8).toFixed(precision));
-    tp2Price = Number((entryRecommended - slDist * 3.0).toFixed(precision));
-    tp3Price = Number((entryRecommended - slDist * 4.5).toFixed(precision));
+    // Anchor TP to actual structural chart swing lows if present within realistic reach
+    const eligibleLows = lowsBelowCurrent.map((l) => l.price).filter((p) => p < entryRecommended - slDist * 0.4);
+
+    let tp1 = entryRecommended - slDist * r1Target;
+    if (eligibleLows.length > 0 && eligibleLows[0] > entryRecommended - slDist * (r1Target + 0.6)) {
+      tp1 = eligibleLows[0];
+    }
+    tp1Price = Number(tp1.toFixed(precision));
+
+    let tp2 = entryRecommended - slDist * r2Target;
+    const lowerLows = eligibleLows.filter((p) => p < tp1Price * 0.999);
+    if (lowerLows.length > 0 && lowerLows[0] > entryRecommended - slDist * (r2Target + 0.7)) {
+      tp2 = lowerLows[0];
+    }
+    tp2Price = Number(Math.min(tp2, tp1Price - slDist * 0.4).toFixed(precision));
+
+    const tp3 = Math.min(tp2Price - slDist * 0.5, entryRecommended - slDist * r3Target);
+    tp3Price = Number(tp3.toFixed(precision));
 
     targetZoneStr = `${tp2Price.toFixed(precision)} - ${tp3Price.toFixed(precision)} ${profile.currency} (Sell-Side Liquidity / SSL Pool)`;
 
@@ -1505,17 +1775,48 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   } else {
     // LONG
     drawDirection = 'UPSIDE_BSL';
-    slPrice = Number((Math.min(recentLowPrice, currentPrice - buffer) - buffer * 0.4).toFixed(precision));
-    entryRecommended = Number(Math.max(currentPrice * 0.9996, slPrice + buffer * 0.7).toFixed(precision));
-    entryMin = Number((entryRecommended - buffer * 0.25).toFixed(precision));
-    entryMax = Number(currentPrice.toFixed(precision));
 
-    const slDist = Math.max(entryRecommended - slPrice, buffer);
+    // Find true structural swing low below entry (SSL liquidity pool)
+    let structuralLow = lowsBelowCurrent.length > 0
+      ? lowsBelowCurrent[lowsBelowCurrent.length - 1].price
+      : (candles.length >= 10 ? Math.min(...candles.slice(-20).map((c) => c.low)) : currentPrice * (1 - baseSlPercent / 100));
+
+    // Ensure structural low is not unrealistically tight
+    const distToLowPercent = ((currentPrice - structuralLow) / currentPrice) * 100;
+    if (distToLowPercent < baseSlPercent * 0.5) {
+      if (lowsBelowCurrent.length >= 2) {
+        structuralLow = lowsBelowCurrent[lowsBelowCurrent.length - 2].price;
+      } else {
+        structuralLow = currentPrice * (1 - baseSlPercent / 100);
+      }
+    }
+
+    slPrice = Number((structuralLow - structuralBuffer).toFixed(precision));
+    entryRecommended = Number(currentPrice.toFixed(precision));
+    entryMin = Number((currentPrice - structuralBuffer * 0.6).toFixed(precision));
+    entryMax = Number((currentPrice + structuralBuffer * 0.3).toFixed(precision));
+
+    const slDist = Math.max(entryRecommended - slPrice, currentPrice * (baseSlPercent / 100));
     slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
 
-    tp1Price = Number((entryRecommended + slDist * 1.8).toFixed(precision));
-    tp2Price = Number((entryRecommended + slDist * 3.0).toFixed(precision));
-    tp3Price = Number((entryRecommended + slDist * 4.5).toFixed(precision));
+    // Anchor TP to actual structural chart swing highs if present within realistic reach
+    const eligibleHighs = highsAboveCurrent.map((h) => h.price).filter((p) => p > entryRecommended + slDist * 0.4);
+
+    let tp1 = entryRecommended + slDist * r1Target;
+    if (eligibleHighs.length > 0 && eligibleHighs[0] < entryRecommended + slDist * (r1Target + 0.6)) {
+      tp1 = eligibleHighs[0];
+    }
+    tp1Price = Number(tp1.toFixed(precision));
+
+    let tp2 = entryRecommended + slDist * r2Target;
+    const higherHighs = eligibleHighs.filter((p) => p > tp1Price * 1.001);
+    if (higherHighs.length > 0 && higherHighs[0] < entryRecommended + slDist * (r2Target + 0.7)) {
+      tp2 = higherHighs[0];
+    }
+    tp2Price = Number(Math.max(tp2, tp1Price + slDist * 0.4).toFixed(precision));
+
+    const tp3 = Math.max(tp2Price + slDist * 0.5, entryRecommended + slDist * r3Target);
+    tp3Price = Number(tp3.toFixed(precision));
 
     targetZoneStr = `${tp2Price.toFixed(precision)} - ${tp3Price.toFixed(precision)} ${profile.currency} (Buy-Side Liquidity / BSL Pool)`;
 
@@ -1543,6 +1844,17 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       ? `Tras alcanzar TP1 (${tp1Price.toFixed(precision)}), mueva el Stop Loss a Breakeven (BE). Luego arrastre el stop bajo cada nuevo mínimo swing.`
       : `Po dosažení TP1 (${tp1Price.toFixed(precision)}) posunout SL na vstupní cenu (Breakeven). Následně posouvat SL pod každé nově vytvořené a potvrzené vyšší minimum (Higher Low).`;
   }
+
+  // True Chart Visible Price Span for pixel-accurate overlay placement
+  // Represents strictly the candle extremes visible on the chart, NEVER stretched by distant future targets
+  const candleLows = candles.map((c) => c.low);
+  const candleHighs = candles.map((c) => c.high);
+  const chartVisibleMin = candleLows.length > 0
+    ? Math.min(...candleLows)
+    : Math.min(recentLowPrice, currentPrice * (1 - baseSlPercent * 0.02));
+  const chartVisibleMax = candleHighs.length > 0
+    ? Math.max(...candleHighs)
+    : Math.max(recentHighPrice, currentPrice * (1 + baseSlPercent * 0.04));
 
   // Dynamic Strategy Confluences reflecting real market conditions
   const confluences: any[] = [];
@@ -1685,14 +1997,20 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   const confidenceScore = Math.max(76, Math.min(94, Math.round(dynamicConfidence)));
   const assetName = lang === 'en' ? profile.nameEn : lang === 'es' ? profile.nameEs : profile.nameCs;
 
-  // Dynamic Key Support & Resistance Levels based on live candles
-  const supportLevels = swingLows.length >= 2
-    ? [Number(swingLows[swingLows.length - 1].price.toFixed(precision)), Number(swingLows[swingLows.length - 2].price.toFixed(precision))]
-    : [Number((currentPrice * 0.994).toFixed(precision)), Number((currentPrice * 0.988).toFixed(precision))];
+  // Dynamic Key Support & Resistance Levels strictly partitioned by current price
+  const validSupports = lowsBelowCurrent.map((l) => l.price).sort((a, b) => b - a);
+  const supportLevels = validSupports.length >= 2
+    ? [Number(validSupports[0].toFixed(precision)), Number(validSupports[1].toFixed(precision))]
+    : validSupports.length === 1
+    ? [Number(validSupports[0].toFixed(precision)), Number((validSupports[0] * 0.995).toFixed(precision))]
+    : [Number((currentPrice * 0.992).toFixed(precision)), Number((currentPrice * 0.985).toFixed(precision))];
 
-  const resistanceLevels = swingHighs.length >= 2
-    ? [Number(swingHighs[swingHighs.length - 1].price.toFixed(precision)), Number(swingHighs[swingHighs.length - 2].price.toFixed(precision))]
-    : [Number((currentPrice * 1.006).toFixed(precision)), Number((currentPrice * 1.012).toFixed(precision))];
+  const validResistances = highsAboveCurrent.map((h) => h.price).sort((a, b) => a - b);
+  const resistanceLevels = validResistances.length >= 2
+    ? [Number(validResistances[0].toFixed(precision)), Number(validResistances[1].toFixed(precision))]
+    : validResistances.length === 1
+    ? [Number(validResistances[0].toFixed(precision)), Number((validResistances[0] * 1.005).toFixed(precision))]
+    : [Number((currentPrice * 1.008).toFixed(precision)), Number((currentPrice * 1.015).toFixed(precision))];
 
   const keyPivotPrice = Number(((recentHighPrice + recentLowPrice) / 2).toFixed(precision));
 
@@ -1814,7 +2132,7 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     riskTolerance,
   });
 
-  return {
+  const rawPlan = {
     id: crypto.randomUUID(),
     timestamp: Date.now(),
     language: lang,
@@ -1852,48 +2170,55 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
             : `Umístěn bezpečně pod spodní hranu svíčky likviditního výběru a pod nákupní Order Block.`),
       distancePercent: slDistPercent,
     },
-    takeProfitTargets: [
-      {
-        target: 1,
-        price: tp1Price,
-        riskRewardRatio: 1.8,
-        description: lang === 'en'
-          ? 'First opposing liquidity pool. Scale out 50% and move SL to Breakeven.'
-          : lang === 'es'
-          ? 'Primera reserva de liquidez opuesta. Cierre 50% y mueva SL a Breakeven.'
-          : 'První interní likvidita. Realizovat 50 % zisku a posunout Stop Loss na Breakeven.',
-        closePercentage: 50,
-      },
-      {
-        target: 2,
-        price: tp2Price,
-        riskRewardRatio: 3.0,
-        description: signal === 'SHORT'
-          ? (lang === 'en'
-              ? 'Major swing low target (SSL pool). Primary profit objective.'
-              : lang === 'es'
-              ? 'Mínimo swing principal (objetivo SSL). Meta de beneficio primaria.'
-              : 'Hlavní prodejní likvidita pod swingovými minimy (SSL). Primární cíl obchodu.')
-          : (lang === 'en'
-              ? 'Major Equal Highs (BSL target). Primary profit objective.'
-              : lang === 'es'
-              ? 'Máximos iguales principales (objetivo BSL). Meta de beneficio primaria.'
-              : 'Hlavní nákupní likvidita nad Equal Highs. Primární cíl obchodu.'),
-        closePercentage: 30,
-      },
-      {
-        target: 3,
-        price: tp3Price,
-        riskRewardRatio: 4.5,
-        description: lang === 'en'
-          ? 'Higher timeframe imbalance runner. Trailing stop behind structural pivots.'
-          : lang === 'es'
-          ? 'Extensión hacia desequilibrio de marco mayor. Trailing stop tras pivotes estructurales.'
-          : 'Prodloužená expanze do vyššího časového rámce. Trailing stop za potvrzená swingová minima/maxima.',
-        closePercentage: 20,
-      },
-    ],
-    overallRiskRewardRatio: `1 : ${((Math.abs(tp2Price - entryRecommended)) / Math.max(0.00001, Math.abs(entryRecommended - slPrice))).toFixed(1)}`,
+    takeProfitTargets: (() => {
+      const effSlDist = Math.max(0.00001, Math.abs(entryRecommended - slPrice));
+      const r1 = Math.max(0.5, Number(((Math.abs(tp1Price - entryRecommended)) / effSlDist).toFixed(1)));
+      const r2 = Math.max(r1 + 0.3, Number(((Math.abs(tp2Price - entryRecommended)) / effSlDist).toFixed(1)));
+      const r3 = Math.max(r2 + 0.4, Number(((Math.abs(tp3Price - entryRecommended)) / effSlDist).toFixed(1)));
+
+      return [
+        {
+          target: 1,
+          price: tp1Price,
+          riskRewardRatio: r1,
+          description: lang === 'en'
+            ? 'First opposing liquidity pool. Scale out 50% and move SL to Breakeven.'
+            : lang === 'es'
+            ? 'Primera reserva de liquidez opuesta. Cierre 50% y mueva SL a Breakeven.'
+            : 'První interní likvidita. Realizovat 50 % zisku a posunout Stop Loss na Breakeven.',
+          closePercentage: 50,
+        },
+        {
+          target: 2,
+          price: tp2Price,
+          riskRewardRatio: r2,
+          description: signal === 'SHORT'
+            ? (lang === 'en'
+                ? 'Major swing low target (SSL pool). Primary profit objective.'
+                : lang === 'es'
+                ? 'Mínimo swing principal (objetivo SSL). Meta de beneficio primaria.'
+                : 'Hlavní prodejní likvidita pod swingovými minimy (SSL). Primární cíl obchodu.')
+            : (lang === 'en'
+                ? 'Major Equal Highs (BSL target). Primary profit objective.'
+                : lang === 'es'
+                ? 'Máximos iguales principales (objetivo BSL). Meta de beneficio primaria.'
+                : 'Hlavní nákupní likvidita nad Equal Highs. Primární cíl obchodu.'),
+          closePercentage: 30,
+        },
+        {
+          target: 3,
+          price: tp3Price,
+          riskRewardRatio: r3,
+          description: lang === 'en'
+            ? 'Higher timeframe imbalance runner. Trailing stop behind structural pivots.'
+            : lang === 'es'
+            ? 'Extensión hacia desequilibrio de marco mayor. Trailing stop tras pivotes estructurales.'
+            : 'Prodloužená expanze do vyššího časového rámce. Trailing stop za potvrzená swingová minima/maxima.',
+          closePercentage: 20,
+        },
+      ];
+    })(),
+    overallRiskRewardRatio: `1 : ${Math.max(1.0, Number(((Math.abs(tp2Price - entryRecommended)) / Math.max(0.00001, Math.abs(entryRecommended - slPrice))).toFixed(1)))}`,
     candlestickPatterns,
     priceActionStructures,
     keyLevels: {
@@ -1927,7 +2252,7 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       },
       {
         rule: lang === 'en' ? 'Displacement & Market Structure Shift (MSS)' : lang === 'es' ? 'Desplazamiento y cambio de estructura (MSS)' : 'Expanze a posun tržní struktury (MSS)',
-        passed: Math.abs(currentPrice - ema20) > buffer * 0.5,
+        passed: Math.abs(currentPrice - ema20) > structuralBuffer * 0.5,
         comment: lang === 'en' ? 'Energetic multi-candle expansion creating valid Fair Value Gap.' : lang === 'es' ? 'Expansión enérgica de velas generando FVG válido.' : 'Rázná vícesvíčková expanze vytvořila platný Fair Value Gap.',
       },
       {
@@ -1951,6 +2276,10 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       },
     ],
     uploadedImages: images,
+    chartPriceRange: {
+      min: chartVisibleMin,
+      max: chartVisibleMax,
+    },
     isFallbackEngine: true,
     authNotice: lang === 'en'
       ? 'Processed via TRADEOY Quantitative Candlestick & SMC Engine. Credit was 100% preserved.'
@@ -1958,6 +2287,8 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       ? 'Procesado mediante el Motor Cuantitativo SMC de TRADEOY. Crédito 100% preservado.'
       : 'Zpracováno kvantitativním systémem TRADEOY na reálných datech svíček a SMC. Váš licenční kredit zůstal 100% zachován.',
   };
+
+  return sanitizeAndValidateTradePlan(rawPlan, profile.symbol, precision, candles);
 }
 
 function generateFallbackMentorAnswer(
@@ -2805,9 +3136,11 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     // Commit reservation permanently upon successful AI completion
     CreditManager.commitReservation(reservationId);
 
+    const sanitizedPlan = sanitizeAndValidateTradePlan(parsedData, detectedAssetSymbol, 2);
+
     res.json({
       success: true,
-      data: parsedData,
+      data: sanitizedPlan,
       licenseKey: activeKey,
       remainingCredits: reservation.remainingCredits,
     });

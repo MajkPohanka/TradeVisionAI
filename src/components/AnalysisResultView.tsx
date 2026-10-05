@@ -83,27 +83,55 @@ const getOverlayLevels = (result: AnalysisResult) => {
     };
   }
 
-  const minPrice = Math.min(...validPrices);
-  const maxPrice = Math.max(...validPrices);
-  const range = maxPrice - minPrice || 1;
+  const candleMin = result.chartPriceRange?.min;
+  const candleMax = result.chartPriceRange?.max;
 
-  const paddedMin = minPrice - range * 0.16;
-  const paddedMax = maxPrice + range * 0.16;
-  const paddedRange = paddedMax - paddedMin;
+  const supportPrices = (result.keyLevels?.support || []).map(parsePrice).filter((p) => !isNaN(p) && p > 0);
+  const resistancePrices = (result.keyLevels?.resistance || []).map(parsePrice).filter((p) => !isNaN(p) && p > 0);
+
+  // The true visible chart scale is defined by historical candles, supports, and resistances:
+  // (We do NOT expand the chart height with distant future TP runners, which compresses visible candles)
+  const baselineLow = candleMin || (supportPrices.length > 0 ? Math.min(...supportPrices) : entryPrice * (isShort ? 0.97 : 0.96));
+  const baselineHigh = candleMax || (resistancePrices.length > 0 ? Math.max(...resistancePrices) : entryPrice * (isShort ? 1.04 : 1.03));
+
+  // Anchor the vertical scale to the visible chart window
+  const visibleMin = Math.min(baselineLow, slPrice);
+  const visibleMax = Math.max(baselineHigh, entryPrice);
+  const range = visibleMax - visibleMin || 1;
+
+  // TradingView chart image geometry:
+  // The actual candlestick plotting area inside a typical TradingView chart snapshot
+  // starts at ~7% from the top (below ticker/watermark/OHLC bar)
+  // and ends at ~82% from the top (above volume bars and date/time axis).
+  const plotTop = 7;
+  const plotBottom = 82;
+  const plotHeight = plotBottom - plotTop; // 75%
 
   const calcTop = (price: number) => {
     if (isNaN(price)) return 50;
-    const rawTop = 100 - ((price - paddedMin) / paddedRange) * 100;
-    return Math.max(6, Math.min(92, rawTop));
+    // Normalized position from bottom (0 = visibleMin) to top (1 = visibleMax)
+    const norm = (price - visibleMin) / range;
+    const top = plotBottom - norm * plotHeight;
+    // Clamp so elements never clip outside the chart view
+    return Math.max(6, Math.min(88, top));
   };
 
   const slTop = calcTop(slPrice);
   const entryTop = calcTop(entryPrice);
 
-  const tpLevels = tps.map((tp) => ({
-    ...tp,
-    top: calcTop(tp.price),
-  }));
+  const tpLevels = tps.map((tp, idx) => {
+    let top = calcTop(tp.price);
+    // If target is beyond visible screen, stack near the top boundary (or bottom for short)
+    if (!isShort && top <= 12) {
+      top = Math.max(8, 12 - (tps.length - 1 - idx) * 3);
+    } else if (isShort && top >= 82) {
+      top = Math.min(88, 82 + idx * 3);
+    }
+    return {
+      ...tp,
+      top,
+    };
+  });
 
   const maxTpTop = tpLevels.length > 0 ? tpLevels[tpLevels.length - 1].top : (isShort ? 88 : 10);
 
@@ -799,31 +827,23 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
                   return (
                     <div className="absolute inset-0 pointer-events-none p-2 sm:p-4 bg-black/15 overflow-hidden">
-                      {/* 1. Shaded Risk Zone Box (Red) */}
+                      {/* 1. Shaded Risk Zone Box (Subtle Red Tint) */}
                       <div
-                        className="absolute left-2 right-2 bg-red-600/20 border-l-4 border-red-500 rounded-r shadow-md transition-all duration-300"
+                        className="absolute left-0 right-0 bg-red-600/10 border-l-4 border-red-500/80 rounded-r shadow-xs transition-all duration-300 pointer-events-none"
                         style={{
                           top: `${overlay.riskTop}%`,
                           height: `${overlay.riskHeight}%`,
                         }}
-                      >
-                        <span className="absolute top-1 left-2 text-[10px] font-black text-rose-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-red-500/80 shadow-md">
-                          {t.stopLoss} ZÓNA
-                        </span>
-                      </div>
+                      />
 
-                      {/* 2. Shaded Reward Zone Box (Green) */}
+                      {/* 2. Shaded Reward Zone Box (Subtle Green Tint) */}
                       <div
-                        className="absolute left-2 right-2 bg-emerald-500/20 border-l-4 border-emerald-400 rounded-r shadow-md transition-all duration-300"
+                        className="absolute left-0 right-0 bg-emerald-500/10 border-l-4 border-emerald-400/80 rounded-r shadow-xs transition-all duration-300 pointer-events-none"
                         style={{
                           top: `${overlay.rewardTop}%`,
                           height: `${overlay.rewardHeight}%`,
                         }}
-                      >
-                        <span className="absolute bottom-1 left-2 text-[10px] font-black text-emerald-100 uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border border-emerald-400/80 shadow-md">
-                          TAKE PROFIT CÍLOVÁ ZÓNA
-                        </span>
-                      </div>
+                      />
 
                       {/* 3. Stop Loss Level Line & Badge (High-contrast Red) */}
                       <div
@@ -832,10 +852,10 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                       >
                         <div className="bg-black/95 border-2 border-rose-500 text-rose-100 text-[11px] font-black px-3 py-0.5 rounded-full shadow-2xl flex items-center space-x-1.5">
                           <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                          <span>STOP LOSS: {overlay.sl.priceStr}</span>
+                          <span>STOP LOSS: {overlay.sl.priceStr} (-{result.stopLoss?.distancePercent ?? 0}%)</span>
                         </div>
                         <span className="bg-black/95 border-2 border-rose-500 text-rose-200 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xl">
-                          SL
+                          SL (-{result.stopLoss?.distancePercent ?? 0}%)
                         </span>
                       </div>
 

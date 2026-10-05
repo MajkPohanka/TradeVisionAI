@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   Eclipse,
+  Target,
 } from 'lucide-react';
 import { StrategySettings, HoldingPeriod, RiskTolerance, TradingStrategy, AppTheme } from '../types';
 import { getTranslation } from '../utils/translations';
@@ -243,6 +244,96 @@ export const StrategyPreferencesModal: React.FC<StrategyPreferencesModalProps> =
                 />
                 <span className="text-xs font-bold text-emerald-400">%</span>
               </div>
+            </div>
+          </div>
+
+          {/* 4. Target Take Profit Profile & R:R Settings */}
+          <div>
+            <label className="text-xs font-semibold text-[#a1a1a6] flex items-center justify-between mb-2.5">
+              <span className="flex items-center space-x-1.5">
+                <Target className="w-3.5 h-3.5 text-cyan-400" />
+                <span>
+                  {settings.language === 'cs'
+                    ? 'Cílový profil zisku a poměr R:R (Take Profit)'
+                    : settings.language === 'es'
+                    ? 'Perfil de Take Profit y Ratio R:R'
+                    : 'Target Take Profit Profile & R:R Ratio'}
+                </span>
+              </span>
+              <span className="text-[10px] text-cyan-400 font-semibold">
+                {settings.riskRewardProfile === 'conservative'
+                  ? (settings.language === 'cs' ? 'Konzervativní (1:1.0 - 1:2.3)' : 'Conservative (1:1.0 - 1:2.3)')
+                  : settings.riskRewardProfile === 'aggressive'
+                  ? (settings.language === 'cs' ? 'Agresivní (1:1.4 - 1:3.4)' : 'Aggressive (1:1.4 - 1:3.4)')
+                  : (settings.language === 'cs' ? 'Vyvážený SMC (1:1.2 - 1:2.8)' : 'Balanced SMC (1:1.2 - 1:2.8)')}
+              </span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ riskRewardProfile: 'conservative' })}
+                className={`p-3 rounded-xl text-left border transition cursor-pointer ${
+                  settings.riskRewardProfile === 'conservative'
+                    ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300 ring-1 ring-cyan-500/30'
+                    : 'bg-white/[0.02] border-white/[0.06] text-[#86868b] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-white">
+                    {settings.language === 'cs' ? 'Konzervativní / Strukturální' : 'Conservative / Structural'}
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">1:1.0 - 1:2.3</span>
+                </div>
+                <div className="text-[10px] text-[#86868b] mt-1 leading-relaxed">
+                  {settings.language === 'cs'
+                    ? 'Realistické cíle v rámci grafu, vysoká pravděpodobnost zásahu a rychlý BE.'
+                    : 'Realistic levels on chart, high hit rate, fast breakeven.'}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ riskRewardProfile: 'balanced' })}
+                className={`p-3 rounded-xl text-left border transition cursor-pointer ${
+                  !settings.riskRewardProfile || settings.riskRewardProfile === 'balanced'
+                    ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 ring-1 ring-emerald-500/30'
+                    : 'bg-white/[0.02] border-white/[0.06] text-[#86868b] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-white">
+                    {settings.language === 'cs' ? 'Vyvážený SMC (Doporučeno)' : 'Balanced SMC (Recommended)'}
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">1:1.2 - 1:2.8</span>
+                </div>
+                <div className="text-[10px] text-[#86868b] mt-1 leading-relaxed">
+                  {settings.language === 'cs'
+                    ? 'Kotveno na likviditní pooly BSL/SSL a Equal Highs/Lows na grafu.'
+                    : 'Anchored to BSL/SSL liquidity pools and Equal Highs/Lows on chart.'}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ riskRewardProfile: 'aggressive' })}
+                className={`p-3 rounded-xl text-left border transition cursor-pointer ${
+                  settings.riskRewardProfile === 'aggressive'
+                    ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 ring-1 ring-amber-500/30'
+                    : 'bg-white/[0.02] border-white/[0.06] text-[#86868b] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-white">
+                    {settings.language === 'cs' ? 'Trendový / Expanzní' : 'Trend / Expansion'}
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">1:1.4 - 1:3.4</span>
+                </div>
+                <div className="text-[10px] text-[#86868b] mt-1 leading-relaxed">
+                  {settings.language === 'cs'
+                    ? 'Pro silné expanzní impulsy a dlouhé běhy s trailing stopem.'
+                    : 'For strong impulse waves and extended trailing runners.'}
+                </div>
+              </button>
             </div>
           </div>
 

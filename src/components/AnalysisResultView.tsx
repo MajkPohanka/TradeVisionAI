@@ -67,6 +67,7 @@ const getOverlayLevels = (result: AnalysisResult) => {
       sl: { top: isShort ? 10 : 88, priceStr: String(result.stopLoss?.price ?? 'N/A') },
       entry: { top: 48, priceStr: String(result.entryZone?.recommended ?? (result.entryZone?.min ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')) },
       ob: { top: 45, height: 6, hasRange: false, rangeStr: '' },
+      fvgs: [],
       tps: tps.map((tp, idx) => {
         let top = 88;
         if (isShort) {
@@ -152,6 +153,18 @@ const getOverlayLevels = (result: AnalysisResult) => {
     ? Math.max(3, Math.abs(calcTop(entryMinPrice) - calcTop(entryMaxPrice)))
     : 3;
 
+  const fvgOverlays = (result.fvgZones || []).map((fvg) => {
+    const minTop = calcTop(fvg.min);
+    const maxTop = calcTop(fvg.max);
+    const top = Math.min(minTop, maxTop);
+    const height = Math.max(2.5, Math.abs(minTop - maxTop));
+    return {
+      ...fvg,
+      top,
+      height,
+    };
+  });
+
   return {
     sl: { top: slTop, priceStr: String(result.stopLoss?.price ?? 'N/A') },
     entry: { top: entryTop, priceStr: String(result.entryZone?.recommended ?? (result.entryZone?.min ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')) },
@@ -161,6 +174,7 @@ const getOverlayLevels = (result: AnalysisResult) => {
       hasRange: hasObRange,
       rangeStr: hasObRange ? `${Math.min(entryMinPrice, entryMaxPrice)} – ${Math.max(entryMinPrice, entryMaxPrice)}` : '',
     },
+    fvgs: fvgOverlays,
     tps: tpLevels,
     isShort,
     riskTop,
@@ -895,6 +909,33 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                         </div>
                       </div>
 
+                      {/* 3.6 Shaded Fair Value Gaps (FVG Imbalance Zones) */}
+                      {overlay.fvgs.map((fvg, fIdx) => (
+                        <div
+                          key={`fvg-${fIdx}`}
+                          className={`absolute left-0 right-0 border-y-2 border-dashed pointer-events-none z-15 transition-all duration-300 ${
+                            fvg.type === 'BULLISH'
+                              ? 'bg-amber-500/15 border-amber-400/80'
+                              : 'bg-purple-500/15 border-purple-400/80'
+                          }`}
+                          style={{
+                            top: `${fvg.top}%`,
+                            height: `${fvg.height}%`,
+                          }}
+                        >
+                          <div className={`absolute left-2 top-0.5 bg-black/90 border text-[9px] font-black px-2 py-0.5 rounded shadow-lg flex items-center space-x-1 ${
+                            fvg.type === 'BULLISH'
+                              ? 'border-amber-400/80 text-amber-200'
+                              : 'border-purple-400/80 text-purple-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${fvg.type === 'BULLISH' ? 'bg-amber-400' : 'bg-purple-400'} animate-pulse`} />
+                            <span>
+                              ⚡ FVG ({fvg.type === 'BULLISH' ? 'BÝČÍ' : 'MEDVĚDÍ'}): {fvg.min} – {fvg.max} ({fvg.status === 'UNMITIGATED' ? 'NEVYPLNĚNÝ' : fvg.status === 'PARTIALLY_FILLED' ? 'ČÁSTEČNÝ' : 'TESTOVANÝ'})
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
                       {/* 4. Entry Zone Level Line & Badge (Cyan) */}
                       <div
                         className="absolute left-0 right-0 border-t-[2.5px] border-solid border-cyan-400 flex items-center justify-between px-2 -translate-y-1/2 z-30 transition-all duration-300"
@@ -1279,6 +1320,77 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 ))}
               </div>
 
+              {/* Dedicated FVG Imbalance Zones Card */}
+              {(result.fvgZones || []).length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`text-sm font-bold flex items-center space-x-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <span className="text-amber-500">⚡</span>
+                      <span>Fair Value Gaps (FVG / Cenové nerovnováhy)</span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      }`}>
+                        {(result.fvgZones || []).length} zón
+                      </span>
+                    </h4>
+                    <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      Třísvíčková expanze Smart Money
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(result.fvgZones || []).map((fvg, idx) => (
+                      <div
+                        key={`fvg-card-${idx}`}
+                        className={`p-4 rounded-2xl space-y-2 border relative overflow-hidden ${
+                          fvg.type === 'BULLISH'
+                            ? (isLight ? 'bg-amber-50/70 border-amber-300' : 'bg-amber-950/20 border-amber-500/30')
+                            : (isLight ? 'bg-purple-50/70 border-purple-300' : 'bg-purple-950/20 border-purple-500/30')
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-2 h-2 rounded-full ${fvg.type === 'BULLISH' ? 'bg-amber-500' : 'bg-purple-500'}`} />
+                            <span className={`text-xs font-black uppercase tracking-wider ${
+                              fvg.type === 'BULLISH'
+                                ? (isLight ? 'text-amber-900' : 'text-amber-300')
+                                : (isLight ? 'text-purple-900' : 'text-purple-300')
+                            }`}>
+                              {fvg.type === 'BULLISH' ? 'Býčí FVG (Poptávka)' : 'Medvědí FVG (Nabídka)'}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            fvg.status === 'UNMITIGATED'
+                              ? (isLight ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30')
+                              : (isLight ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-white/10 text-slate-300 border-white/20')
+                          }`}>
+                            {fvg.status === 'UNMITIGATED' ? 'NEVYPLNĚNÝ (Aktivní magnet)' : fvg.status === 'PARTIALLY_FILLED' ? 'ČÁSTEČNĚ VYPLNĚNÝ' : 'TESTOVANÝ'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-baseline justify-between pt-1 border-t border-white/[0.06]">
+                          <span className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>Rozpětí FVG:</span>
+                          <span className={`font-mono text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                            {fvg.min} – {fvg.max}
+                          </span>
+                        </div>
+
+                        <div className="flex items-baseline justify-between text-[11px]">
+                          <span className={`${isLight ? 'text-slate-600' : 'text-[#86868b]'}`}>Střed (50% CE úroveň):</span>
+                          <span className="font-mono font-bold text-amber-400">
+                            {fvg.midpoint || Number(((fvg.min + fvg.max) / 2).toFixed(2))}
+                          </span>
+                        </div>
+
+                        <p className={`text-xs leading-relaxed mt-1 ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>
+                          {fvg.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Support & Resistance Summary */}
               <div className={`mt-5 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4 ${
                 isLight ? 'border-slate-200' : 'border-white/[0.08]'
@@ -1633,6 +1745,28 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                             ORDER BLOCK (OB / POI){overlay.ob.hasRange ? `: ${overlay.ob.rangeStr}` : ''}
                           </span>
                         </div>
+
+                        {/* Shaded Fair Value Gaps (FVG) in Lightbox */}
+                        {overlay.fvgs.map((fvg, fIdx) => (
+                          <div
+                            key={`lb-fvg-${fIdx}`}
+                            className={`absolute left-2 right-2 border-y-2 border-dashed pointer-events-none z-15 ${
+                              fvg.type === 'BULLISH'
+                                ? 'bg-amber-500/20 border-amber-400/90'
+                                : 'bg-purple-500/20 border-purple-400/90'
+                            }`}
+                            style={{ top: `${fvg.top}%`, height: `${fvg.height}%` }}
+                          >
+                            <span className={`absolute top-1 left-2 text-[10px] font-black uppercase tracking-widest bg-black/95 px-2.5 py-0.5 rounded-full border shadow-md flex items-center space-x-1 ${
+                              fvg.type === 'BULLISH'
+                                ? 'border-amber-400/90 text-amber-200'
+                                : 'border-purple-400/90 text-purple-200'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${fvg.type === 'BULLISH' ? 'bg-amber-400' : 'bg-purple-400'} animate-pulse`} />
+                              <span>⚡ FVG ({fvg.type === 'BULLISH' ? 'BÝČÍ' : 'MEDVĚDÍ'}): {fvg.min} – {fvg.max}</span>
+                            </span>
+                          </div>
+                        ))}
 
                         {/* Entry Line */}
                         <div

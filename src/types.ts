@@ -59,6 +59,15 @@ export interface PriceActionStructure {
   description: string;
 }
 
+export interface FvgZone {
+  type: 'BULLISH' | 'BEARISH';
+  min: number;
+  max: number;
+  midpoint: number;
+  status: 'UNMITIGATED' | 'PARTIALLY_FILLED' | 'MITIGATED';
+  description: string;
+}
+
 export interface TakeProfitTarget {
   target: number; // 1, 2, 3
   price: number;
@@ -107,6 +116,7 @@ export interface AnalysisResult {
   overallRiskRewardRatio: string;
   candlestickPatterns: CandlestickPattern[];
   priceActionStructures: PriceActionStructure[];
+  fvgZones?: FvgZone[];
   keyLevels: {
     support: number[];
     resistance: number[];

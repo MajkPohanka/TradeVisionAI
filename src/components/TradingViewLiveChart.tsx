@@ -874,7 +874,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
               precision: chartData.precision ?? 2,
               currentPrice: chartData.currentPrice,
               priceChangePercent: chartData.priceChangePercent,
-              theme: isLightTheme ? 'light' : 'dark',
+              theme: 'dark', // Always produce canonical dark chart snapshot for consistent AI analysis
               width: 1280,
               height: 720,
             });
@@ -1031,7 +1031,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
         symbol: cleanSymbolName,
         timeframe: fallbackDisplayTf,
         displayName: cleanSymbolName,
-        theme: isLightTheme ? 'light' : 'dark',
+        theme: 'dark', // Always produce canonical dark chart snapshot for consistent AI analysis
         width: 1280,
         height: 720,
       });

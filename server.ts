@@ -1629,35 +1629,24 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     const distToLow = Math.abs(currentPrice - lastLow);
     const distToHigh = Math.abs(currentPrice - lastHigh);
 
-    // Multi-factor Quantitative Market Bias:
-    // If user uploaded a chart image with distinct visual trend/candle momentum, honor the image!
-    if (imageAnalysis.hasImage && imageAnalysis.detectedTrend !== 'RANGING') {
-      if (imageAnalysis.detectedTrend === 'BULLISH' || imageAnalysis.bullishMomentumScore >= 56) {
-        signal = 'LONG';
-      } else if (imageAnalysis.detectedTrend === 'BEARISH' || imageAnalysis.bullishMomentumScore <= 44) {
-        signal = 'SHORT';
-      }
+    // Robust Quantitative Market Bias based on actual market structure & OHLC candles:
+    // (100% invariant to image background color, contrast, or page UI theme)
+    if (isHigherHighs && isHigherLows) {
+      signal = 'LONG';
+    } else if (isLowerHighs && isLowerLows) {
+      signal = 'SHORT';
+    } else if (currentPrice > ema20 && recentDiff > 0) {
+      signal = 'LONG';
+    } else if (currentPrice < ema20 && recentDiff < 0) {
+      signal = 'SHORT';
+    } else if (rsi < 40) {
+      signal = 'LONG'; // Discount demand accumulation
+    } else if (rsi > 60) {
+      signal = 'SHORT'; // Premium supply distribution
+    } else if (recentDiff !== 0) {
+      signal = recentDiff > 0 ? 'LONG' : 'SHORT';
     } else {
-      // Candlestick Order Flow & Microstructure analysis
-      if (imageAnalysis.recentReversal === 'BULLISH_REVERSAL' || (recentDiff > 0 && distToLow < distToHigh * 0.7)) {
-        signal = 'LONG';
-      } else if (imageAnalysis.recentReversal === 'BEARISH_REVERSAL' || (recentDiff < 0 && distToHigh < distToLow * 0.7)) {
-        signal = 'SHORT';
-      } else if (isHigherHighs && isHigherLows && recentDiff >= 0) {
-        signal = 'LONG';
-      } else if (isLowerHighs && isLowerLows && recentDiff <= 0) {
-        signal = 'SHORT';
-      } else if (rsi < 40) {
-        signal = 'LONG'; // Discount demand accumulation
-      } else if (rsi > 60) {
-        signal = 'SHORT'; // Premium supply distribution
-      } else if (currentPrice > ema20 && recentDiff > 0) {
-        signal = 'LONG';
-      } else if (currentPrice < ema20 && recentDiff < 0) {
-        signal = 'SHORT';
-      } else {
-        signal = recentDiff >= 0 ? 'LONG' : 'SHORT';
-      }
+      signal = currentPrice >= ema50 ? 'LONG' : 'SHORT';
     }
   } else {
     // If candles unavailable, calibrate dynamically based on uploaded image or profile baseline
@@ -2939,6 +2928,73 @@ app.get('/api/market-overview', async (req, res) => {
   }
 });
 
+// Parse timeframe string (e.g. 'D1 + H4 + H1', '4H + 15M + 5M') into standardized interval tokens
+function parseTimeframeList(tfStr?: string): string[] {
+  if (!tfStr) return ['1d', '4h', '1h'];
+  const parts = tfStr.split(/\+|\s*,\s*|\s+/).map((p) => p.trim()).filter(Boolean);
+  const tfMap: Record<string, string> = {
+    '1D': '1d', 'D1': '1d', 'D': '1d', 'DAILY': '1d',
+    '4H': '4h', 'H4': '4h', '240': '4h',
+    '3H': '3h', 'H3': '3h', '180': '3h',
+    '2H': '2h', 'H2': '2h', '120': '2h',
+    '1H': '1h', 'H1': '1h', '60': '1h',
+    '45M': '45m', 'M45': '45m', '45': '45m',
+    '30M': '30m', 'M30': '30m', '30': '30m',
+    '15M': '15m', 'M15': '15m', '15': '15m',
+    '5M': '5m', 'M5': '5m', '5': '5m',
+    '3M': '3m', 'M3': '3m', '3': '3m',
+    '1M': '1m', 'M1': '1m', '1': '1m',
+    'W1': '1w', '1W': '1w', 'W': '1w',
+    'MN': '1M', 'MONTHLY': '1M',
+  };
+  const list = parts.map((p) => tfMap[p.toUpperCase()] || p.toLowerCase());
+  return list.length > 0 ? Array.from(new Set(list)) : ['1d', '4h', '1h'];
+}
+
+// Build verified multi-timeframe numeric OHLC market data to ground Gemini AI in objective numbers
+async function buildOhlcPromptContext(symbol: string, timeframeSequence?: string): Promise<{ text: string; primaryCandles: any[] }> {
+  const tfs = parseTimeframeList(timeframeSequence);
+  const blocks: string[] = [];
+  let primaryCandles: any[] = [];
+
+  for (const tf of tfs) {
+    try {
+      const data = await getChartCandles(symbol, tf);
+      if (data && Array.isArray(data.candles) && data.candles.length > 0) {
+        if (primaryCandles.length === 0) {
+          primaryCandles = data.candles;
+        }
+        const recent = data.candles.slice(-6);
+        const tfLabel = tf.toUpperCase();
+        const candleLines = recent.map((c, i) => {
+          const isBull = c.close >= c.open;
+          const diffPct = c.open > 0 ? (((c.close - c.open) / c.open) * 100).toFixed(2) : '0.00';
+          const sign = Number(diffPct) > 0 ? '+' : '';
+          return `  Bar #${recent.length - i} (Close: ${c.close}): Open: ${c.open}, High: ${c.high}, Low: ${c.low}, Close: ${c.close}, Vol: ${c.volume || 100} -> ${isBull ? 'BULLISH (Green)' : 'BEARISH (Red)'} (${sign}${diffPct}%)`;
+        });
+        blocks.push(`[Timeframe ${tfLabel} - Latest ${recent.length} Finished Bars (Top-Down Sequence)]:\n${candleLines.join('\n')}`);
+      }
+    } catch (err) {
+      console.warn(`[buildOhlcPromptContext] Notice: could not fetch candles for ${symbol} on ${tf}:`, err);
+    }
+  }
+
+  if (blocks.length === 0) {
+    return { text: '', primaryCandles: [] };
+  }
+
+  const text = `========================================================================
+VERIFIED NUMERIC OHLC MARKET DATA (GROUND TRUTH NUMERICAL BENCHMARK):
+Asset / Symbol: ${symbol}
+The following real exchange candlestick data provides the ground-truth prices, highs, lows, and candle directions.
+Cross-reference the uploaded visual chart screenshots with these exact numbers:
+
+${blocks.join('\n\n')}
+========================================================================`;
+
+  return { text, primaryCandles };
+}
+
 // Primary Chart Analysis Endpoint with Multi-Methodology & Economic Calendar Context
 app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
   let reservationId: string | undefined;
@@ -2958,6 +3014,9 @@ app.post('/api/analyze-chart', aiRateLimiter, async (req, res) => {
       symbol: topSymbol || inputSettings?.symbol,
       asset: topAsset || inputSettings?.asset,
     };
+    // Ensure theme is strictly a UI appearance concern; stripped from all server analysis logic
+    delete (settings as any).theme;
+    if (inputSettings) delete (inputSettings as any).theme;
     const userSelectedSymbol = topSymbol || inputSettings?.symbol || inputSettings?.asset || '';
 
     // 1. Credit & License Verification - Strict validation without auto-grant
@@ -3089,13 +3148,23 @@ User Preferences & Execution Constraints:
 - Custom Rules: ${settings?.customRules || 'Standard prop-firm execution rules'}
 - Custom Mentor Prompt: ${settings?.customMentorPrompt || 'None'}
 
+STRICT THEME & CANDLE COLOR INVARIANCE:
+- Financial chart screenshots can be provided with dark, slate, or light backgrounds depending on user viewing preference.
+- Standard convention: Green/Teal/White candles are Bullish (Close >= Open), Red/Rose/Black candles are Bearish (Close < Open).
+- The background color, page theme, or contrast mode MUST NOT affect your technical directional bias (LONG / SHORT), confidence score, or price action analysis.
+- Rely on structural price action, swing highs/lows, and the provided verified numerical OHLC data to determine market bias.
+
 ${langPrompt}`;
+
+    const ohlcContext = await buildOhlcPromptContext(
+      userSelectedSymbol || 'BTC',
+      reqTimeframe || (settings as any)?.timeframe
+    );
 
     const liveCalendarWarning = await getRealEconomicCalendarWarning(userSelectedSymbol || 'BTC', langCode);
 
     const promptText = `Analyze the uploaded TradingView chart image(s) with maximum institutional precision. 
-${userSelectedSymbol ? `TARGET ASSET / SYMBOL CONTEXT: The user is currently analyzing "${userSelectedSymbol}". If the uploaded chart corresponds to or shows this asset (or related pair like BTC/USD, BTCUSDT), ensure the returned "symbol" reflects this asset accurately and all prices match the chart price scale!` : ''}
-REAL FOREXFACTORY CALENDAR FEED CONTEXT:
+${userSelectedSymbol ? `TARGET ASSET / SYMBOL CONTEXT: The user is currently analyzing "${userSelectedSymbol}". If the uploaded chart corresponds to or shows this asset (or related pair like BTC/USD, BTCUSDT), ensure the returned "symbol" reflects this asset accurately and all prices match the chart price scale!\n` : ''}${ohlcContext.text ? ohlcContext.text + '\n\n' : ''}REAL FOREXFACTORY CALENDAR FEED CONTEXT:
 ${liveCalendarWarning.upcomingNewsEvents.length > 0 
   ? `Events: ${JSON.stringify(liveCalendarWarning.upcomingNewsEvents)}. Has High Impact: ${liveCalendarWarning.hasHighImpactNewsThisWeek}.` 
   : `Calendar is clear of high-impact events for this asset today.`}
@@ -3266,7 +3335,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
         config: {
           systemInstruction: systemInstruction,
           responseMimeType: 'application/json',
-          temperature: 0.2,
+          temperature: 0.0,
         },
       })
     );
@@ -3301,7 +3370,7 @@ Return STRICTLY a JSON object conforming to this exact schema (no markdown outsi
     // Commit reservation permanently upon successful AI completion
     CreditManager.commitReservation(reservationId);
 
-    const sanitizedPlan = sanitizeAndValidateTradePlan(parsedData, detectedAssetSymbol, 2);
+    const sanitizedPlan = sanitizeAndValidateTradePlan(parsedData, detectedAssetSymbol, 2, ohlcContext.primaryCandles);
 
     res.json({
       success: true,

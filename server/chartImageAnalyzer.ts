@@ -82,6 +82,47 @@ export function analyzeChartImage(imageBase64?: string): ImageAnalysisResult {
       return defaultResult;
     }
 
+    // First pass: collect pixels and sample background from corner and border regions
+    interface Pixel {
+      x: number;
+      y: number;
+      r: number;
+      g: number;
+      b: number;
+    }
+    const pixels: Pixel[] = [];
+    const cornerSamples: { r: number; g: number; b: number }[] = [];
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (tokenIdx + 2 >= tokens.length) break;
+        const r = parseInt(tokens[tokenIdx++], 10);
+        const g = parseInt(tokens[tokenIdx++], 10);
+        const b = parseInt(tokens[tokenIdx++], 10);
+
+        const nr = (r / maxVal) * 255;
+        const ng = (g / maxVal) * 255;
+        const nb = (b / maxVal) * 255;
+
+        pixels.push({ x, y, r: nr, g: ng, b: nb });
+
+        // Sample corners (within 4 pixels of corners) as ground-truth background
+        if ((x < 4 || x >= width - 4) && (y < 4 || y >= height - 4)) {
+          cornerSamples.push({ r: nr, g: ng, b: nb });
+        }
+      }
+    }
+
+    // Estimate background color
+    let bgR = 19;
+    let bgG = 23;
+    let bgB = 34;
+    if (cornerSamples.length > 0) {
+      bgR = cornerSamples.reduce((acc, c) => acc + c.r, 0) / cornerSamples.length;
+      bgG = cornerSamples.reduce((acc, c) => acc + c.g, 0) / cornerSamples.length;
+      bgB = cornerSamples.reduce((acc, c) => acc + c.b, 0) / cornerSamples.length;
+    }
+
     let totalGreenPixels = 0;
     let totalRedPixels = 0;
     let rightGreenPixels = 0;
@@ -96,47 +137,41 @@ export function analyzeChartImage(imageBase64?: string): ImageAnalysisResult {
     const rightStartX = Math.floor(width * 0.65);
     const leftEndX = Math.floor(width * 0.35);
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (tokenIdx + 2 >= tokens.length) break;
-        const r = parseInt(tokens[tokenIdx++], 10);
-        const g = parseInt(tokens[tokenIdx++], 10);
-        const b = parseInt(tokens[tokenIdx++], 10);
+    for (const p of pixels) {
+      const { x, y, r: nr, g: ng, b: nb } = p;
 
-        // Normalize to 0-255
-        const nr = (r / maxVal) * 255;
-        const ng = (g / maxVal) * 255;
-        const nb = (b / maxVal) * 255;
+      // 1. Color distance from detected background
+      const distFromBg = Math.hypot(nr - bgR, ng - bgG, nb - bgB);
+      if (distFromBg < 32) continue; // Skip background
 
-        // Skip plain background (very dark or very light)
-        const brightness = (nr + ng + nb) / 3;
-        if (brightness < 20 || brightness > 245) continue;
+      // 2. Filter out near-monochrome elements (grid lines, axes, text, watermarks)
+      const maxDiff = Math.max(Math.abs(nr - ng), Math.abs(ng - nb), Math.abs(nr - nb));
+      if (maxDiff < 18) continue; // Grayscale or neutral tint, not a candle
 
-        // Detect Bullish (Green / Teal / Cyan / Emerald) candle pixels
-        // TradingView green: #089981 (r:8, g:153, b:129), #26a69a (r:38, g:166, b:154), #22c55e (r:34, g:197, b:94)
-        const isGreenCandle = ng > 55 && ng > nr * 1.15 && (ng >= nb * 0.85 || (ng > 80 && nb > 70 && nr < 50));
+      // 3. Detect Bullish (Green / Teal / Cyan / Emerald) candle pixels
+      // TradingView green: #089981 (r:8, g:153, b:129), #26a69a (r:38, g:166, b:154), #22c55e (r:34, g:197, b:94)
+      const isGreenCandle = ng > 50 && ng > nr + 20 && (ng >= nb * 0.8 || (ng > 75 && nb > 65 && nr < 50));
 
-        // Detect Bearish (Red / Rose / Crimson) candle pixels
-        // TradingView red: #f23645 (r:242, g:54, b:69), #ef5350 (r:239, g:83, b:80)
-        const isRedCandle = nr > 65 && nr > ng * 1.25 && nr > nb * 1.1;
+      // 4. Detect Bearish (Red / Rose / Crimson) candle pixels
+      // TradingView red: #f23645 (r:242, g:54, b:69), #ef5350 (r:239, g:83, b:80)
+      const isRedCandle = nr > 60 && nr > ng + 20 && nr > nb + 10;
 
-        if (isGreenCandle) {
-          totalGreenPixels++;
-          if (x >= rightStartX) rightGreenPixels++;
-        } else if (isRedCandle) {
-          totalRedPixels++;
-          if (x >= rightStartX) rightRedPixels++;
-        }
+      if (isGreenCandle) {
+        totalGreenPixels++;
+        if (x >= rightStartX) rightGreenPixels++;
+      } else if (isRedCandle) {
+        totalRedPixels++;
+        if (x >= rightStartX) rightRedPixels++;
+      }
 
-        // Price trajectory (any candle pixel)
-        if (isGreenCandle || isRedCandle) {
-          if (x <= leftEndX) {
-            leftWeightedY += y;
-            leftPixelCount++;
-          } else if (x >= rightStartX) {
-            rightWeightedY += y;
-            rightPixelCount++;
-          }
+      // Price trajectory (any candle pixel)
+      if (isGreenCandle || isRedCandle) {
+        if (x <= leftEndX) {
+          leftWeightedY += y;
+          leftPixelCount++;
+        } else if (x >= rightStartX) {
+          rightWeightedY += y;
+          rightPixelCount++;
         }
       }
     }

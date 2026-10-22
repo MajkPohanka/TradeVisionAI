@@ -347,6 +347,7 @@ export default function App() {
           images: optimizedImages,
           settings: {
             ...settings,
+            theme: undefined, // Theme is strictly a local UI appearance preference; never sent to analysis engine
             timeframe: slotTimeframe,
             symbol: selectedTvSymbol || settings.symbol,
           },

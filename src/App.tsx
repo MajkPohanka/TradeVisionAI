@@ -52,14 +52,15 @@ export default function App() {
       customMentorPrompt: '',
       language: 'cs',
       accountRiskPercent: 1.0,
+      theme: 'black',
     };
   });
 
   const t = getTranslation(settings.language);
 
-  // App Theme state: 'light' (primary default), 'dark', or 'black'
+  // App Theme state: 'black' (primary default for anyone entering the portal)
   const [theme, setTheme] = useState<AppTheme>(() => {
-    return settings.theme || getInitialTheme();
+    return getInitialTheme();
   });
 
   // Sync theme changes to document element & localStorage
@@ -70,6 +71,7 @@ export default function App() {
   const handleUpdateTheme = (newTheme: AppTheme) => {
     setTheme(newTheme);
     setSettings((prev) => ({ ...prev, theme: newTheme }));
+    applyThemeToDocument(newTheme, true);
   };
 
   // Sync settings to localStorage

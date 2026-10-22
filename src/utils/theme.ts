@@ -1,41 +1,44 @@
 import { AppTheme } from '../types';
 
 export const THEME_STORAGE_KEY = 'tradeoy_theme';
+export const USER_EXPLICIT_THEME_KEY = 'tradeoy_user_explicit_theme';
 
 /**
  * Returns initial theme preference.
- * Defaults to 'light' (jemný světlý design) as requested by user.
+ * Defaults to 'black' (čistě černý OLED motiv) as primary default for anyone entering the portal.
  */
 export function getInitialTheme(): AppTheme {
   try {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === 'light' || saved === 'dark' || saved === 'black') {
-      return saved;
+    // If the user has explicitly clicked and selected a theme preference
+    const explicit = localStorage.getItem(USER_EXPLICIT_THEME_KEY);
+    if (explicit === 'light' || explicit === 'dark' || explicit === 'black') {
+      return explicit;
     }
-    // Also check inside tradeoy_settings
-    const settingsRaw = localStorage.getItem('tradeoy_settings');
-    if (settingsRaw) {
-      const parsed = JSON.parse(settingsRaw);
-      if (parsed?.theme === 'light' || parsed?.theme === 'dark' || parsed?.theme === 'black') {
-        return parsed.theme;
-      }
+
+    // Check if user previously saved dark or black
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'dark' || saved === 'black') {
+      return saved;
     }
   } catch (err) {
     console.warn('Failed to read theme from localStorage:', err);
   }
 
-  // Primary default is light (jemný světlý design)
-  return 'light';
+  // Primary default is black (čistě černý OLED motiv pro kohokoliv)
+  return 'black';
 }
 
 /**
  * Applies the selected theme to the root HTML element and saves to localStorage.
  */
-export function applyThemeToDocument(theme: AppTheme): void {
+export function applyThemeToDocument(theme: AppTheme, isUserExplicit: boolean = false): void {
   if (typeof document === 'undefined') return;
 
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
+    if (isUserExplicit) {
+      localStorage.setItem(USER_EXPLICIT_THEME_KEY, theme);
+    }
   } catch {}
 
   const root = document.documentElement;

@@ -3,17 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // Immediate theme initialization to prevent flash of wrong theme (default: 'light')
+      // Immediate theme initialization: Primary default is 'black' (čistě černý OLED motiv pro kohokoliv)
       (function() {
         try {
-          var theme = 'light';
-          var savedSettings = localStorage.getItem('tradeoy_settings');
-          if (savedSettings) {
-            var parsed = JSON.parse(savedSettings);
-            if (parsed && parsed.theme) theme = parsed.theme;
+          var theme = 'black';
+          var explicit = localStorage.getItem('tradeoy_user_explicit_theme');
+          if (explicit === 'light' || explicit === 'dark' || explicit === 'black') {
+            theme = explicit;
+          } else {
+            var savedTheme = localStorage.getItem('tradeoy_theme');
+            if (savedTheme === 'dark' || savedTheme === 'black') {
+              theme = savedTheme;
+            }
           }
-          var savedTheme = localStorage.getItem('tradeoy_theme');
-          if (savedTheme) theme = savedTheme;
           document.documentElement.setAttribute('data-theme', theme);
           if (theme === 'dark' || theme === 'black') {
             document.documentElement.classList.add('dark');

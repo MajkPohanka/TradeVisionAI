@@ -103,9 +103,9 @@ export const Header: React.FC<HeaderProps> = ({
   const cycleTheme = () => {
     if (!onUpdateTheme) return;
     const nextTheme: Record<AppTheme, AppTheme> = {
-      light: 'dark',
-      dark: 'black',
-      black: 'light',
+      black: 'dark',
+      dark: 'light',
+      light: 'black',
     };
     onUpdateTheme(nextTheme[theme]);
   };
@@ -285,14 +285,14 @@ export const Header: React.FC<HeaderProps> = ({
                     {t.themeLabel || 'Vzhled aplikace'}
                   </div>
 
-                  {/* Light Option (Primary default) */}
+                  {/* Black Option (Primary default) */}
                   <button
                     type="button"
-                    onClick={() => selectTheme('light')}
+                    onClick={() => selectTheme('black')}
                     className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-left transition text-xs cursor-pointer ${
-                      theme === 'light'
+                      theme === 'black'
                         ? isLight
-                          ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-300'
+                          ? 'bg-purple-50 text-purple-950 font-bold border border-purple-300'
                           : 'bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30'
                         : isLight
                         ? 'text-slate-700 hover:bg-slate-100'
@@ -300,17 +300,17 @@ export const Header: React.FC<HeaderProps> = ({
                     }`}
                   >
                     <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                      <Sun className="w-4 h-4 text-emerald-600" />
+                      <Eclipse className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold">{t.themeLight || 'Světlý'}</span>
-                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.2 rounded border border-emerald-200">
-                          {settings.language === 'cs' ? 'Šetrný k očím' : 'Eye Comfort'}
+                        <span className="font-bold">{t.themeBlack || 'Černý'}</span>
+                        <span className="text-[9px] bg-emerald-500/20 text-emerald-400 font-semibold px-1.5 py-0.2 rounded border border-emerald-500/30">
+                          {settings.language === 'cs' ? 'Primární' : 'Primary'}
                         </span>
                       </div>
                       <p className={`text-[10px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#86868b]'}`}>
-                        {t.themeLightDesc || 'Jemný a přehledný světlý design'}
+                        {t.themeBlackDesc || 'Čistě černý OLED režim (výchozí pro všechny)'}
                       </p>
                     </div>
                   </button>
@@ -340,27 +340,27 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </button>
 
-                  {/* Black Option */}
+                  {/* Light Option */}
                   <button
                     type="button"
-                    onClick={() => selectTheme('black')}
+                    onClick={() => selectTheme('light')}
                     className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-left transition text-xs cursor-pointer mt-1 ${
-                      theme === 'black'
+                      theme === 'light'
                         ? isLight
-                          ? 'bg-purple-50 text-purple-950 font-bold border border-purple-300'
-                          : 'bg-purple-500/15 text-purple-300 font-bold border border-purple-500/30'
+                          ? 'bg-amber-50 text-amber-950 font-bold border border-amber-300'
+                          : 'bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30'
                         : isLight
                         ? 'text-slate-700 hover:bg-slate-100'
                         : 'text-[#f5f5f7] hover:bg-white/[0.06]'
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
-                      <Eclipse className="w-4 h-4 text-purple-500" />
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <Sun className="w-4 h-4 text-amber-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="font-bold">{t.themeBlack || 'Černý'}</span>
+                      <span className="font-bold">{t.themeLight || 'Tlumený světlý'}</span>
                       <p className={`text-[10px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#86868b]'}`}>
-                        {t.themeBlackDesc || 'Čistě černý OLED režim'}
+                        {t.themeLightDesc || 'Jemný a přehledný světlý design'}
                       </p>
                     </div>
                   </button>

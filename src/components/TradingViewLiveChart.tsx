@@ -630,120 +630,10 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
     )}`;
   }, [symbol, interval, tvLocale, tvTheme, tvBgColor, tvGridColor]);
 
-  // Mount TradingView widget using TradingView.widget constructor or fallback to iframe
+  // Synchronize active chart key with current symbol, interval and theme
   useEffect(() => {
-    if (!isExpanded) return;
-
-    const currentChartKey = `${symbol}_${interval}_${tvTheme}_${tvLocale}_${tvBgColor}`;
-    if (mountedChartKeyRef.current === currentChartKey) {
-      return;
-    }
-
-    mountedChartKeyRef.current = currentChartKey;
-
-    let isMounted = true;
-
-    const mountTradingViewWidget = () => {
-      if (!isMounted) return;
-      const el = document.getElementById(tvContainerId);
-      if (!el) return;
-
-      if (typeof (window as any).TradingView?.widget === 'function') {
-        el.innerHTML = '';
-        try {
-          const widget = new (window as any).TradingView.widget({
-            autosize: true,
-            symbol: symbol,
-            interval: interval,
-            timezone: 'Europe/Prague',
-            theme: tvTheme,
-            style: '1',
-            locale: tvLocale,
-            enable_publishing: false,
-            allow_symbol_change: true,
-            hide_side_toolbar: false,
-            hide_top_toolbar: false,
-            withdateranges: true,
-            save_image: false,
-            hide_volume: false,
-            container_id: tvContainerId,
-            backgroundColor: tvBgColor,
-            gridColor: tvGridColor,
-          });
-
-          widget.onChartReady?.(() => {
-            try {
-              const chart = widget.chart?.();
-              if (chart?.onIntervalChanged) {
-                chart.onIntervalChanged().subscribe(null, (newInterval: string) => {
-                  const norm = normalizeIncomingInterval(newInterval);
-                  if (norm && norm !== intervalRef.current) {
-                    intervalRef.current = norm;
-                    mountedChartKeyRef.current = `${symbolRef.current}_${norm}_${tvTheme}_${tvLocale}_${tvBgColor}`;
-                    setInterval(norm);
-                  }
-                });
-              }
-              if (chart?.onSymbolChanged) {
-                chart.onSymbolChanged().subscribe(null, (newSymbolObj: any) => {
-                  const sym = typeof newSymbolObj === 'string' ? newSymbolObj : newSymbolObj?.name || newSymbolObj?.ticker;
-                  if (sym) {
-                    const normSym = normalizeUserSymbol(sym);
-                    if (normSym && normSym !== symbolRef.current) {
-                      symbolRef.current = normSym;
-                      mountedChartKeyRef.current = `${normSym}_${intervalRef.current}_${tvTheme}_${tvLocale}_${tvBgColor}`;
-                      setSymbol(normSym);
-                      onSymbolChange?.(normSym);
-                    }
-                  }
-                });
-              }
-            } catch {}
-          });
-
-          widgetInstanceRef.current = widget;
-          return;
-        } catch (err) {
-          console.warn('TradingView.widget constructor error, falling back to direct iframe:', err);
-        }
-      }
-
-      // Direct clean iframe fallback
-      el.innerHTML = '';
-      const iframe = document.createElement('iframe');
-      iframe.src = chartUrl;
-      iframe.title = `TradingView Advanced Chart ${symbol}`;
-      iframe.className = 'w-full h-full border-0 block';
-      iframe.setAttribute('allow', 'clipboard-write; clipboard-read');
-      iframe.setAttribute('tabIndex', '-1');
-      iframe.setAttribute('scrolling', 'no');
-      el.appendChild(iframe);
-    };
-
-    mountTradingViewWidget();
-
-    // If tv.js is still loading in the background, re-check
-    if (typeof window !== 'undefined' && !(window as any).TradingView?.widget) {
-      const pollTimer = window.setInterval(() => {
-        if ((window as any).TradingView?.widget) {
-          window.clearInterval(pollTimer);
-          mountTradingViewWidget();
-        }
-      }, 250);
-      const maxTimer = window.setTimeout(() => {
-        window.clearInterval(pollTimer);
-      }, 3000);
-      return () => {
-        isMounted = false;
-        window.clearInterval(pollTimer);
-        window.clearTimeout(maxTimer);
-      };
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [symbol, interval, tvLocale, isExpanded, tvTheme, tvBgColor, tvGridColor]);
+    mountedChartKeyRef.current = `${symbol}_${interval}_${tvTheme}_${tvLocale}_${tvBgColor}`;
+  }, [symbol, interval, tvTheme, tvLocale, tvBgColor]);
 
   const handleApplyCustomSymbol = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1399,9 +1289,16 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
           } ${getContainerHeightClass()}`}
           data-rr-block="true"
         >
-          <div
+          <iframe
+            key={`${symbol}_${interval}_${tvTheme}_${tvLocale}_${tvBgColor}`}
             id={tvContainerId}
-            className="w-full h-full relative"
+            src={chartUrl}
+            title={`TradingView Advanced Chart ${symbol}`}
+            className="w-full h-full border-0 block"
+            style={{ width: '100%', height: '100%', minHeight: '100%', border: 'none' }}
+            allow="clipboard-write; clipboard-read"
+            tabIndex={-1}
+            scrolling="no"
           />
         </div>
       )}

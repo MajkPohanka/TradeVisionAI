@@ -126,9 +126,41 @@ function resolveSymbolQuery(symbol: string): ResolvedSymbol {
     return { source: 'yahoo', query: y.query, canonicalSymbol: y.canonical, displayName: y.name, precision: y.precision, basePrice: y.base };
   }
 
-  // Fallback: If it contains USDT or looks like crypto, use Binance; else Yahoo
+  // 4. Crypto dynamic resolution on Binance (TAO, SUI, AVAX, PEPE, NEAR, RENDER, etc.)
   if (clean.endsWith('USDT') || clean.endsWith('BUSD')) {
-    return { source: 'binance', query: clean, canonicalSymbol: clean, displayName: clean, precision: 2, basePrice: 100 };
+    const base = clean.replace(/(USDT|BUSD)$/, '');
+    return {
+      source: 'binance',
+      query: clean,
+      canonicalSymbol: `${base}/USDT`,
+      displayName: `${base} / USDT`,
+      precision: 2,
+      basePrice: 100,
+    };
+  }
+
+  if (clean.endsWith('USD') && clean.length <= 8) {
+    const base = clean.slice(0, -3);
+    return {
+      source: 'binance',
+      query: `${base}USDT`,
+      canonicalSymbol: `${base}/USD`,
+      displayName: `${base} / USD`,
+      precision: 2,
+      basePrice: 100,
+    };
+  }
+
+  // Arbitrary crypto ticker (e.g. TAO, SUI, AVAX, PEPE, NEAR, RUNE, INJ, KAS)
+  if (/^[A-Z0-9]{2,6}$/.test(clean)) {
+    return {
+      source: 'binance',
+      query: `${clean}USDT`,
+      canonicalSymbol: `${clean}/USD`,
+      displayName: `${clean} / USD`,
+      precision: 2,
+      basePrice: 100,
+    };
   }
 
   return { source: 'yahoo', query: clean, canonicalSymbol: clean, displayName: clean, precision: 2, basePrice: 150 };

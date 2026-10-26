@@ -106,8 +106,24 @@ export function normalizeUserSymbol(raw: string): string {
   if (clean === 'AUDUSD' || clean === 'AUD/USD') return 'FX:AUDUSD';
   if (clean === 'USDCAD' || clean === 'USD/CAD') return 'FX:USDCAD';
 
+  if (clean.includes('/')) {
+    const parts = clean.split('/');
+    const base = parts[0];
+    const quote = parts[1];
+    if (quote === 'USDT' || quote === 'USD') return `BINANCE:${base}USDT`;
+    if (quote === 'EUR') return `FX:${base}EUR`;
+  }
+
   if (!clean.includes(':')) {
     if (clean.endsWith('USDT') || clean.endsWith('BUSD')) return `BINANCE:${clean}`;
+    if (clean.endsWith('USD') && clean.length <= 8) return `BINANCE:${clean.slice(0, -3)}USDT`;
+    // Arbitrary crypto / stock tickers (e.g. TAO, SUI, AVAX, PEPE, NEAR, RENDER, INJ, KAS)
+    if (/^[A-Z0-9]{2,6}$/.test(clean)) {
+      if (['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'PLTR', 'AMD', 'NFLX'].includes(clean)) {
+        return `NASDAQ:${clean}`;
+      }
+      return `BINANCE:${clean}USDT`;
+    }
     if (clean.length === 6 && !clean.includes('=')) return `FX:${clean}`;
   }
 

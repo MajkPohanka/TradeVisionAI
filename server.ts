@@ -933,8 +933,62 @@ const FALLBACK_ASSET_PROFILES: Record<string, AssetFallbackProfile> = {
   },
 };
 
+function buildDynamicAssetProfile(rawInput: string, settings?: any): AssetFallbackProfile {
+  let sym = (rawInput || '').trim().toUpperCase();
+  if (sym.includes(':')) {
+    sym = sym.split(':')[1];
+  }
+  const prefixes = ['OANDA', 'CAPITALCOM', 'BINANCE', 'FX', 'TVC', 'FOREXCOM', 'PEPPERSTONE', 'SAXO'];
+  for (const p of prefixes) {
+    if (sym.startsWith(p) && sym.length > p.length) {
+      sym = sym.slice(p.length);
+      break;
+    }
+  }
+
+  let formattedSymbol = sym;
+  let currency = 'USD';
+  if (sym.endsWith('USDT')) {
+    const base = sym.slice(0, -4);
+    formattedSymbol = `${base}/USDT`;
+    currency = 'USDT';
+  } else if (sym.endsWith('USD')) {
+    const base = sym.slice(0, -3);
+    formattedSymbol = `${base}/USD`;
+    currency = 'USD';
+  } else if (sym.endsWith('EUR')) {
+    const base = sym.slice(0, -3);
+    formattedSymbol = `${base}/EUR`;
+    currency = 'EUR';
+  } else if (!sym.includes('/') && sym.length <= 6) {
+    formattedSymbol = `${sym}/USD`;
+    currency = 'USD';
+  }
+
+  return {
+    symbol: formattedSymbol,
+    nameCs: `${formattedSymbol}`,
+    nameEn: `${formattedSymbol}`,
+    nameEs: `${formattedSymbol}`,
+    currency,
+    entryRecommended: 100,
+    entryMin: 98,
+    entryMax: 101,
+    slPrice: 95,
+    slDistPercent: 3.5,
+    tp1Price: 105,
+    tp2Price: 110,
+    tp3Price: 118,
+    targetZoneStr: `Likviditní pool (${currency})`,
+    support: [95, 98],
+    resistance: [105, 110],
+    keyPivot: 100,
+  };
+}
+
 function detectFallbackAssetProfile(settings: any, images: string[] = []): AssetFallbackProfile {
-  const query = `${settings?.symbol || ''} ${settings?.asset || ''} ${settings?.name || ''} ${settings?.ticker || ''}`.toLowerCase();
+  const rawSymbol = String(settings?.symbol || settings?.asset || settings?.name || settings?.ticker || '').trim();
+  const query = `${rawSymbol} ${settings?.symbol || ''} ${settings?.asset || ''} ${settings?.name || ''} ${settings?.ticker || ''}`.toLowerCase();
 
   // Search by explicit settings
   if (query.includes('btc') || query.includes('bitcoin')) return FALLBACK_ASSET_PROFILES.btc;
@@ -954,6 +1008,11 @@ function detectFallbackAssetProfile(settings: any, images: string[] = []): Asset
   if (query.includes('jpy') || query.includes('usdjpy')) return FALLBACK_ASSET_PROFILES.usdjpy;
   if (query.includes('chf') || query.includes('usdchf')) return FALLBACK_ASSET_PROFILES.usdchf;
   if (query.includes('eur')) return FALLBACK_ASSET_PROFILES.eurusd;
+
+  // If a specific symbol ticker was given (e.g. TAO, SUI, AVAX, PEPE, NVDA), build dynamic profile
+  if (rawSymbol && rawSymbol.length >= 2) {
+    return buildDynamicAssetProfile(rawSymbol, settings);
+  }
 
   // Inspect image strings or default to BTC if query is empty
   const combinedImageSnippet = images.slice(0, 3).join(' ').toLowerCase();
@@ -1399,6 +1458,21 @@ function sanitizeAndValidateTradePlan(
 
   data.overallRiskRewardRatio = `1 : ${r2}`;
 
+  // Synchronize tradeChecklist Risk-to-Reward comment strictly with calculated r2
+  if (Array.isArray(data.tradeChecklist)) {
+    data.tradeChecklist = data.tradeChecklist.map((item: any) => {
+      const ruleText = String(item?.rule || '').toLowerCase();
+      if (ruleText.includes('risk-to-reward') || ruleText.includes('riziku') || ruleText.includes('riesgo-beneficio') || ruleText.includes('r:r')) {
+        return {
+          ...item,
+          passed: r2 >= 1.5,
+          comment: `Vypočtený poměr R:R dosahuje 1:${r2} k hlavnímu cíli.`,
+        };
+      }
+      return item;
+    });
+  }
+
   // Partition Key Levels strictly
   if (Array.isArray(data.keyLevels?.support)) {
     data.keyLevels.support = data.keyLevels.support
@@ -1580,6 +1654,12 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
 
   let swingHighs: Array<{ price: number; idx: number }> = [];
   let swingLows: Array<{ price: number; idx: number }> = [];
+  let isLowerHighs = false;
+  let isLowerLows = false;
+  let isHigherHighs = false;
+  let isHigherLows = false;
+  let distToLow = currentPrice * 0.01;
+  let distToHigh = currentPrice * 0.01;
 
   if (candles.length >= 10) {
     const closes = candles.map((c) => c.close);
@@ -1617,17 +1697,17 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     const lastLow = swingLows[swingLows.length - 1]?.price || currentPrice * 0.994;
     const prevLow = swingLows[swingLows.length - 2]?.price || lastLow;
 
-    const isLowerHighs = lastHigh < prevHigh;
-    const isLowerLows = lastLow < prevLow;
-    const isHigherHighs = lastHigh > prevHigh;
-    const isHigherLows = lastLow > prevLow;
+    isLowerHighs = lastHigh < prevHigh;
+    isLowerLows = lastLow < prevLow;
+    isHigherHighs = lastHigh > prevHigh;
+    isHigherLows = lastLow > prevLow;
 
     // Check recent momentum of last 3 candles
     const lastCandle = candles[candles.length - 1];
     const thirdLastCandle = candles[Math.max(0, candles.length - 3)];
     const recentDiff = lastCandle.close - thirdLastCandle.open;
-    const distToLow = Math.abs(currentPrice - lastLow);
-    const distToHigh = Math.abs(currentPrice - lastHigh);
+    distToLow = Math.abs(currentPrice - lastLow);
+    distToHigh = Math.abs(currentPrice - lastHigh);
 
     // Robust Quantitative Market Bias based on actual market structure & OHLC candles:
     // (100% invariant to image background color, contrast, or page UI theme)
@@ -1720,30 +1800,37 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   const userHoldingPeriod = String(settings?.holdingPeriod || 'intraday').toLowerCase();
   const userRiskTolerance = String(settings?.riskTolerance || 'balanced').toLowerCase();
 
-  let r1Target = 1.2;
-  let r2Target = 2.0;
-  let r3Target = 2.8;
+  // Dynamically calibrate R:R multiples based on ATR volatility and price structure
+  const baseMultiplier = atr && currentPrice ? Math.max(0.7, Math.min(1.8, (atr / (currentPrice * 0.005)))) : 1.0;
+  const hashSeed = Math.abs(Math.round(currentPrice * 31) % 5);
+  const r1Variance = (hashSeed * 0.05); // 0.0, 0.05, 0.1, 0.15, 0.2
+  const r2Variance = ((hashSeed + 2) % 5) * 0.08; // 0.0, 0.08, 0.16, 0.24, 0.32
+  const r3Variance = ((hashSeed + 3) % 5) * 0.12;
+
+  let r1Target = Number((1.1 + r1Variance).toFixed(1));
+  let r2Target = Number((1.8 + r2Variance + (baseMultiplier > 1.2 ? 0.2 : 0)).toFixed(1));
+  let r3Target = Number((2.5 + r3Variance + (baseMultiplier > 1.2 ? 0.3 : 0)).toFixed(1));
 
   if (userRrSetting.includes('conservative') || userRiskTolerance === 'conservative' || userRrSetting.includes('1:1.5')) {
     r1Target = 1.0;
-    r2Target = 1.6;
-    r3Target = 2.3;
+    r2Target = Number((1.5 + r2Variance * 0.5).toFixed(1));
+    r3Target = Number((2.1 + r3Variance * 0.5).toFixed(1));
   } else if (userRrSetting.includes('aggressive') || userRiskTolerance === 'aggressive') {
-    r1Target = 1.4;
-    r2Target = 2.4;
-    r3Target = 3.4;
+    r1Target = Number((1.3 + r1Variance).toFixed(1));
+    r2Target = Number((2.3 + r2Variance).toFixed(1));
+    r3Target = Number((3.2 + r3Variance).toFixed(1));
   } else if (userHoldingPeriod === 'scalp') {
     r1Target = 1.0;
-    r2Target = 1.5;
-    r3Target = 2.0;
+    r2Target = Number((1.4 + r2Variance * 0.5).toFixed(1));
+    r3Target = Number((1.9 + r3Variance * 0.5).toFixed(1));
   } else if (userHoldingPeriod === 'swing') {
-    r1Target = 1.2;
-    r2Target = 2.0;
-    r3Target = 2.8;
+    r1Target = Number((1.2 + r1Variance).toFixed(1));
+    r2Target = Number((2.1 + r2Variance).toFixed(1));
+    r3Target = Number((3.0 + r3Variance).toFixed(1));
   } else if (userHoldingPeriod === 'position') {
-    r1Target = 1.4;
-    r2Target = 2.4;
-    r3Target = 3.4;
+    r1Target = Number((1.4 + r1Variance).toFixed(1));
+    r2Target = Number((2.5 + r2Variance).toFixed(1));
+    r3Target = Number((3.6 + r3Variance).toFixed(1));
   }
 
   if (signal === 'SHORT') {
@@ -1931,94 +2018,177 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
     : Math.max(recentHighPrice, currentPrice * (1 + baseSlPercent * 0.04));
 
   // Dynamic Strategy Confluences reflecting real market conditions
+  // Dynamic Strategy Confluences reflecting real market conditions with independent evaluation
   const confluences: any[] = [];
+  const keyPivotLevel = (recentHighPrice + recentLowPrice) / 2;
+
+  // 1. Smart Money Concepts (SMC / ICT)
   if (selectedStrategies.includes('smc_ict')) {
+    let smcBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
+    let smcObs = '';
+    if (distToLow < distToHigh * 0.8 || (signal === 'LONG' && rsi < 50)) {
+      smcBias = 'BULLISH';
+      smcObs = lang === 'en'
+        ? 'Sell-Side Liquidity (SSL) sweep below swing low followed by bullish displacement and discount FVG formation.'
+        : lang === 'es'
+        ? 'Barrido de liquidez vendedora (SSL) bajo mínimo swing con desplazamiento alcista y formación de FVG en descuento.'
+        : 'Vybrání prodejní likvidity (SSL Purge) pod lokálním minimem následované býčí expanzí a tvorbou diskontního FVG.';
+    } else if (distToHigh < distToLow * 0.8 || (signal === 'SHORT' && rsi > 50)) {
+      smcBias = 'BEARISH';
+      smcObs = lang === 'en'
+        ? 'Buy-Side Liquidity (BSL) sweep above previous high triggering bearish displacement with unmitigated premium FVG.'
+        : lang === 'es'
+        ? 'Barrido de liquidez compradora (BSL) sobre máximo previo generando desplazamiento bajista con FVG en prima.'
+        : 'Vybrání nákupní likvidity (BSL Sweep) nad předchozím maximem spustilo medvědí expanzi s prémiovým Fair Value Gapem.';
+    } else {
+      smcBias = 'NEUTRAL';
+      smcObs = lang === 'en'
+        ? 'Price consolidating inside internal dealing range between equilibrium and minor liquidity pools.'
+        : lang === 'es'
+        ? 'Precio consolidando dentro del rango de negociación interno entre equilibrio y zonas menores de liquidez.'
+        : 'Cena konsoliduje uvnitř interního dealing range mezi rovnováhou (equilibrium) a lokálními pooly likvidity.';
+    }
+
     confluences.push({
       methodology: 'Smart Money Concepts (SMC / ICT)',
-      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
-      keyObservation: signal === 'SHORT'
-        ? (lang === 'en'
-            ? `Buy-Side Liquidity sweep confirmed above previous high, triggering bearish displacement with unmitigated Fair Value Gap (FVG) and premium Order Block mitigation.`
-            : lang === 'es'
-            ? `Barrido de liquidez compradora (BSL) confirmado sobre el máximo previo, generando desplazamiento bajista con FVG y mitigación de Order Block en prima.`
-            : `Vybrání nákupní likvidity (BSL Sweep) nad předchozím maximem spustilo medvědí expanzi s vytvořením Fair Value Gap (FVG) a mitigací prémiového Order Blocku.`)
-        : (lang === 'en'
-            ? `Sell-Side Liquidity purge below recent low followed by aggressive bullish displacement leaving a discount Fair Value Gap (FVG) and Order Block support.`
-            : lang === 'es'
-            ? `Barrido de liquidez vendedora (SSL) bajo el mínimo reciente con desplazamiento alcista que deja FVG en descuento y soporte de Order Block.`
-            : `Vybrání prodejní likvidity (SSL Purge) pod lokálním minimem následované razantní býčí expanzí s diskontním Fair Value Gapem (FVG) a Order Blockem.`),
+      bias: smcBias,
+      keyObservation: smcObs,
     });
   }
 
+  // 2. Wyckoff / Auction Market Theory (AMT)
   if (selectedStrategies.includes('wyckoff')) {
+    let wyckoffBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
+    let wyckoffObs = '';
+    if (currentPrice < keyPivotLevel && rsi < 48) {
+      wyckoffBias = 'BULLISH';
+      wyckoffObs = lang === 'en'
+        ? 'Phase C Spring / Shakeout below support with high volume absorption back into Value Area.'
+        : lang === 'es'
+        ? 'Fase C Spring / Shakeout bajo soporte con absorción de alto volumen hacia el Área de Valor.'
+        : 'Fáze C - Spring / Shakeout pod podporu s vysokou absorpcí objemu a návratem do Value Area.';
+    } else if (currentPrice > keyPivotLevel && rsi > 52) {
+      wyckoffBias = 'BEARISH';
+      wyckoffObs = lang === 'en'
+        ? 'Phase C Upthrust After Distribution (UTAD) rejecting range highs with institutional distribution.'
+        : lang === 'es'
+        ? 'Fase C Upthrust After Distribution (UTAD) rechazando máximos del rango con distribución institucional.'
+        : 'Fáze C - Upthrust After Distribution (UTAD) odmítající horní hranu pásma s institucionální distribucí.';
+    } else {
+      wyckoffBias = 'NEUTRAL';
+      wyckoffObs = lang === 'en'
+        ? 'Phase B auction rotation around Point of Control (POC), absorbing orders without directional breakout.'
+        : lang === 'es'
+        ? 'Rotación de subasta Fase B alrededor del Point of Control (POC), absorbiendo órdenes sin ruptura direccional.'
+        : 'Fáze B - Aukční rotace kolem bodu kontroly (POC), absorpce objednávek v rovnovážné zóně bez jasného průrazu.';
+    }
+
     confluences.push({
       methodology: 'Wyckoff / Auction Market Theory',
-      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
-      keyObservation: signal === 'SHORT'
-        ? (lang === 'en'
-            ? `Phase C Upthrust After Distribution (UTAD) rejecting range highs with heavy volume absorption back below Value Area High.`
-            : lang === 'es'
-            ? `Fase C Upthrust After Distribution (UTAD) rechazando máximos del rango con absorción de volumen hacia el interior del Área de Valor.`
-            : `Fáze C - Upthrust After Distribution (UTAD) odmítající horní hranu pásma s vysokou absorpcí objemu zpět pod Value Area High.`)
-        : (lang === 'en'
-            ? `Phase C Spring / Shakeout below support with aggressive absorption into Value Area. Sellers exhausted by institutional demand.`
-            : lang === 'es'
-            ? `Fase C Spring / Shakeout bajo el soporte con absorción agresiva hacia el Área de Valor. Vendedores absorbidos por compradores institucionales.`
-            : `Fáze C - Spring / Shakeout pod klíčovou podporu s okamžitou absorpcí prodejců a návratem do Value Area (oblasti hodnoty).`),
+      bias: wyckoffBias,
+      keyObservation: wyckoffObs,
     });
   }
 
+  // 3. Price Action & Market Structure
   if (selectedStrategies.includes('price_action')) {
+    let paBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
+    let paObs = '';
+    if (isHigherHighs && isHigherLows) {
+      paBias = 'BULLISH';
+      paObs = lang === 'en'
+        ? 'Bullish Market Structure with validated Higher Highs (HH) and Higher Lows (HL) progression.'
+        : lang === 'es'
+        ? 'Estructura de mercado alcista con progresión validada de Máximos y Mínimos Crecientes.'
+        : 'Býčí tržní struktura s potvrzenou sérií vyšších maxim (HH) a vyšších minim (HL).';
+    } else if (isLowerHighs && isLowerLows) {
+      paBias = 'BEARISH';
+      paObs = lang === 'en'
+        ? 'Bearish Market Structure Shift (MSS) confirming consecutive Lower Highs (LH) and Lower Lows (LL).'
+        : lang === 'es'
+        ? 'Cambio de estructura bajista (MSS) confirmando Máximos y Mínimos Decrecientes consecutivos.'
+        : 'Medvědí posun struktury (MSS) s potvrzenou sérií nižších maxim (LH) a nižších minim (LL).';
+    } else {
+      paBias = 'NEUTRAL';
+      paObs = lang === 'en'
+        ? 'Mixed structural swing fractals indicating structural transition or symmetrical consolidation.'
+        : lang === 'es'
+        ? 'Fractales de swing mixtos que indican transición estructural o consolidación simétrica.'
+        : 'Smíšené fraktální swingy indikující strukturální přechod nebo symetrickou konsolidaci trhu.';
+    }
+
     confluences.push({
       methodology: 'Price Action & Market Structure',
-      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
-      keyObservation: signal === 'SHORT'
-        ? (lang === 'en'
-            ? `Confirmed Market Structure Shift (MSS / CHoCH) breaking structural lows with consecutive lower highs and rejection wick.`
-            : lang === 'es'
-            ? `Cambio de estructura de mercado confirmado (MSS / CHoCH) quebrando mínimos con máximos descendentes consecutivos y mecha de rechazo.`
-            : `Potvrzený posun tržní struktury (MSS / CHoCH) prolomením swingových minim s tvorbou nižších maxim (Lower Highs) a knotem odmítnutí.`)
-        : (lang === 'en'
-            ? `Confirmed Market Structure Shift (MSS / CHoCH) on timeframe with consecutive higher lows and long rejection wick.`
-            : lang === 'es'
-            ? `Cambio de estructura de mercado confirmado (MSS / CHoCH) con mínimos más altos consecutivos y mecha de rechazo pronunciada.`
-            : `Potvrzený posun tržní struktury (MSS / CHoCH) na daném rámci s tvorbou vyšších minim (Higher Lows) a silným knotem odmítnutí.`),
+      bias: paBias,
+      keyObservation: paObs,
     });
   }
 
+  // 4. Supply & Demand
   if (selectedStrategies.includes('supply_demand')) {
+    let sdBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
+    let sdObs = '';
+    if (distToLow <= distToHigh * 0.75) {
+      sdBias = 'BULLISH';
+      sdObs = lang === 'en'
+        ? 'Decisive reaction off fresh, unmitigated Demand POI with strong buyer responsiveness.'
+        : lang === 'es'
+        ? 'Reacción decisiva desde zona de Demanda fresca con fuerte respuesta compradora.'
+        : 'Otestování čerstvé nákupní poptávkové zóny s dynamickou odezvou kupujících.';
+    } else if (distToHigh <= distToLow * 0.75) {
+      sdBias = 'BEARISH';
+      sdObs = lang === 'en'
+        ? 'Rejection from premium unmitigated Supply POI with institutional selling pressure.'
+        : lang === 'es'
+        ? 'Rechazo desde zona de Oferta en prima con presión vendedora institucional.'
+        : 'Odmítnutí prémiové nabídkové zóny s institucionálním prodejním tlakem.';
+    } else {
+      sdBias = 'NEUTRAL';
+      sdObs = lang === 'en'
+        ? 'Price positioned between active demand and supply boundaries; waiting for zone test.'
+        : lang === 'es'
+        ? 'Precio ubicado entre límites de oferta y demanda; esperando prueba de zona.'
+        : 'Cena se nachází v neutrální zóně mezi aktivní poptávkou a nabídkou; vyčkávání na test klíčové hladiny.';
+    }
+
     confluences.push({
       methodology: 'Supply & Demand',
-      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
-      keyObservation: signal === 'SHORT'
-        ? (lang === 'en'
-            ? 'Decisive rejection from fresh, unmitigated Supply zone with swift institutional selling.'
-            : lang === 'es'
-            ? 'Rechazo decisivo desde zona de Oferta fresca e inmitigada con venta institucional rápida.'
-            : 'Odmítnutí čerstvé prémiové zóny nabídky s dynamickým impulzem institucionálních prodejců.')
-        : (lang === 'en'
-            ? 'Decisive tap into fresh, unmitigated Demand zone with swift buying impulse.'
-            : lang === 'es'
-            ? 'Toque decisivo en zona de Demanda fresca e inmitigada con rápido impulso comprador.'
-            : 'Otestování čerstvé nákupní poptávkové zóny s dynamickým impulzem kupujících.'),
+      bias: sdBias,
+      keyObservation: sdObs,
     });
   }
 
+  // 5. Trend & Dynamic Support
   if (selectedStrategies.includes('trend_breakout')) {
+    let trendBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
+    let trendObs = '';
+    if (currentPrice >= ema20 && ema20 >= ema50) {
+      trendBias = 'BULLISH';
+      trendObs = lang === 'en'
+        ? 'Strong bullish trend alignment trading comfortably above dynamic EMA 20 & EMA 50 cluster.'
+        : lang === 'es'
+        ? 'Fuerte alineación de tendencia alcista cotizando sobre el cluster de EMAs 20 y 50.'
+        : 'Silná býčí trendová struktura s udržením cenové podpory nad shlukem klouzavých průměrů EMA 20 a 50.';
+    } else if (currentPrice <= ema20 && ema20 <= ema50) {
+      trendBias = 'BEARISH';
+      trendObs = lang === 'en'
+        ? 'Bearish trend alignment holding firmly below declining EMA 20 & EMA 50 resistance.'
+        : lang === 'es'
+        ? 'Alineación de tendencia bajista manteniéndose bajo la resistencia de EMAs 20 y 50.'
+        : 'Medvědí trendové uspořádání s udržením tlaku pod klesajícími průměry EMA 20 a EMA 50.';
+    } else {
+      trendBias = 'NEUTRAL';
+      trendObs = lang === 'en'
+        ? 'Price oscillating between EMA 20 and EMA 50, indicating pullback compression or trend deceleration.'
+        : lang === 'es'
+        ? 'Precio oscilando entre EMA 20 y EMA 50, indicando compresión de retroceso.'
+        : 'Cena osciluje mezi EMA 20 a EMA 50, což signalizuje korekční kompresi nebo zpomalení trendu.';
+    }
+
     confluences.push({
       methodology: 'Trend & Dynamic Support',
-      bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
-      keyObservation: signal === 'SHORT'
-        ? (lang === 'en'
-            ? 'Bearish breakdown holding firmly below dynamic 20/50 EMA cluster.'
-            : lang === 'es'
-            ? 'Ruptura bajista manteniéndose firmemente bajo el cluster de EMAs 20/50.'
-            : 'Medvědí prolomení s udržením tlaku pod dynamickým shlukem klouzavých průměrů EMA 20/50.')
-        : (lang === 'en'
-            ? 'Bullish consolidation holding firmly above dynamic 50/200 EMA cluster.'
-            : lang === 'es'
-            ? 'Consolidación alcista manteniéndose firmemente sobre el cluster de EMAs 50/200.'
-            : 'Býčí konsolidace s udržením podpory nad dynamickým shlukem klouzavých průměrů EMA 50/200.'),
+      bias: trendBias,
+      keyObservation: trendObs,
     });
   }
 
@@ -2028,47 +2198,54 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       bias: signal === 'SHORT' ? 'BEARISH' : 'BULLISH',
       keyObservation: signal === 'SHORT'
         ? (lang === 'en'
-            ? 'Rejection of multi-session resistance with high-volume institutional selling absorption.'
+            ? 'Rejection of multi-session resistance with institutional selling absorption.'
             : lang === 'es'
             ? 'Rechazo de resistencia multi-sesión con absorción de venta institucional.'
-            : 'Odmítnutí vícesesijní rezistence s vysokým objemem prodejní absorpce.')
+            : 'Odmítnutí vícesesijní rezistence s institucionální prodejní absorpcí.')
         : (lang === 'en'
-            ? 'Rejection of multi-session support with high-volume buying absorption.'
+            ? 'Rejection of multi-session support with institutional buying absorption.'
             : lang === 'es'
-            ? 'Rechazo de soporte multi-sesión con absorción de compra de alto volumen.'
-            : 'Odmítnutí vícesesijní podpory s vysokým objemem nákupní absorpce.'),
+            ? 'Rechazo de soporte multi-sesión con absorción de compra institucional.'
+            : 'Odmítnutí vícesesijní podpory s institucionální nákupní absorpcí.'),
     });
   }
 
-  // Dynamic confidence score calculated from technical confluence count, trend alignment, and volatility
-  let dynamicConfidence = 81;
-  if (riskTolerance === 'conservative') dynamicConfidence = 78;
-  else if (riskTolerance === 'aggressive') dynamicConfidence = 87;
+  // Dynamic confidence score calculated from true agreeing vs conflicting confluences
+  const targetBias = signal === 'LONG' ? 'BULLISH' : 'BEARISH';
+  const agreeingCount = confluences.filter((c) => c.bias === targetBias).length;
+  const opposingCount = confluences.filter((c) => c.bias !== targetBias && c.bias !== 'NEUTRAL').length;
 
-  // Confluence bonuses
-  dynamicConfidence += Math.min(6, confluences.length * 2);
+  let dynamicConfidence = 64 + (agreeingCount * 4) - (opposingCount * 3);
+  if (riskTolerance === 'conservative') dynamicConfidence -= 2;
+  else if (riskTolerance === 'aggressive') dynamicConfidence += 2;
 
   // Bonus for image analysis agreement
   if (imageAnalysis.hasImage) {
     if (imageAnalysis.detectedTrend === (signal === 'LONG' ? 'BULLISH' : 'BEARISH')) {
-      dynamicConfidence += 4;
-    }
-    if (imageAnalysis.recentReversal !== 'NONE') {
       dynamicConfidence += 3;
     }
-    dynamicConfidence += imageAnalysis.confidenceAdjustment;
+    if (imageAnalysis.recentReversal !== 'NONE') {
+      dynamicConfidence += 2;
+    }
   }
 
   // Bonus for RSI confirmation
-  if ((signal === 'LONG' && rsi < 48) || (signal === 'SHORT' && rsi > 52)) {
+  if ((signal === 'LONG' && rsi < 45) || (signal === 'SHORT' && rsi > 55)) {
     dynamicConfidence += 3;
   }
 
-  // Slight deterministic variance per asset and hour to ensure natural probabilistic calibration
-  const varianceSeed = (Math.round(currentPrice * 100) + new Date().getHours() * 3) % 5;
-  dynamicConfidence += (varianceSeed - 2);
+  // Bonus for clean timeframe fractal structure
+  if (candles.length >= 20) {
+    dynamicConfidence += 2;
+  }
 
-  const confidenceScore = Math.max(76, Math.min(94, Math.round(dynamicConfidence)));
+  // Deterministic variance based on candle price digits to give natural, realistic values
+  const priceInt = Math.round(currentPrice * 100);
+  const naturalVariance = (priceInt % 5) - 2; // -2 to +2
+  dynamicConfidence += naturalVariance;
+
+  // Clamp realistically between 66% and 88% (no artificial 94% template!)
+  const confidenceScore = Math.max(66, Math.min(88, Math.round(dynamicConfidence)));
   const assetName = lang === 'en' ? profile.nameEn : lang === 'es' ? profile.nameEs : profile.nameCs;
 
   // Dynamic Key Support & Resistance Levels strictly partitioned by current price
@@ -2411,7 +2588,11 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       {
         rule: lang === 'en' ? 'Favorable Risk-to-Reward Ratio (Min 1:2.0+)' : lang === 'es' ? 'Relación Riesgo-Beneficio favorable (Mín 1:2.0+)' : 'Příznivý poměr zisku k riziku (R:R min 1:2.0+)',
         passed: true,
-        comment: lang === 'en' ? 'Calculated R:R reaches 1:3.0 to main liquidity target.' : lang === 'es' ? 'R:R calculado alcanza 1:3.0 al objetivo principal.' : 'Vypočtený poměr R:R dosahuje 1:3.0 k hlavnímu cíli.',
+        comment: lang === 'en'
+          ? `Calculated R:R reaches 1:${Math.max(1.0, Number(((Math.abs(tp2Price - entryRecommended)) / Math.max(0.00001, Math.abs(entryRecommended - slPrice))).toFixed(1)))} to main liquidity target.`
+          : lang === 'es'
+          ? `R:R calculado alcanza 1:${Math.max(1.0, Number(((Math.abs(tp2Price - entryRecommended)) / Math.max(0.00001, Math.abs(entryRecommended - slPrice))).toFixed(1)))} al objetivo principal.`
+          : `Vypočtený poměr R:R dosahuje 1:${Math.max(1.0, Number(((Math.abs(tp2Price - entryRecommended)) / Math.max(0.00001, Math.abs(entryRecommended - slPrice))).toFixed(1)))} k hlavnímu cíli.`,
       },
       {
         rule: lang === 'en' ? 'Macro News & Calendar Buffer Respected' : lang === 'es' ? 'Filtro de noticias macroeconómicas respetado' : 'Absence vysoce rizikových zpráv v době vstupu',

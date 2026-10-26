@@ -441,7 +441,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
           <div>
-            <div className={`flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider mb-2 ${
+            <div className={`flex items-center flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${
               isLight ? 'text-slate-600 font-bold' : 'text-[#86868b]'
             }`}>
               <span className={isLight ? 'text-slate-900 font-extrabold' : 'text-[#f5f5f7]'}>{result.symbol || 'Chart'}</span>
@@ -449,6 +449,13 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               <span className={`font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>{displayTimeframe}</span>
               <span>•</span>
               <span>{new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border ml-1 ${
+                result.isFallbackEngine
+                  ? (isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-500/20 text-amber-300 border-amber-500/35')
+                  : (isLight ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35')
+              }`}>
+                {result.isFallbackEngine ? 'TRADEOY Quantitative & SMC Engine' : 'Gemini Multimodal Vision Engine'}
+              </span>
             </div>
 
             <div className="flex items-center space-x-3.5">
@@ -1256,7 +1263,14 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }`}
           >
             <Zap className={`w-4 h-4 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
-            <span>{t.priceActionStructures}</span>
+            <span>{t.priceActionStructures} & FVG</span>
+            {(result.fvgZones || []).length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                isLight ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-amber-500/25 text-amber-300 border border-amber-400/40'
+              }`}>
+                ⚡ {(result.fvgZones || []).length}
+              </span>
+            )}
           </button>
 
           <button

@@ -437,6 +437,9 @@ export default function App() {
       };
 
       setAnalysisResult(fullResult);
+      if (fullResult.symbol) {
+        setSelectedTvSymbol(fullResult.symbol);
+      }
       setError(null);
 
       setTimeout(() => {

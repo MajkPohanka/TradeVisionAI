@@ -1373,22 +1373,45 @@ function sanitizeAndValidateTradePlan(
     distancePercent: slDistPercent,
   };
 
-  // Enforce Entry Zone strictly on the correct side of SL
+  // Enforce Entry Zone strictly on the correct side of SL following Smart Money Concepts (SMC):
+  // For SHORT (Bearish Order Block): entryMin <= recommended <= entryMax < StopLoss (Supply zone above current price)
+  // For LONG (Bullish Order Block): StopLoss < entryMin <= recommended <= entryMax (Demand zone below current price)
   let entryMin = parseNumericPrice(data.entryZone?.min);
   let entryMax = parseNumericPrice(data.entryZone?.max);
+
   if (isShort) {
+    // Bearish Order Block rests between entry touch and Stop Loss
     if (isNaN(entryMax) || entryMax >= sl || entryMax < entryRec) {
-      entryMax = Number((entryRec + slDist * 0.25).toFixed(precision));
+      entryMax = Number((Math.min(sl - slDist * 0.15, entryRec + slDist * 0.45)).toFixed(precision));
     }
-    if (isNaN(entryMin) || entryMin > entryRec) {
-      entryMin = Number((entryRec - slDist * 0.2).toFixed(precision));
+    if (isNaN(entryMin) || entryMin >= entryMax) {
+      entryMin = Number((Math.max(entryRec, entryMax - slDist * 0.4)).toFixed(precision));
+    }
+    if (entryMin > entryMax) {
+      const temp = entryMin;
+      entryMin = entryMax;
+      entryMax = temp;
+    }
+    // Recommended entry is either the Mean Threshold (50% of OB) or first touch (entryMin)
+    if (isNaN(entryRec) || entryRec < entryMin || entryRec > entryMax) {
+      entryRec = Number(((entryMin + entryMax) / 2).toFixed(precision));
     }
   } else {
+    // Bullish Order Block rests between Stop Loss and entry touch
     if (isNaN(entryMin) || entryMin <= sl || entryMin > entryRec) {
-      entryMin = Number((entryRec - slDist * 0.25).toFixed(precision));
+      entryMin = Number((Math.max(sl + slDist * 0.15, entryRec - slDist * 0.45)).toFixed(precision));
     }
-    if (isNaN(entryMax) || entryMax < entryRec) {
-      entryMax = Number((entryRec + slDist * 0.2).toFixed(precision));
+    if (isNaN(entryMax) || entryMax <= entryMin) {
+      entryMax = Number((Math.min(entryRec, entryMin + slDist * 0.4)).toFixed(precision));
+    }
+    if (entryMin > entryMax) {
+      const temp = entryMin;
+      entryMin = entryMax;
+      entryMax = temp;
+    }
+    // Recommended entry is either the Mean Threshold (50% of OB) or first touch (entryMax)
+    if (isNaN(entryRec) || entryRec < entryMin || entryRec > entryMax) {
+      entryRec = Number(((entryMin + entryMax) / 2).toFixed(precision));
     }
   }
 
@@ -1516,9 +1539,9 @@ function sanitizeAndValidateTradePlan(
     }
   }
 
-  // Validate or synthesize real FVG Zones if missing
+  // Validate or synthesize real FVG Zones if missing (clean, relevant, max 2 active zones)
   if (Array.isArray(data.fvgZones) && data.fvgZones.length > 0) {
-    data.fvgZones = data.fvgZones.map((z: any) => {
+    const parsed = data.fvgZones.map((z: any) => {
       const minP = parseNumericPrice(z.min);
       const maxP = parseNumericPrice(z.max);
       const validMin = !isNaN(minP) ? minP : Number((entryRec * 0.995).toFixed(precision));
@@ -1535,6 +1558,12 @@ function sanitizeAndValidateTradePlan(
         description: z.description || (z.type === 'BEARISH' ? `Medvědí FVG (${trueMin} – ${trueMax})` : `Býčí FVG (${trueMin} – ${trueMax})`),
       };
     });
+
+    // Filter out already mitigated historical gaps; keep strictly the 1-2 most relevant active zones
+    const active = parsed.filter((z: any) => z.status !== 'MITIGATED');
+    const candidates = active.length > 0 ? active : parsed;
+    candidates.sort((a: any, b: any) => Math.abs(a.midpoint - entryRec) - Math.abs(b.midpoint - entryRec));
+    data.fvgZones = candidates.slice(0, 2);
   } else {
     // Generate realistic institutional FVG aligned with the trade setup
     const isShort = data.signal === 'SHORT';
@@ -1863,10 +1892,35 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       structuralHigh = Math.min(structuralHigh, currentPrice * (1 + (baseSlPercent * 1.4) / 100));
     }
 
-    slPrice = Number((structuralHigh + structuralBuffer).toFixed(precision));
-    entryRecommended = Number(currentPrice.toFixed(precision));
-    entryMin = Number((currentPrice - structuralBuffer * 0.3).toFixed(precision));
-    entryMax = Number((currentPrice + structuralBuffer * 0.6).toFixed(precision));
+    // In Smart Money Concepts (SMC):
+    // A Bearish Order Block is the last up-candle (green) before the aggressive sell-off/MSS.
+    // Price re-enters the Order Block from below: entryMin is the open/body, entryMax is the high wick.
+    // 50% Mean Threshold (MT) is the equilibrium of the block. Stop Loss is safely placed ABOVE entryMax!
+    let obCandle: { open: number; high: number; low: number; close: number } | null = null;
+    if (candles.length >= 5) {
+      for (let i = candles.length - 2; i >= Math.max(0, candles.length - 15); i--) {
+        const c = candles[i];
+        if (c.close >= c.open && c.high >= currentPrice * 0.998) {
+          obCandle = c;
+          break;
+        }
+      }
+    }
+
+    let entryMin: number;
+    let entryMax: number;
+    if (obCandle) {
+      entryMin = Number(Math.max(currentPrice, Math.min(obCandle.open, obCandle.close)).toFixed(precision));
+      entryMax = Number(Math.max(entryMin * 1.0005, obCandle.high).toFixed(precision));
+    } else {
+      entryMin = Number(currentPrice.toFixed(precision));
+      entryMax = Number((currentPrice + structuralBuffer * 0.75).toFixed(precision));
+    }
+
+    // Stop Loss placed strictly above the Order Block high wick + protective buffer
+    const blockHigh = Math.max(structuralHigh, entryMax);
+    slPrice = Number((blockHigh + structuralBuffer).toFixed(precision));
+    entryRecommended = Number(((entryMin + entryMax) / 2).toFixed(precision)); // 50% Mean Threshold
 
     const slDist = Math.max(slPrice - entryRecommended, currentPrice * (baseSlPercent / 100));
     slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
@@ -1948,10 +2002,35 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
       structuralLow = Math.max(structuralLow, currentPrice * (1 - (baseSlPercent * 1.4) / 100));
     }
 
-    slPrice = Number((structuralLow - structuralBuffer).toFixed(precision));
-    entryRecommended = Number(currentPrice.toFixed(precision));
-    entryMin = Number((currentPrice - structuralBuffer * 0.6).toFixed(precision));
-    entryMax = Number((currentPrice + structuralBuffer * 0.3).toFixed(precision));
+    // In Smart Money Concepts (SMC):
+    // A Bullish Order Block is the last down-candle (red) before the aggressive rally/MSS.
+    // Price re-enters the Order Block from above: entryMax is the open/body, entryMin is the low wick.
+    // 50% Mean Threshold (MT) is the equilibrium of the block. Stop Loss is safely placed BELOW entryMin!
+    let obCandle: { open: number; high: number; low: number; close: number } | null = null;
+    if (candles.length >= 5) {
+      for (let i = candles.length - 2; i >= Math.max(0, candles.length - 15); i--) {
+        const c = candles[i];
+        if (c.close <= c.open && c.low <= currentPrice * 1.002) {
+          obCandle = c;
+          break;
+        }
+      }
+    }
+
+    let entryMin: number;
+    let entryMax: number;
+    if (obCandle) {
+      entryMax = Number(Math.min(currentPrice, Math.max(obCandle.open, obCandle.close)).toFixed(precision));
+      entryMin = Number(Math.min(entryMax * 0.9995, obCandle.low).toFixed(precision));
+    } else {
+      entryMax = Number(currentPrice.toFixed(precision));
+      entryMin = Number((currentPrice - structuralBuffer * 0.75).toFixed(precision));
+    }
+
+    // Stop Loss placed strictly below the Order Block low wick - protective buffer
+    const blockLow = Math.min(structuralLow, entryMin);
+    slPrice = Number((blockLow - structuralBuffer).toFixed(precision));
+    entryRecommended = Number(((entryMin + entryMax) / 2).toFixed(precision)); // 50% Mean Threshold
 
     const slDist = Math.max(entryRecommended - slPrice, currentPrice * (baseSlPercent / 100));
     slDistPercent = Number(((slDist / entryRecommended) * 100).toFixed(2));
@@ -2360,7 +2439,9 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   }> = [];
 
   if (candles.length >= 3) {
-    for (let i = 2; i < candles.length; i++) {
+    // Scan recent candles (last 25 candles) for fresh, unmitigated FVGs
+    const scanStart = Math.max(2, candles.length - 25);
+    for (let i = scanStart; i < candles.length; i++) {
       const c1 = candles[i - 2];
       const c3 = candles[i];
       if (c3.low > c1.high * 1.0003) {
@@ -2371,16 +2452,20 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
         let status: 'UNMITIGATED' | 'PARTIALLY_FILLED' | 'MITIGATED' = 'UNMITIGATED';
         if (lowestSub <= min) status = 'MITIGATED';
         else if (lowestSub < max) status = 'PARTIALLY_FILLED';
-        fvgZones.push({
-          type: 'BULLISH',
-          min,
-          max,
-          midpoint: Number(((min + max) / 2).toFixed(precision)),
-          status,
-          description: status === 'UNMITIGATED'
-            ? (lang === 'en' ? `Open Bullish FVG (${min} - ${max}) serving as demand imbalance.` : lang === 'es' ? `FVG alcista abierto (${min} - ${max}) actuando como desequilibrio de demanda.` : `Nevyplněný býčí FVG (${min} – ${max}) působící jako diskontní magnet a nákupní podpora.`)
-            : (lang === 'en' ? `Partially mitigated Bullish FVG (${min} - ${max}).` : lang === 'es' ? `FVG alcista mitigado parcialmente (${min} - ${max}).` : `Částečně vyplněný býčí FVG (${min} – ${max}).`),
-        });
+
+        // Keep strictly active, unmitigated or partially filled FVG zones (filter out dead historical gaps)
+        if (status !== 'MITIGATED') {
+          fvgZones.push({
+            type: 'BULLISH',
+            min,
+            max,
+            midpoint: Number(((min + max) / 2).toFixed(precision)),
+            status,
+            description: status === 'UNMITIGATED'
+              ? (lang === 'en' ? `Open Bullish FVG (${min} - ${max}) serving as demand imbalance.` : lang === 'es' ? `FVG alcista abierto (${min} - ${max}) actuando como desequilibrio de demanda.` : `Nevyplněný býčí FVG (${min} – ${max}) působící jako diskontní magnet a nákupní podpora.`)
+              : (lang === 'en' ? `Partially mitigated Bullish FVG (${min} - ${max}).` : lang === 'es' ? `FVG alcista mitigado parcialmente (${min} - ${max}).` : `Částečně vyplněný býčí FVG (${min} – ${max}).`),
+          });
+        }
       } else if (c3.high < c1.low * 0.9997) {
         const min = Number(c3.high.toFixed(precision));
         const max = Number(c1.low.toFixed(precision));
@@ -2389,17 +2474,27 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
         let status: 'UNMITIGATED' | 'PARTIALLY_FILLED' | 'MITIGATED' = 'UNMITIGATED';
         if (highestSub >= max) status = 'MITIGATED';
         else if (highestSub > min) status = 'PARTIALLY_FILLED';
-        fvgZones.push({
-          type: 'BEARISH',
-          min,
-          max,
-          midpoint: Number(((min + max) / 2).toFixed(precision)),
-          status,
-          description: status === 'UNMITIGATED'
-            ? (lang === 'en' ? `Open Bearish FVG (${min} - ${max}) serving as supply imbalance.` : lang === 'es' ? `FVG bajista abierto (${min} - ${max}) actuando como desequilibrio de oferta.` : `Nevyplněný medvědí FVG (${min} – ${max}) působící jako prémiová zóna nabídky a magnet pro retest.`)
-            : (lang === 'en' ? `Partially mitigated Bearish FVG (${min} - ${max}).` : lang === 'es' ? `FVG bajista mitigado parcialmente (${min} - ${max}).` : `Částečně vyplněný medvědí FVG (${min} – ${max}).`),
-        });
+
+        // Keep strictly active, unmitigated or partially filled FVG zones (filter out dead historical gaps)
+        if (status !== 'MITIGATED') {
+          fvgZones.push({
+            type: 'BEARISH',
+            min,
+            max,
+            midpoint: Number(((min + max) / 2).toFixed(precision)),
+            status,
+            description: status === 'UNMITIGATED'
+              ? (lang === 'en' ? `Open Bearish FVG (${min} - ${max}) serving as supply imbalance.` : lang === 'es' ? `FVG bajista abierto (${min} - ${max}) actuando como desequilibrio de oferta.` : `Nevyplněný medvědí FVG (${min} – ${max}) působící jako prémiová zóna nabídky a magnet pro retest.`)
+              : (lang === 'en' ? `Partially mitigated Bearish FVG (${min} - ${max}).` : lang === 'es' ? `FVG bajista mitigado parcialmente (${min} - ${max}).` : `Částečně vyplněný medvědí FVG (${min} – ${max}).`),
+          });
+        }
       }
+    }
+
+    // Sort by proximity to currentPrice and keep strictly the 1-2 most key active FVG zones
+    fvgZones.sort((a, b) => Math.abs(a.midpoint - currentPrice) - Math.abs(b.midpoint - currentPrice));
+    if (fvgZones.length > 2) {
+      fvgZones.length = 2;
     }
   }
 

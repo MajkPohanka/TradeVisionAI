@@ -639,10 +639,17 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                 }`}>
                   {result.entryZone?.recommended || (result.entryZone?.min && result.entryZone?.max ? `${result.entryZone.min} - ${result.entryZone.max}` : 'N/A')}
                 </div>
-                <div className={`text-[11px] mt-0.5 font-medium ${
+                <div className={`text-[11px] mt-0.5 font-medium flex items-center justify-between flex-wrap gap-1 ${
                   isLight ? 'text-slate-600' : 'text-[#86868b]'
                 }`}>
-                  Order Block (OB Rozsah): <span className="font-bold text-cyan-400">{result.entryZone?.min ?? 'N/A'} – {result.entryZone?.max ?? 'N/A'}</span>
+                  <span>OB Rozpětí: <span className="font-bold text-cyan-400">{result.entryZone?.min ?? 'N/A'} – {result.entryZone?.max ?? 'N/A'}</span></span>
+                  {result.entryZone?.min && result.entryZone?.max && !isNaN(Number(result.entryZone.min)) && !isNaN(Number(result.entryZone.max)) && (
+                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${
+                      isLight ? 'bg-cyan-100 text-cyan-900 border-cyan-300 font-bold' : 'bg-cyan-950/40 text-cyan-300 border-cyan-500/30 font-semibold'
+                    }`}>
+                      50% MT: {((Number(result.entryZone.min) + Number(result.entryZone.max)) / 2).toFixed(2)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1263,7 +1270,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }`}
           >
             <Zap className={`w-4 h-4 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
-            <span>{t.priceActionStructures} & FVG</span>
+            <span>Struktura trhu, FVG & OB</span>
             {(result.fvgZones || []).length > 0 && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
                 isLight ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-amber-500/25 text-amber-300 border border-amber-400/40'
@@ -1333,6 +1340,71 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Dedicated Institutional Order Block (OB / POI) Card */}
+              {result.entryZone && (
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`text-sm font-bold flex items-center space-x-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <span className="text-cyan-400">🎯</span>
+                      <span>Institucionální Order Block (OB / POI)</span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        result.signal === 'SHORT'
+                          ? (isLight ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-purple-500/20 text-purple-300 border-purple-500/30')
+                          : (isLight ? 'bg-cyan-100 text-cyan-900 border-cyan-300' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30')
+                      }`}>
+                        {result.signal === 'SHORT' ? 'Medvědí blok (Zóna nabídky)' : 'Býčí blok (Zóna poptávky)'}
+                      </span>
+                    </h4>
+                    <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      Smart Money Concepts (SMC)
+                    </span>
+                  </div>
+
+                  <div className={`p-4 rounded-2xl space-y-3 border relative overflow-hidden ${
+                    result.signal === 'SHORT'
+                      ? (isLight ? 'bg-blue-50/70 border-cyan-300' : 'bg-cyan-950/20 border-cyan-500/30')
+                      : (isLight ? 'bg-emerald-50/70 border-emerald-300' : 'bg-emerald-950/20 border-emerald-500/30')
+                  }`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className={`p-3 rounded-xl border ${isLight ? 'bg-white/80 border-slate-200' : 'bg-black/40 border-white/[0.08]'}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-slate-500' : 'text-[#86868b]'}`}>
+                          Rozpětí svíčky OB
+                        </span>
+                        <span className={`font-mono text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {result.entryZone.min ?? 'N/A'} – {result.entryZone.max ?? 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className={`p-3 rounded-xl border ${isLight ? 'bg-white/80 border-slate-200' : 'bg-black/40 border-white/[0.08]'}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-cyan-800' : 'text-cyan-400'}`}>
+                          50% Střed (Mean Threshold)
+                        </span>
+                        <span className="font-mono text-sm font-black text-cyan-400">
+                          {result.entryZone.min && result.entryZone.max
+                            ? ((Number(result.entryZone.min) + Number(result.entryZone.max)) / 2).toFixed(2)
+                            : (result.entryZone.recommended ?? 'N/A')}
+                        </span>
+                      </div>
+
+                      <div className={`p-3 rounded-xl border ${isLight ? 'bg-white/80 border-slate-200' : 'bg-black/40 border-white/[0.08]'}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isLight ? 'text-emerald-800' : 'text-emerald-400'}`}>
+                          Doporučený modelový vstup
+                        </span>
+                        <span className={`font-mono text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {result.entryZone.recommended ?? 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1a6]'}`}>
+                      {result.signal === 'SHORT'
+                        ? 'Medvědí Order Block představuje poslední nákupní svíčku před agresivním institucionálním propadem (BOS/MSS). Při korekčním návratu ceny k 50% Mean Threshold (MT) dochází k aktivaci zbývajících prodejních příkazů. Ochranný Stop Loss leží bezpečně nad horním knotem Order Blocku.'
+                        : 'Býčí Order Block představuje poslední prodejní svíčku před agresivní institucionální expanzí (BOS/MSS). Při korekčním návratu ceny k 50% Mean Threshold (MT) dochází k aktivaci nákupních institucionálních limitů. Ochranný Stop Loss leží bezpečně pod spodním knotem Order Blocku.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Dedicated FVG Imbalance Zones Card */}
               {(result.fvgZones || []).length > 0 && (

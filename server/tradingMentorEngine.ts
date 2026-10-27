@@ -113,10 +113,12 @@ export function getAssetPrecision(symbol?: string, price?: number): number {
  */
 export function formatMentorPrice(val?: number, symbol?: string): string {
   if (val === undefined || val === null || isNaN(val)) return 'N/A';
-  const precision = getAssetPrecision(symbol, val);
+  const precision = Math.max(0, Math.min(8, getAssetPrecision(symbol, val)));
+  const minDecimals = Math.min(precision, 2);
+  const maxDecimals = Math.max(minDecimals, precision);
   return Number(val).toLocaleString('en-US', {
-    minimumFractionDigits: precision > 2 ? precision : 2,
-    maximumFractionDigits: precision,
+    minimumFractionDigits: minDecimals,
+    maximumFractionDigits: maxDecimals,
     useGrouping: false,
   });
 }

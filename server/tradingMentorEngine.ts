@@ -411,7 +411,7 @@ Trh se momentálně nachází v konsolidační fázi bez jasné institucionáln�
 1. **Vstupní zóna**: Doporučený vstup je na ceně **${entryStr}** (přípustné pásmo: **${entryRangeStr}**).
 2. **Zásada trpělivosti (Žádné FOMO)**: Nikdy nenaskakujte do rozjetého trhu tržním příkazem (Market) za nevýhodnou cenu. Pokud cena již odskočila k prvnímu cíli (${tp1Str}), vyčkejte na klidný návrat (retracement / retest).
 3. **Potvrzení na nižším rámci (LTF confirmation)**:
-   - Pro styl **${holdingPeriod}** sledujte 5M nebo 15M svíčky.
+   - Pro styl **${holdingPeriod}** sledujte ${holdingPeriod === 'scalp' ? '1M' : holdingPeriod === 'intraday' ? '5M' : '15M'} svíčky.
    - Vyčkejte na odmítnutí v naší zóně (např. svíčka s dlouhým knotem, engulfing svíčka nebo zaplnění Fair Value Gapu).
 4. **Zadání objednávky**: Ideální je zadat limitní čekající pokyn (Limit Order) na **${entryStr}** s předem nastaveným SL na **${slStr}**.`;
       }
@@ -473,15 +473,27 @@ Profesionální trading stojí na přesném řízení expozice:
       }
 
       case 'TIMEFRAME': {
+        const isScalp = holdingPeriod === 'scalp';
+        const isIntraday = holdingPeriod === 'intraday';
         return `### ⏱️ Práce s časovými rámci (Top-Down analýza) na ${symbol}
 
 Aktuální analýza pracuje s časovým rámcem **${timeframe}** v režimu pro **${holdingPeriod}**.
 
 Jak instituce skládají časové rámce dohromady:
-1. **Vyšší rámec (HTF - 4H / D1 / 1W)**: Určuje směr institucionálního toku objednávek a hlavní magnet likvidity (Draw on Liquidity).
+${isScalp
+  ? `1. **Vyšší rámec (HTF - 1H / H1)**: Určuje směr institucionálního toku objednávek a denní magnet likvidity (Draw on Liquidity).
+2. **Střední rámec (MTF - 5M)**: Identifikuje klíčové bloky objednávek (Order Blocks), strukturu a FVG nerovnováhy v pásmu **${entryRangeStr}**.
+3. **Vstupní rámec (LTF - 1M)**: Slouží pro bleskovou exekuci po mikro-CHoCH/mitigaci s minimálním rizikem Stop Lossu (${slDistPercent} %).
+4. **Zlaté pravidlo scalpera**: Nikdy neobchodujte signál na 1M proti trendu na 1H! Rámec 5M filtruje falešné průrazy a 1M dává přesný bod naskočení.`
+  : isIntraday
+  ? `1. **Vyšší rámec (HTF - 1H / H1)**: Určuje směr institucionálního toku objednávek a denní magnet likvidity (Draw on Liquidity).
+2. **Střední rámec (MTF - 15M)**: Identifikuje klíčové bloky objednávek (Order Blocks) a nerovnováhy (FVG) v pásmu **${entryRangeStr}**.
+3. **Nižší rámec (LTF - 5M)**: Slouží čistě pro exekuci a načasování vstupu, aby se minimalizovala vzdálenost Stop Lossu (${slDistPercent} %).
+4. **Zlaté pravidlo**: Nikdy neobchodujte signály na 5M bez souladu s trendem na 1H! Rámec H1 dává jasný směr obchodní seance bez zbytečného zpoždění.`
+  : `1. **Vyšší rámec (HTF - 4H / D1 / 1W)**: Určuje směr institucionálního toku objednávek a hlavní magnet likvidity (Draw on Liquidity).
 2. **Střední rámec (MTF - 1H / 15M)**: Identifikuje klíčové bloky objednávek (Order Blocks) a nerovnováhy (FVG) v pásmu **${entryRangeStr}**.
 3. **Nižší rámec (LTF - 5M / 1M)**: Slouží čistě pro exekuci a načasování vstupu, aby se minimalizovala vzdálenost Stop Lossu (${slDistPercent} %).
-4. **Varování**: Nikdy neobchodujte signály na 1M/5M bez souladu s trendem na 1H/4H! Nízké rámce obsahují obrovské množství šumu.`;
+4. **Varování**: Nikdy neobchodujte signály na 1M/5M bez souladu s trendem na 1H/4H! Nízké rámce obsahují obrovské množství šumu.`}`;
       }
 
       case 'SMC_CONCEPTS': {

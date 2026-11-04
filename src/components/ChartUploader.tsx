@@ -166,19 +166,19 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
           step: '01',
           tf: '1H',
           role: lang === 'cs' ? 'Vyšší Timeframe' : lang === 'es' ? 'Temporalidad Mayor' : 'Higher Timeframe',
-          desc: lang === 'cs' ? 'HTF Trend & Hlavní S/R úrovně' : lang === 'es' ? 'Tendencia HTF y Niveles S/R Clave' : 'HTF Trend & Key S/R Levels',
+          desc: lang === 'cs' ? 'HTF Trend & Denní likvidita' : lang === 'es' ? 'Tendencia HTF y Liquidez Diaria' : 'HTF Trend & Daily Liquidity',
         },
         {
           step: '02',
-          tf: '15m',
+          tf: '5m',
           role: lang === 'cs' ? 'Tržní Struktura' : lang === 'es' ? 'Estructura de Mercado' : 'Market Structure',
           desc: lang === 'cs' ? 'MTF Struktura & FVG zóny' : lang === 'es' ? 'Estructura MTF y Zonas FVG' : 'MTF Structure & FVG Zones',
         },
         {
           step: '03',
-          tf: '5m / 1m',
+          tf: '1m',
           role: lang === 'cs' ? 'Vstup & Trigger' : lang === 'es' ? 'Entrada y Disparador' : 'Entry & Trigger',
-          desc: lang === 'cs' ? 'LTF Vstupní trigger & CHoCH' : lang === 'es' ? 'Disparador LTF y CHoCH' : 'LTF Entry Trigger & CHoCH',
+          desc: lang === 'cs' ? 'LTF Bleskový vstup & Micro-CHoCH' : lang === 'es' ? 'Entrada Flash LTF y Micro-CHoCH' : 'LTF Flash Entry & Micro-CHoCH',
         },
       ],
     },
@@ -189,7 +189,7 @@ export const ChartUploader: React.FC<ChartUploaderProps> = ({
       slots: [
         {
           step: '01',
-          tf: '4H',
+          tf: '1H',
           role: lang === 'cs' ? 'Vyšší Timeframe' : lang === 'es' ? 'Temporalidad Mayor' : 'Higher Timeframe',
           desc: lang === 'cs' ? 'HTF Kontext & Hlavní likvidita' : lang === 'es' ? 'Contexto HTF y Liquidez Principal' : 'HTF Context & Key Liquidity',
         },

@@ -1603,8 +1603,8 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
 
   // Top-Down sequence corresponding to 3 slots: Slot 01 (HTF) + Slot 02 (MTF) + Slot 03 (LTF)
   const slotMapping: Record<string, string[]> = {
-    scalp: ['H1', 'M15', 'M5'],
-    intraday: ['H4', 'M15', 'M5'],
+    scalp: ['H1', 'M5', 'M1'],
+    intraday: ['H1', 'M15', 'M5'],
     swing: ['D1', 'H4', 'H1'],
     position: ['W1', 'D1', 'H4'],
   };
@@ -1775,27 +1775,27 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
   // Baseline structural Stop Loss percentage range based on holding period & asset volatility
   let baseSlPercent = 1.0;
   if (isCrypto) {
-    if (holdingPeriod === 'scalp') baseSlPercent = 0.85;
-    else if (holdingPeriod === 'intraday') baseSlPercent = 1.75;
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.55;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 1.45;
     else if (holdingPeriod === 'swing') baseSlPercent = 2.85;
     else baseSlPercent = 3.90;
   } else if (isGoldOrMetal) {
-    if (holdingPeriod === 'scalp') baseSlPercent = 0.45;
-    else if (holdingPeriod === 'intraday') baseSlPercent = 0.90;
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.28;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 0.70;
     else if (holdingPeriod === 'swing') baseSlPercent = 1.70;
     else baseSlPercent = 2.50;
   } else if (isForex) {
-    if (holdingPeriod === 'scalp') baseSlPercent = 0.22;
-    else if (holdingPeriod === 'intraday') baseSlPercent = 0.45;
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.15;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 0.35;
     else if (holdingPeriod === 'swing') baseSlPercent = 0.85;
     else baseSlPercent = 1.40;
   } else if (isIndex) {
-    if (holdingPeriod === 'scalp') baseSlPercent = 0.45;
-    else if (holdingPeriod === 'intraday') baseSlPercent = 0.95;
+    if (holdingPeriod === 'scalp') baseSlPercent = 0.30;
+    else if (holdingPeriod === 'intraday') baseSlPercent = 0.75;
     else if (holdingPeriod === 'swing') baseSlPercent = 1.80;
     else baseSlPercent = 2.80;
   } else {
-    baseSlPercent = holdingPeriod === 'scalp' ? 0.50 : holdingPeriod === 'intraday' ? 1.05 : 2.10;
+    baseSlPercent = holdingPeriod === 'scalp' ? 0.35 : holdingPeriod === 'intraday' ? 0.85 : 2.10;
   }
 
   // Calculate mathematically robust Entry, Stop Loss, and TP1/TP2/TP3 targets based on live levels
@@ -3383,8 +3383,8 @@ This platform operates strictly as an educational analysis and technical researc
    - Formulate all statements objectively and probabilistically in the third person.
    - Describe setups as theoretical models, observations, probability scenarios, and methodology criteria.
    - Examples of required transformation:
-     * Instead of: "Potvrzený Market Structure Shift (MSS) na 4H grafu s následným vytvořením býčího FVG..."
-       Write: "Modelová indikace posunu tržní struktury (MSS) na 4H grafu s vytvořením býčího FVG, které metodicky představuje potenciální supportní zónu..."
+     * Instead of: "Potvrzený Market Structure Shift (MSS) na 1H grafu s následným vytvořením býčího FVG..."
+       Write: "Modelová indikace posunu tržní struktury (MSS) na 1H grafu s vytvořením býčího FVG, které metodicky představuje potenciální supportní zónu..."
      * Instead of: "Jasné proražení lokální rezistence s následným potvrzením..."
        Write: "Cenový vývoj vykazující znaky průrazu lokální rezistence s následným testem na nižších časových rámcích..."
      * Instead of: "Dodržujte striktní risk management 0.5-1% na obchod. Vzhledem k vysoké volatilitě zlata nepoužívejte nadměrnou páku."

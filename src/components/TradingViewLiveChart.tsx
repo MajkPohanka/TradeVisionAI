@@ -594,8 +594,8 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       case 'scalp':
         return [
           { num: 1, role: `HTF (1H ${trendWord})`, tf: '1H', short: 'Slot 1 (HTF)' },
-          { num: 2, role: `MTF (15m ${structWord})`, tf: '15m', short: 'Slot 2 (MTF)' },
-          { num: 3, role: `LTF (5m/1m ${entryWord})`, tf: '5m', short: 'Slot 3 (LTF)' },
+          { num: 2, role: `MTF (5m ${structWord})`, tf: '5m', short: 'Slot 2 (MTF)' },
+          { num: 3, role: `LTF (1m ${entryWord})`, tf: '1m', short: 'Slot 3 (LTF)' },
         ];
       case 'swing':
         return [
@@ -612,7 +612,7 @@ export const TradingViewLiveChart: React.FC<TradingViewLiveChartProps> = ({
       case 'intraday':
       default:
         return [
-          { num: 1, role: `HTF (4H ${trendWord})`, tf: '4H', short: 'Slot 1 (HTF)' },
+          { num: 1, role: `HTF (1H ${trendWord})`, tf: '1H', short: 'Slot 1 (HTF)' },
           { num: 2, role: `MTF (15m ${structWord})`, tf: '15m', short: 'Slot 2 (MTF)' },
           { num: 3, role: `LTF (5m ${entryWord})`, tf: '5m', short: 'Slot 3 (LTF)' },
         ];

@@ -114,8 +114,8 @@ export function getSlotTimeframeSequence(
   slots: (string | null | undefined)[] = []
 ): string {
   const slotMap: Record<HoldingPeriod, string[]> = {
-    scalp: ['H1', 'M15', 'M5'],
-    intraday: ['H4', 'M15', 'M5'],
+    scalp: ['H1', 'M5', 'M1'],
+    intraday: ['H1', 'M15', 'M5'],
     swing: ['D1', 'H4', 'H1'],
     position: ['W1', 'D1', 'H4'],
   };

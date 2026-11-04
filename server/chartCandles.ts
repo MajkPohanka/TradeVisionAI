@@ -174,31 +174,31 @@ function resolveIntervals(timeframe: string) {
     // Prefer the execution/trigger timeframe (last part, e.g. M5 or M15) or first part
     tf = parts[parts.length - 1] || parts[0] || '15m';
   }
-  let binanceInterval = '4h';
+  let binanceInterval = '1h';
   let yahooInterval = '1h';
   let yahooRange = '5d';
 
-  if (tf === '1m' || tf === '1') {
+  if (tf === '1m' || tf === '1' || tf === 'm1') {
     binanceInterval = '1m';
     yahooInterval = '1m';
     yahooRange = '1d';
-  } else if (tf === '5m' || tf === '5') {
+  } else if (tf === '5m' || tf === '5' || tf === 'm5') {
     binanceInterval = '5m';
     yahooInterval = '5m';
     yahooRange = '1d';
-  } else if (tf === '15m' || tf === '15') {
+  } else if (tf === '15m' || tf === '15' || tf === 'm15') {
     binanceInterval = '15m';
     yahooInterval = '15m';
     yahooRange = '2d';
-  } else if (tf === '30m' || tf === '30') {
+  } else if (tf === '30m' || tf === '30' || tf === 'm30') {
     binanceInterval = '30m';
     yahooInterval = '30m';
     yahooRange = '5d';
-  } else if (tf === '1h' || tf === '60') {
+  } else if (tf === '1h' || tf === 'h1' || tf === '60' || tf === '60m') {
     binanceInterval = '1h';
     yahooInterval = '1h';
     yahooRange = '5d';
-  } else if (tf === '4h' || tf === '240') {
+  } else if (tf === '4h' || tf === 'h4' || tf === '240' || tf === '240m') {
     binanceInterval = '4h';
     yahooInterval = '1h'; // Yahoo doesn't support 4h directly, we group or use 1h/5d
     yahooRange = '15d';
@@ -346,11 +346,11 @@ function generateSimulatedCandles(basePrice: number, count = 65): Candle[] {
 function formatTimeframeLabel(tf: string): string {
   if (!tf) return '15m';
   const clean = tf.toString().trim().toUpperCase();
-  if (clean === '240' || clean === '240M' || clean === '4H' || clean === '4HOUR' || clean === '4HOURS') return '4H';
-  if (clean === '60' || clean === '60M' || clean === '1H' || clean === '1HOUR' || clean === '1HOURS') return '1H';
-  if (clean === '15' || clean === '15M') return '15m';
-  if (clean === '5' || clean === '5M') return '5m';
-  if (clean === '1' || clean === '1M') return '1m';
+  if (clean === '240' || clean === '240M' || clean === '4H' || clean === 'H4' || clean === '4HOUR' || clean === '4HOURS') return '4H';
+  if (clean === '60' || clean === '60M' || clean === '1H' || clean === 'H1' || clean === '1HOUR' || clean === '1HOURS') return '1H';
+  if (clean === '15' || clean === '15M' || clean === 'M15') return '15m';
+  if (clean === '5' || clean === '5M' || clean === 'M5') return '5m';
+  if (clean === '1' || clean === '1M' || clean === 'M1') return '1m';
   if (clean === 'D' || clean === '1D' || clean === 'DAILY') return '1D';
   if (clean === 'W' || clean === '1W' || clean === 'WEEKLY') return '1W';
   return clean;

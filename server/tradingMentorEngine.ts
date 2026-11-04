@@ -337,8 +337,9 @@ export function generateDynamicMentorAnswer(
   const accountSize = settings?.accountSizeUsd || 10000;
   const riskAmount = (accountSize * (riskPercent / 100)).toFixed(0);
 
-  // Fallback context when no chart is loaded yet
-  if (!analysis || !analysis.symbol) {
+  // Fallback context when no chart is loaded yet and question requires chart-specific levels
+  const isGeneralEducationalIntent = ['SMC_CONCEPTS', 'PSYCHOLOGY', 'NEWS_MACRO', 'BREAKEVEN', 'RISK_LOTS', 'TIMEFRAME'].includes(intent);
+  if ((!analysis || !analysis.symbol) && !isGeneralEducationalIntent) {
     if (lang === 'en') {
       return `### 🎓 AI Trading Mentor — Academy & Chart Setup
 No active chart analysis is currently loaded. 
@@ -497,12 +498,44 @@ ${isScalp
       }
 
       case 'SMC_CONCEPTS': {
+        const isFvgSpecific = /(fvg|ce|consequent|encroachment|nerovnovah|imbalance|polovin|stred)/i.test(question);
+        const isObSpecific = /(order\s*block|orderblock|mean\s*threshold|blok\s*objedn)/i.test(question);
+
+        if (isFvgSpecific) {
+          return `### 📐 Fair Value Gap (FVG) & 50% CE (Consequent Encroachment) na ${symbol}
+
+1. **Co přesně je 50% CE (Consequent Encroachment)?**:
+   - **Consequent Encroachment (CE)** představuje přesnou **50% úroveň (střed)** mezi horní a spodní hranou Fair Value Gapu (FVG).
+   - Matematický vzorec: \`CE úroveň = (FVG High + FVG Low) / 2\`.
+   - V institucionální aukční teorii (ICT/SMC) platí, že institucionální algoritmy nemusí zaplnit FVG celý (100 %). Pro kompletní tržní vyvážení (rebalancing) jim často postačí otestovat právě **50% CE úroveň**.
+
+2. **Jak se chová cena na 50% CE úrovni**:
+   - **Býčí FVG**: Pokles ceny do 50% CE představuje diskontní slevu. Pokud svíčka knotem otestuje CE a tělo uzavře nad 50 %, jedná se o nejsilnější nákupní potvrzení.
+   - **Medvědí FVG**: Růst ceny do 50% CE je prémiovým testem nabídky. Odraz s uzavřením pod 50 % potvrzuje dominanci prodejců.
+   - **Varování**: Pokud tělo svíčky prorazí a uzavře za celým FVG (nebo hluboko pod CE), FVG je považován za narušený a mění se v tzv. **Inversion FVG (IFVG)**.
+
+3. **Využití v aktuálním plánu**:
+   - Vstupní doporučení modelu v zóně **${entryRangeStr}** často cílí právě na 50% CE úroveň institucionálního FVG pro optimální poměr zisku k riziku.`;
+        }
+
+        if (isObSpecific) {
+          return `### 🏛️ Order Block (OB) & 50% Mean Threshold na ${symbol}
+
+1. **Co je Mean Threshold (50% střed Order Blocku)**:
+   - **Mean Threshold (MT)** je přesný 50% střed Order Blocku: \`(High + Low) / 2\`.
+   - Podle institucionálních pravidel nesmí tělo následné svíčky uzavřít za touto 50% linií, jinak je Order Block statisticky oslaben nebo neplatný (Breaker Block).
+
+2. **Pravidla exekuce**:
+   - Vstupní pásmo: **${entryRangeStr}** (ideální vstup: **${entryStr}**).
+   - Ochrana kapitálu: Stop Loss na **${slStr}** je umístěn bezpečně za základnou tohoto Order Blocku.`;
+        }
+
         return `### 📚 Metodika Smart Money Concepts (SMC) aplikovaná na ${symbol}
 
 V této analýze systém vyhodnotil klíčové institucionální struktury:
 1. **Liquidity Sweep (Výběr likvidity)**: Pohyb ceny za hranici předchozích swingů slouží velkým bankám a fondům k naplnění velkých objednávek protistranou.
-2. **Fair Value Gap (FVG)**: Třísvíčková cenová nerovnováha. Trh má přirozenou tendenci se do FVG vrátit (rebalance) na hladinu **${entryStr}**, než bude pokračovat v expanzi.
-3. **Order Block (OB)**: Zóna na úrovni **${entryRangeStr}**, kde instituce otevřely své pozice. Tato zóna slouží jako silný magnet a následně pevný odrazový můstek.
+2. **Fair Value Gap (FVG) & 50% CE**: Třísvíčková cenová nerovnováha. Trh má přirozenou tendenci se do FVG vrátit a otestovat jeho **50% CE (Consequent Encroachment)** střed na hladině **${entryStr}**, než bude pokračovat v expanzi.
+3. **Order Block (OB) & Mean Threshold**: Zóna na úrovni **${entryRangeStr}**, kde instituce otevřely své pozice. 50% střed (Mean Threshold) slouží jako pevný odrazový můstek.
 4. **Market Structure Shift (MSS)**: Potvrzení, že lokální trend byl přerušen a kontrolu převzal dominantní směr (${isLong ? 'Kupující' : isShort ? 'Prodejci' : 'Konsolidace'}).`;
       }
 

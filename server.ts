@@ -1592,7 +1592,7 @@ function sanitizeAndValidateTradePlan(
 
 async function generateInstitutionalFallbackAnalysis(settings: any, images: string[] = [], requestedTimeframe?: string): Promise<any> {
   const lang = settings?.language || 'cs';
-  const holdingPeriod = settings?.holdingPeriod || 'intraday';
+  const holdingPeriod = String(settings?.holdingPeriod || settings?.tradingStyle || 'intraday').toLowerCase();
   const riskTolerance = settings?.riskTolerance || 'balanced';
   const selectedStrategies: string[] = Array.isArray(settings?.strategies) && settings.strategies.length > 0
     ? settings.strategies
@@ -1826,7 +1826,7 @@ async function generateInstitutionalFallbackAnalysis(settings: any, images: stri
 
   // Dynamic R:R Multipliers based on User Horizon & Risk Profile (Realistic, high-probability institutional targets)
   const userRrSetting = String(settings?.riskRewardProfile || settings?.riskRewardRatio || '').toLowerCase();
-  const userHoldingPeriod = String(settings?.holdingPeriod || 'intraday').toLowerCase();
+  const userHoldingPeriod = String(settings?.holdingPeriod || settings?.tradingStyle || 'intraday').toLowerCase();
   const userRiskTolerance = String(settings?.riskTolerance || 'balanced').toLowerCase();
 
   // Dynamically calibrate R:R multiples based on ATR volatility and price structure
